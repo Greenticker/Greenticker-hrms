@@ -1,0 +1,10 @@
+{
+  "name": "Greenticker Financial Services LLP - HRMS",
+  "description": "Enterprise Human Resource Management System for Greenticker Financial Services LLP",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
