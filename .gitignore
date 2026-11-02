@@ -15,3 +15,8 @@ venv/
 
 # Runtime uploads
 uploads/
+
+# Local data store: real employee records, password hashes, bank details
+data/
+backend/data/
+*.json.tmp

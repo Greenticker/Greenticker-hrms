@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vetan.ai - Enterprise HRMS</title>
+    <meta name="description" content="Vetan.ai - Enterprise-grade Human Resource Management System featuring complete employee lifecycle, onboarding, attendance with overtime, leave, expenses, payroll, tax &amp; Form 16, policies, POSH, and RBAC." />
+    <meta property="og:title" content="Vetan.ai - Enterprise HRMS" />
+    <meta property="og:description" content="Vetan.ai - Enterprise-grade Human Resource Management System featuring complete employee lifecycle, onboarding, attendance with overtime, leave, expenses, payroll, tax &amp; Form 16, policies, POSH, and RBAC." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+      // Squelch unhandled errors and promise rejections originating from third-party browser extensions (e.g. MetaMask, web3 wallets, grammarly)
+      (function() {
+        function isExtensionNoise(err, source) {
+          try {
+            var msg = String((err && (err.message || err.stack || err.reason || err)) || '');
+            var src = String(source || (err && (err.filename || err.stack)) || '');
+            var text = (msg + ' ' + src).toLowerCase();
+            return (
+              text.indexOf('chrome-extension://') !== -1 ||
+              text.indexOf('moz-extension://') !== -1 ||
+              text.indexOf('safari-extension://') !== -1 ||
+              text.indexOf('nkbihfbeogaeaoehlefnkodbefgpgknn') !== -1 ||
+              text.indexOf('metamask') !== -1 ||
+              text.indexOf('failed to connect to metamask') ||
+              text.indexOf('ethereum') !== -1
+            );
+          } catch (e) {
+            return false;
+          }
+        }
+
+        window.addEventListener('error', function(event) {
+          if (isExtensionNoise(event.error, event.filename)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isExtensionNoise(event.reason, '')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
