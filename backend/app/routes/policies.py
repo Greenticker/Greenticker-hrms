@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
-from app.routes.common import DOCUMENTS_DIR, audit, client_ip, read_body, read_fields_and_files, save_upload
+from app.routes.common import DOCUMENTS, MAX_UPLOAD_BYTES, audit, client_ip, format_bytes, read_body, read_fields_and_files, save_upload
 from app.stores.db_store import db_store
 from app.stores.modules_store import modules_store
 from app.utils.jsutil import js_str, now_iso, now_ms, rand_int, today_str, truthy
@@ -55,10 +55,10 @@ async def upload_policy(request: Request, _: dict = Depends(require_role("ADMIN"
     upload = (files.get("policyPdf") or [None])[0]
     if upload is None:
         raise ApiError(400, "No PDF file uploaded.")
-    if (upload.size or 0) > 10 * 1024 * 1024:
-        raise ApiError(400, "Policy PDF size cannot exceed 10MB.")
+    if (upload.size or 0) > MAX_UPLOAD_BYTES:
+        raise ApiError(400, f"Policy PDF size cannot exceed {format_bytes(MAX_UPLOAD_BYTES)}.")
 
-    saved = await save_upload(upload, DOCUMENTS_DIR, 25 * 1024 * 1024)
+    saved = await save_upload(upload, DOCUMENTS)
     policy_id = f"pol_{now_ms()}"
     mandatory = body.get("mandatory")
     policy = {

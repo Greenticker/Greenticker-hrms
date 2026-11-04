@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.config import FRONTEND_DIST, PORT, is_production
+from app.config import FRONTEND_DIST, IS_VERCEL, PORT, is_production
 from app.database import persistence
 from app.errors import ApiError
 from app.routes import (
@@ -36,12 +36,15 @@ from app.routes import (
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # On Vercel this may not run at all; persistence also connects lazily on the first request.
     await persistence.connect()
-    # Performance reminders; does nothing until HR switches them on
-    reminders = asyncio.get_running_loop().create_task(performance_ops.reminder_loop())
+    # Performance reminders; does nothing until HR switches them on. On Vercel, Vercel Cron
+    # calls /api/performance/reminders/cron instead (see vercel.json).
+    reminders = None if IS_VERCEL else asyncio.get_running_loop().create_task(performance_ops.reminder_loop())
     print(f"[RHYA HRMS] Server running on http://0.0.0.0:{PORT}")
     yield
-    reminders.cancel()
+    if reminders:
+        reminders.cancel()
     print("[RHYA HRMS] Shutting down, saving data...")
     await persistence.flush_and_close()
 
@@ -78,12 +81,12 @@ async def unhandled_error_handler(_: Request, exc: Exception):
 # ------------------------------------------------------------- persistence
 
 @app.middleware("http")
-async def persist_after_writes(request: Request, call_next):
-    """Save changes to MongoDB / the JSON file shortly after every API write request."""
-    response = await call_next(request)
-    if request.url.path.startswith("/api") and request.method not in ("GET", "HEAD", "OPTIONS"):
-        persistence.schedule_sync()
-    return response
+async def sync_data(request: Request, call_next):
+    """Load other instances' changes before each API request and save this one's before replying."""
+    if not request.url.path.startswith("/api"):
+        return await call_next(request)
+    async with persistence.request_scope(writes=request.method not in ("GET", "HEAD", "OPTIONS")):
+        return await call_next(request)
 
 
 # ------------------------------------------------------------------ routes
@@ -98,8 +101,14 @@ async def api_not_found(path: str):
     raise ApiError(404, "Endpoint not found.")
 
 
-# Public static files: ONLY organisation logos (never employee documents)
-app.mount("/uploads/logos", StaticFiles(directory=common.LOGOS_DIR), name="logos")
+# Public files: ONLY organisation logos (never employee documents)
+@app.get("/uploads/logos/{name}", include_in_schema=False)
+async def logo_file(name: str):
+    response = await common.stored_file_response(common.LOGOS, name, name, inline=True)
+    if not response:
+        raise ApiError(404, "Logo not found.")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 # Built frontend (frontend/dist). Only served when it exists, e.g. in production;

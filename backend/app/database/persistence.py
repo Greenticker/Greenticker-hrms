@@ -3,12 +3,20 @@ MongoDB persistence for the in-memory stores.
 
 - MongoDB is the source of truth. On first boot the seed data is written to it;
   on every later boot the data is loaded from it (seed data is NOT re-applied).
-- The stores (db_store / modules_store) stay as an in-process cache, so route code
-  works on plain dicts.
-- After each write request (and every 15s as a safety net) the collections are
-  diffed against what was last saved, and only changed documents are written.
-  This also catches in-place edits such as `emp["status"] = "X"`.
-- data/hrms_store.json is always written as a local copy and is loaded first.
+- The stores (db_store / modules_store / pms_store) stay as an in-process cache, so
+  route code works on plain dicts.
+- Every API request runs inside `request_scope()`:
+    1. before the handler, collections another server instance changed are
+       reloaded (a small version counter per collection lives in `_meta`);
+    2. after the handler, documents that changed are written to MongoDB
+       *before* the response is returned, and their collection versions bumped.
+  This is safe on serverless platforms (Vercel): several instances can run at
+  once, an instance can be frozen right after responding, and nothing depends on
+  background timers. Each instance writes only the documents it changed, so edits
+  to different documents never overwrite each other; two edits to the *same*
+  document at the same moment resolve as last-write-wins.
+- Without MONGODB_URI (local development only) data lives in data/hrms_store.json.
+  When not on Vercel the JSON file is also written as a local copy.
 
 The collection layout and document format match the previous Express server, so
 existing data is picked up unchanged.
@@ -19,12 +27,14 @@ import json
 import os
 import random
 import string
+import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
 
-from pymongo import AsyncMongoClient, DeleteOne, ReplaceOne
+from pymongo import AsyncMongoClient, DeleteOne, ReplaceOne, ReturnDocument
 
-from app.config import DATA_FILE
+from app.config import DATA_FILE, IS_VERCEL
 from app.stores.db_store import db_store
 from app.stores.invite_store import password_setup_tokens
 from app.stores.modules_store import modules_store
@@ -102,6 +112,9 @@ BINDINGS = [
     _map("pmsNotes", lambda: pms_store.pmsNotes),
 ]
 
+META = "_meta"
+VERSIONS_ID = "versions"
+
 
 class _State:
     def __init__(self) -> None:
@@ -113,12 +126,17 @@ _states: dict = {}
 # Stable Mongo _id for array items, by object identity. Holds a reference so ids stay valid.
 _key_of: dict = {}
 _seq_counter = 0
+# Collection -> version this instance last loaded or wrote (None = must reload)
+_versions: dict = {}
 
 _client: Optional[AsyncMongoClient] = None
+_client_loop = None
 _db = None
-_lock = asyncio.Lock()
-_pending: Optional[asyncio.TimerHandle] = None
-_interval_task: Optional[asyncio.Task] = None
+_ready = False
+_file_mode = False
+# One lock per event loop: requests in one process run one at a time, so a reload
+# never swaps data out from under a request that is still running.
+_locks: dict = {}
 
 
 def _state(name: str) -> _State:
@@ -133,6 +151,23 @@ def _dumps(body: dict) -> str:
 
 def _rand36(n: int) -> str:
     return "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(n))
+
+
+def _next_seq() -> int:
+    """Increasing across instances too (time-based), so array order survives multi-instance writes."""
+    global _seq_counter
+    _seq_counter = max(_seq_counter + 1, time.time_ns() // 1000)
+    return _seq_counter
+
+
+def _lock() -> asyncio.Lock:
+    loop = asyncio.get_running_loop()
+    entry = _locks.get(id(loop))
+    if entry is None or entry[0] is not loop:
+        entry = (loop, asyncio.Lock())
+        _locks.clear()
+        _locks[id(loop)] = entry
+    return entry[1]
 
 
 # --------------------------------------------------------------------------
@@ -219,11 +254,45 @@ def _fill(b: Binding, loaded: list) -> None:
                 st.seq[key] = seq
 
 
+def _changes(b: Binding) -> tuple:
+    """(ops, next_snapshot) needed to make MongoDB match memory for one binding."""
+    st = _state(b.name)
+    entries = _entries_of(b)
+    next_snapshot = {}
+    changed = []
+    new_keys = []
+    for key, value in entries:
+        body = _to_body(key, value)
+        text = _dumps(body)
+        next_snapshot[key] = text
+        if b.kind == "array" and key not in st.seq:
+            new_keys.append(key)
+        if st.snapshot.get(key) != text:
+            changed.append((key, body))
+
+    # Order for arrays: newest-first lists give index 0 the highest sequence number.
+    if b.kind == "array" and new_keys:
+        for key in (list(reversed(new_keys)) if b.newest_first else new_keys):
+            st.seq[key] = _next_seq()
+
+    ops = []
+    for key, body in changed:
+        replacement = {**body, "__seq": st.seq.get(key)} if b.kind == "array" else body
+        ops.append(ReplaceOne({"_id": key}, replacement, upsert=True))
+    for key in list(st.snapshot):
+        if key not in next_snapshot:
+            ops.append(DeleteOne({"_id": key}))
+            st.seq.pop(key, None)
+    return ops, next_snapshot
+
+
 # --------------------------------------------------------------------------
-# Local JSON file
+# Local JSON file (local development only)
 # --------------------------------------------------------------------------
 
 def _save_to_file() -> None:
+    if IS_VERCEL:
+        return  # read-only filesystem
     try:
         DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
         store_data = {}
@@ -261,97 +330,69 @@ def _load_from_file() -> bool:
 
 
 # --------------------------------------------------------------------------
-# Sync: memory -> Mongo (only changed documents)
+# MongoDB connection (one client per event loop; serverless runtimes may change loops)
 # --------------------------------------------------------------------------
 
-async def _sync_now() -> None:
-    global _seq_counter
-    if _db is not None:
-        for b in BINDINGS:
-            st = _state(b.name)
-            entries = _entries_of(b)
-            next_snapshot = {}
-            changed = []
-            new_keys = []
-
-            for key, value in entries:
-                body = _to_body(key, value)
-                text = _dumps(body)
-                next_snapshot[key] = text
-                if b.kind == "array" and key not in st.seq:
-                    new_keys.append(key)
-                if st.snapshot.get(key) != text:
-                    changed.append((key, body))
-
-            # Order for arrays: newest-first lists give index 0 the highest sequence number.
-            if b.kind == "array" and new_keys:
-                ordered = list(reversed(new_keys)) if b.newest_first else new_keys
-                for key in ordered:
-                    _seq_counter += 1
-                    st.seq[key] = _seq_counter
-
-            ops = []
-            for key, body in changed:
-                replacement = {**body, "__seq": st.seq.get(key)} if b.kind == "array" else body
-                ops.append(ReplaceOne({"_id": key}, replacement, upsert=True))
-            for key in list(st.snapshot):
-                if key not in next_snapshot:
-                    ops.append(DeleteOne({"_id": key}))
-                    st.seq.pop(key, None)
-
-            if ops:
-                await _db[b.name].bulk_write(ops, ordered=False)
-            st.snapshot = next_snapshot
-    else:
-        # Keep sequence numbers for new array items even without MongoDB, so file order survives.
-        for b in BINDINGS:
-            if b.kind != "array":
-                continue
-            st = _state(b.name)
-            new_keys = [k for k, _ in _entries_of(b) if k not in st.seq]
-            for key in (list(reversed(new_keys)) if b.newest_first else new_keys):
-                _seq_counter += 1
-                st.seq[key] = _seq_counter
-    _save_to_file()
+def _uri() -> Optional[str]:
+    return os.environ.get("MONGODB_URI") or None
 
 
-async def enqueue_sync() -> None:
-    async with _lock:
-        try:
-            await _sync_now()
-        except Exception as err:  # noqa: BLE001
-            print("[mongo] sync failed:", err)
+def _db_name() -> str:
+    return os.environ.get("MONGODB_DB_NAME") or "zenith_hrms"
 
 
-def schedule_sync(delay_s: float = 0.25) -> None:
-    """Persist shortly after a write request (calls within the delay are coalesced)."""
-    global _pending
-    if _pending is not None:
-        return
+def get_db():
+    """The database handle for the current event loop, or None without MONGODB_URI."""
+    global _client, _client_loop, _db
+    uri = _uri()
+    if not uri:
+        return None
     loop = asyncio.get_running_loop()
-
-    def fire() -> None:
-        global _pending
-        _pending = None
-        loop.create_task(enqueue_sync())
-
-    _pending = loop.call_later(delay_s, fire)
+    if _client is None or _client_loop is not loop:
+        _client = AsyncMongoClient(uri, serverSelectionTimeoutMS=5000)
+        _client_loop = loop
+        _db = _client[_db_name()]
+    return _db
 
 
-async def _interval_loop() -> None:
-    while True:
-        await asyncio.sleep(15)
-        await enqueue_sync()
+async def _remote_versions(database) -> dict:
+    doc = await database[META].find_one({"_id": VERSIONS_ID})
+    return (doc or {}).get("collections") or {}
 
 
-# --------------------------------------------------------------------------
-# Load: Mongo -> memory
-# --------------------------------------------------------------------------
+async def _load_collection(database, b: Binding) -> None:
+    docs = await database[b.name].find({}).to_list(None)
+    _fill(b, [_from_body(d) for d in docs])
 
-async def _load_from_mongo(database) -> None:
+
+async def _write(database, names: Optional[list] = None) -> list:
+    """Write changed documents; returns the names of collections that changed."""
+    changed_names = []
     for b in BINDINGS:
-        docs = await database[b.name].find({}).to_list(None)
-        _fill(b, [_from_body(d) for d in docs])
+        if names is not None and b.name not in names:
+            continue
+        ops, next_snapshot = _changes(b)
+        if ops:
+            await database[b.name].bulk_write(ops, ordered=False)
+            changed_names.append(b.name)
+        _state(b.name).snapshot = next_snapshot
+    return changed_names
+
+
+async def _bump_versions(database, names: list) -> None:
+    if not names:
+        return
+    doc = await database[META].find_one_and_update(
+        {"_id": VERSIONS_ID},
+        {"$inc": {f"collections.{n}": 1 for n in names}},
+        upsert=True,
+        return_document=ReturnDocument.AFTER,
+    )
+    remote = (doc or {}).get("collections") or {}
+    for n in names:
+        mine = _versions.get(n)
+        # If another instance also wrote this collection meanwhile, reload it next time
+        _versions[n] = remote.get(n) if mine is not None and remote.get(n) == mine + 1 else None
 
 
 async def _ensure_indexes(database) -> None:
@@ -373,62 +414,118 @@ async def _ensure_indexes(database) -> None:
         print("[mongo] index creation skipped:", err)
 
 
+async def ensure_ready() -> None:
+    """Connect and load data once per process (lazily, so it also works without startup hooks)."""
+    global _ready, _file_mode
+    if _ready:
+        return
+    database = get_db()
+    if database is None:
+        if IS_VERCEL:
+            raise RuntimeError("MONGODB_URI must be set when running on Vercel.")
+        _load_from_file()
+        _file_mode = True
+        _ready = True
+        print("[mongo] MONGODB_URI not set. Operating with local file persistence.")
+        return
+
+    uri = _uri() or ""
+    print("[mongo] target:", uri.split("@")[-1].split("?")[0] if "@" in uri else uri.split("?")[0])
+    print("[mongo] db name:", _db_name())
+    await database.command("ping")
+    meta = database[META]
+    if not await meta.find_one({"_id": "seeded"}):
+        # First run: memory holds the seed data (plus the local file copy, if any)
+        if not IS_VERCEL:
+            _load_from_file()
+        await _write(database)
+        await meta.update_one({"_id": "seeded"}, {"$set": {"at": now_iso()}}, upsert=True)
+        await meta.update_one(
+            {"_id": VERSIONS_ID}, {"$set": {f"collections.{b.name}": 1 for b in BINDINGS}}, upsert=True
+        )
+        for b in BINDINGS:
+            _versions[b.name] = 1
+        print(f'[mongo] First run - data saved to MongoDB ("{_db_name()}").')
+    else:
+        remote = await _remote_versions(database)
+        for b in BINDINGS:
+            await _load_collection(database, b)
+            _versions[b.name] = remote.get(b.name, 0)
+        print(f'[mongo] Loaded existing data from MongoDB ("{_db_name()}").')
+    await _ensure_indexes(database)
+    _ready = True
+
+
+async def _refresh(database) -> None:
+    """Reload only the collections another instance changed since we last saw them."""
+    remote = await _remote_versions(database)
+    for b in BINDINGS:
+        rv = remote.get(b.name, 0)
+        if _versions.get(b.name) != rv:
+            await _load_collection(database, b)
+            _versions[b.name] = rv
+
+
+async def _flush(database) -> None:
+    names = await _write(database)
+    await _bump_versions(database, names)
+    if names:
+        _save_to_file()
+
+
+@asynccontextmanager
+async def request_scope(writes: bool = True):
+    """Wrap one API request: fresh data in, changes saved before the response goes out."""
+    async with _lock():
+        await ensure_ready()
+        database = None if _file_mode else get_db()
+        if database is not None:
+            await _refresh(database)
+        try:
+            yield
+        finally:
+            if database is not None:
+                await _flush(database)
+            elif writes:
+                _save_to_file()
+
+
 # --------------------------------------------------------------------------
-# Public API
+# Public API kept for the app lifecycle and older callers
 # --------------------------------------------------------------------------
 
 def is_connected() -> bool:
-    return _db is not None
+    return _db is not None and not _file_mode
+
+
+def schedule_sync(*_args, **_kwargs) -> None:
+    """No-op: saving now happens inside request_scope before each response."""
 
 
 async def connect() -> None:
-    global _client, _db, _interval_task
-    # Always try the local JSON file first so previously created data is retained.
-    _load_from_file()
-    _interval_task = asyncio.get_running_loop().create_task(_interval_loop())
+    async with _lock():
+        await ensure_ready()
 
-    uri = os.environ.get("MONGODB_URI")
-    if not uri:
-        print("[mongo] MONGODB_URI not set. Operating with local file persistence.")
-        return
-    db_name = os.environ.get("MONGODB_DB_NAME") or "zenith_hrms"
-    print("[mongo] target:", uri.split("@")[-1].split("?")[0] if "@" in uri else uri.split("?")[0])
-    print("[mongo] db name:", db_name)
 
-    try:
-        _client = AsyncMongoClient(uri, serverSelectionTimeoutMS=5000)
-        _db = _client[db_name]
-        await _db.command("ping")
-
-        meta = _db["_meta"]
-        seeded = await meta.find_one({"_id": "seeded"})
-        if not seeded:
-            # First run: the stores hold the data (seed or loaded from the local file), so save it.
-            await _sync_now()
-            await meta.update_one({"_id": "seeded"}, {"$set": {"at": now_iso()}}, upsert=True)
-            print(f'[mongo] First run - data saved to MongoDB ("{db_name}").')
+async def save_now() -> None:
+    """Persist changes made outside a request (e.g. the background reminder job)."""
+    async with _lock():
+        await ensure_ready()
+        database = None if _file_mode else get_db()
+        if database is not None:
+            await _flush(database)
         else:
-            await _load_from_mongo(_db)
-            print(f'[mongo] Loaded existing data from MongoDB ("{db_name}").')
+            _save_to_file()
 
-        await _ensure_indexes(_db)
-    except Exception as err:  # noqa: BLE001
-        print("[mongo] WARNING: Could not connect to MongoDB. Operating with local file persistence:", err)
+
+async def flush_and_close() -> None:
+    global _client, _db, _client_loop, _ready
+    try:
+        await save_now()
+    finally:
         if _client is not None:
             await _client.close()
         _client = None
         _db = None
-
-
-async def flush_and_close() -> None:
-    global _client, _db, _pending
-    if _pending is not None:
-        _pending.cancel()
-        _pending = None
-    if _interval_task is not None:
-        _interval_task.cancel()
-    await enqueue_sync()
-    if _client is not None:
-        await _client.close()
-    _client = None
-    _db = None
+        _client_loop = None
+        _ready = False

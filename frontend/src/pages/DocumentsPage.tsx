@@ -7,6 +7,7 @@ import {
   DocumentCategory,
 } from '../types/documents';
 import { Employee } from '../types/employee';
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '../utils/uploadLimits';
 
 import {
   FileText,
@@ -148,7 +149,7 @@ export const DocumentsPage: React.FC = () => {
   const [filesMeta, setFilesMeta] = useState<
     Record<string, { title: string; category: DocumentCategory }>
   >({});
-  const MAX_TOTAL_BYTES = 10 * 1024 * 1024; // 10 MB total limit
+  const MAX_TOTAL_BYTES = MAX_UPLOAD_BYTES; // the whole batch goes in one request
 
   // Reject modal
   const [rejectingDocId, setRejectingDocId] =
@@ -297,7 +298,7 @@ export const DocumentsPage: React.FC = () => {
 
     if (isOverTotalLimit) {
       setErrorMsg(
-        `Total size of uploaded documents (${formatFileSize(totalSelectedBytes)}) exceeds the 10 MB total limit. Please remove some files.`
+        `Total size of uploaded documents (${formatFileSize(totalSelectedBytes)}) exceeds the ${MAX_UPLOAD_LABEL} total limit. Please remove some files.`
       );
       return;
     }
@@ -1160,18 +1161,18 @@ export const DocumentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Multi-file input zone & 10 MB Total Limit */}
+              {/* Multi-file input zone & total size limit */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-xs font-semibold text-slate-700">
-                    Upload Documents (Up to 10 MB in total) *
+                    Upload Documents (Up to {MAX_UPLOAD_LABEL} in total) *
                   </label>
                   <span
                     className={`text-[11px] font-mono font-semibold ${
                       isOverTotalLimit ? 'text-rose-600 font-bold' : 'text-slate-500'
                     }`}
                   >
-                    {formatFileSize(totalSelectedBytes)} / 10.0 MB
+                    {formatFileSize(totalSelectedBytes)} / {MAX_UPLOAD_LABEL}
                   </span>
                 </div>
 
@@ -1181,7 +1182,7 @@ export const DocumentsPage: React.FC = () => {
                     className={`h-full transition-all duration-300 ${
                       isOverTotalLimit
                         ? 'bg-rose-500'
-                        : totalSelectedBytes > 7 * 1024 * 1024
+                        : totalSelectedBytes > MAX_TOTAL_BYTES * 0.75
                         ? 'bg-amber-500'
                         : 'bg-emerald-500'
                     }`}
@@ -1195,7 +1196,7 @@ export const DocumentsPage: React.FC = () => {
                   <div className="p-2.5 mb-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
                     <span>
-                      Total file size exceeds 10 MB limit. Please remove some files to proceed.
+                      Total file size exceeds the {MAX_UPLOAD_LABEL} limit. Please remove some files to proceed.
                     </span>
                   </div>
                 )}
@@ -1207,7 +1208,7 @@ export const DocumentsPage: React.FC = () => {
                       Click to browse or drag & drop files here
                     </p>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      Select multiple files (PDF, PNG, JPG, DOCX). Total batch size must be under 10 MB.
+                      Select multiple files (PDF, PNG, JPG, DOCX). Total batch size must be under {MAX_UPLOAD_LABEL}.
                     </p>
                   </div>
 

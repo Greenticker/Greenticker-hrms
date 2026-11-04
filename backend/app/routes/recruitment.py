@@ -2,11 +2,11 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
-from app.routes.common import RESUMES_DIR, audit, read_body, read_fields_and_files, save_upload
+from app.routes.common import RESUMES, audit, read_body, read_fields_and_files, save_upload, stored_file_response
 from app.services.mailer import build_interview_email, build_offer_email, build_rejection_email, send_mail
 from app.stores.db_store import db_store
 from app.stores.modules_store import modules_store
@@ -427,7 +427,7 @@ async def create_referral(request: Request, user: dict = Depends(require_auth)):
     if upload is None:
         raise ApiError(400, "Please attach the candidate's resume.")
 
-    saved = await save_upload(upload, RESUMES_DIR, 5 * 1024 * 1024, lower_ext=True)
+    saved = await save_upload(upload, RESUMES, lower_ext=True)
     job = modules_store.jobOpenings.get(js_str(body["jobId"])) if truthy(body.get("jobId")) else None
 
     referral = modules_store.create_referral(user, {
@@ -457,10 +457,10 @@ async def referral_resume(ref_id: str, user: dict = Depends(require_auth)):
         raise ApiError(404, "Resume not found.")
     if not (user.get("role") == "ADMIN" or r.get("referredById") == user["_id"]):
         raise ApiError(403, "Only HR or the referrer can view this resume.")
-    physical = RESUMES_DIR / r["storedFileName"]
-    if not physical.is_file():
+    response = await stored_file_response(RESUMES, r["storedFileName"], r.get("resumeFileName") or "resume.pdf")
+    if not response:
         raise ApiError(404, "Resume file is missing on the server.")
-    return FileResponse(physical, filename=r.get("resumeFileName") or "resume.pdf")
+    return response
 
 
 @router.put("/recruitment/referrals/{ref_id}/status")

@@ -1,20 +1,24 @@
 """Helpers shared by the route modules."""
 
 import hashlib
+import mimetypes
 import os
 import re
 import secrets
 import time
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
 
 from fastapi import Request, UploadFile
+from fastapi.responses import Response
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app.auth.rbac import ROLE_PERMISSIONS
 from app.auth.security import hash_password
-from app.config import UPLOADS_DIR, is_production
+from app.config import is_production
 from app.errors import ApiError
+from app.services import file_store
 from app.services.mailer import build_onboarding_invite_email, send_mail
 from app.stores.db_store import db_store
 from app.stores.invite_store import INVITE_TTL_HOURS, invite_store
@@ -24,11 +28,13 @@ EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PASSWORD_RE = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
 _TOKEN_RE = re.compile(r"^[a-f0-9]{64}$", re.IGNORECASE)
 
-DOCUMENTS_DIR = UPLOADS_DIR / "documents"
-RESUMES_DIR = UPLOADS_DIR / "resumes"
-LOGOS_DIR = UPLOADS_DIR / "logos"
-for _d in (DOCUMENTS_DIR, RESUMES_DIR, LOGOS_DIR):
-    _d.mkdir(parents=True, exist_ok=True)
+# Upload kinds (see app/services/file_store.py for where the bytes are kept)
+DOCUMENTS = "documents"
+RESUMES = "resumes"
+LOGOS = "logos"
+
+# Vercel rejects request bodies over ~4.5 MB, so no single upload may exceed 4 MB
+MAX_UPLOAD_BYTES = 4 * 1024 * 1024
 
 
 # ------------------------------------------------------------------ requests
@@ -268,26 +274,34 @@ def unique_filename(original: str, lower_ext: bool = False) -> str:
     return f"{now_ms()}_{rand_base36(7)}{ext}"
 
 
-async def save_upload(upload: UploadFile, directory: Path, max_bytes: int, lower_ext: bool = False) -> dict:
-    """Stream an upload to disk. Returns {storedFileName, path, size, originalName, mimeType}.
-    Raises ApiError(413) when the file is larger than max_bytes."""
+async def save_upload(upload: UploadFile, kind: str, max_bytes: int = MAX_UPLOAD_BYTES, lower_ext: bool = False) -> dict:
+    """Store an upload (GridFS, or disk locally). Returns {storedFileName, size, originalName, mimeType}.
+    Raises ApiError(400) when the file is larger than max_bytes."""
+    max_bytes = min(max_bytes, MAX_UPLOAD_BYTES)
     stored = unique_filename(upload.filename or "", lower_ext)
-    target = directory / stored
-    size = 0
-    try:
-        with open(target, "wb") as out:
-            while chunk := await upload.read(1024 * 1024):
-                size += len(chunk)
-                if size > max_bytes:
-                    raise ApiError(400, "File too large")
-                out.write(chunk)
-    except ApiError:
-        target.unlink(missing_ok=True)
-        raise
+    chunks, size = [], 0
+    while chunk := await upload.read(1024 * 1024):
+        size += len(chunk)
+        if size > max_bytes:
+            raise ApiError(400, f"File too large. The maximum size is {format_bytes(max_bytes)}.")
+        chunks.append(chunk)
+    mime = upload.content_type or "application/octet-stream"
+    await file_store.save(kind, stored, b"".join(chunks), mime, upload.filename or "")
     return {
         "storedFileName": stored,
-        "path": target,
         "size": size,
         "originalName": upload.filename or "",
-        "mimeType": upload.content_type or "application/octet-stream",
+        "mimeType": mime,
     }
+
+
+async def stored_file_response(kind: str, stored: str, filename: Optional[str], inline: bool = False) -> Optional[Response]:
+    """Response with a stored upload's bytes, or None when it does not exist."""
+    found = await file_store.read(kind, stored)
+    if not found:
+        return None
+    data, content_type = found
+    content_type = content_type or mimetypes.guess_type(filename or stored)[0] or "application/octet-stream"
+    disposition = "inline" if inline else "attachment"
+    return Response(data, media_type=content_type,
+                    headers={"Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(filename or stored)}"})

@@ -8,6 +8,7 @@ Performance Management (PMS) – Phase 4 and the brief's "Later" items:
 """
 
 import asyncio
+import os
 from collections import Counter, defaultdict
 from datetime import date
 from typing import Optional
@@ -15,6 +16,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request
 
 from app.auth.security import require_auth, require_role
+from app.database import persistence
 from app.errors import ApiError
 from app.routes.common import audit, read_body
 from app.routes.performance import HR_ROLE, MODULE, _actor_name, _can_view_all, _kpi_section, _num, _text
@@ -318,15 +320,29 @@ def reminders_enabled() -> bool:
 
 
 async def reminder_loop() -> None:
-    """Background job: send due reminders every 6 hours when HR has switched them on."""
+    """Background job (long-running servers only): send due reminders every 6 hours when HR has
+    switched them on. On Vercel, Vercel Cron calls /api/performance/reminders/cron instead."""
     while True:
         await asyncio.sleep(60)
         try:
-            if reminders_enabled():
-                await run_reminders()
+            # Same load-then-save wrapper as a request, so changes reach MongoDB safely
+            async with persistence.request_scope():
+                if reminders_enabled():
+                    await run_reminders()
         except Exception as err:  # noqa: BLE001 - never kill the loop
             print("[pms] reminder run failed:", err)
         await asyncio.sleep(6 * 3600 - 60)
+
+
+@router.get("/reminders/cron")
+async def reminders_cron(request: Request):
+    """Called by Vercel Cron (see backend/vercel.json), which sends 'Authorization: Bearer <CRON_SECRET>'."""
+    secret = os.environ.get("CRON_SECRET") or ""
+    if not secret or request.headers.get("authorization") != f"Bearer {secret}":
+        raise ApiError(401, "Not authorised.")
+    if not reminders_enabled():
+        return {"skipped": True, "reason": "Automatic reminders are switched off."}
+    return await run_reminders()
 
 
 @router.get("/reminders")

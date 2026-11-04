@@ -23,8 +23,9 @@ import {
   Layers,
   Award,
 } from 'lucide-react';
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '../utils/uploadLimits';
 
-const MAX_RESUME_BYTES = 5 * 1024 * 1024;
+const MAX_RESUME_BYTES = MAX_UPLOAD_BYTES;
 
 const STATUS_LABEL: Record<ReferralStatus, string> = {
   SUBMITTED: 'Submitted',
@@ -217,7 +218,7 @@ export const RecruitmentPage: React.FC = () => {
     }
     if (file.size > MAX_RESUME_BYTES) {
       setResumeFile(null);
-      return setFormError('Resume must be 5 MB or smaller.');
+      return setFormError(`Resume must be ${MAX_UPLOAD_LABEL} or smaller.`);
     }
     setResumeFile(file);
   };
@@ -996,7 +997,7 @@ export const RecruitmentPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Resume * (PDF, DOC or DOCX, max 5 MB)</label>
+                <label className="block font-semibold text-slate-700 mb-1">Resume * (PDF, DOC or DOCX, max {MAX_UPLOAD_LABEL})</label>
                 <label className="flex items-center gap-2 p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100">
                   <FileText className="w-4 h-4 text-slate-500 shrink-0" />
                   <span className="truncate text-slate-600">{resumeFile ? resumeFile.name : 'Choose a file...'}</span>

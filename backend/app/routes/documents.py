@@ -3,17 +3,27 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
-from app.routes.common import DOCUMENTS_DIR, audit, format_bytes, read_body, read_fields_and_files, save_upload
+from app.routes.common import (
+    DOCUMENTS,
+    MAX_UPLOAD_BYTES,
+    audit,
+    format_bytes,
+    read_body,
+    read_fields_and_files,
+    save_upload,
+    stored_file_response,
+)
 from app.stores.db_store import db_store
 from app.utils.jsutil import now_iso, now_ms, truthy
 
 router = APIRouter()
 
-MAX_FILE_BYTES = 25 * 1024 * 1024
+MAX_FILE_BYTES = MAX_UPLOAD_BYTES  # 4 MB: Vercel's request size limit
+MAX_BATCH_BYTES = MAX_UPLOAD_BYTES  # a batch arrives in one request, so the same limit applies
 
 
 def _strip_ext(name: str) -> str:
@@ -76,7 +86,7 @@ async def upload_document(request: Request, user: dict = Depends(require_auth)):
 
     stored = None
     if upload:
-        saved = await save_upload(upload, DOCUMENTS_DIR, MAX_FILE_BYTES)
+        saved = await save_upload(upload, DOCUMENTS, MAX_FILE_BYTES)
         stored = saved["storedFileName"]
         file_name, file_type, file_size = saved["originalName"], saved["mimeType"], format_bytes(saved["size"])
     else:
@@ -113,14 +123,14 @@ async def upload_multiple(request: Request, user: dict = Depends(require_auth)):
     sizes = [u.size or 0 for u in uploads]
     total_bytes = sum(sizes)
     if any(sz > MAX_FILE_BYTES for sz in sizes):
-        raise ApiError(400, "File too large")
-    if total_bytes > 10 * 1024 * 1024:
+        raise ApiError(400, f"File too large. The maximum size is {format_bytes(MAX_FILE_BYTES)}.")
+    if total_bytes > MAX_BATCH_BYTES:
         raise ApiError(
             400,
-            f"Total size of uploaded documents ({format_bytes(total_bytes)}) exceeds the 10 MB total limit. "
-            "Please keep the combined size under 10 MB.",
+            f"Total size of uploaded documents ({format_bytes(total_bytes)}) exceeds the {format_bytes(MAX_BATCH_BYTES)} total limit. "
+            f"Please keep the combined size under {format_bytes(MAX_BATCH_BYTES)}, or upload them in smaller batches.",
             totalSize=format_bytes(total_bytes),
-            maxAllowed="10.00 MB",
+            maxAllowed=format_bytes(MAX_BATCH_BYTES),
         )
 
     default_category = body.get("category") or "IDENTITY"
@@ -140,7 +150,7 @@ async def upload_multiple(request: Request, user: dict = Depends(require_auth)):
     created = []
     for idx, upload in enumerate(uploads):
         meta = parsed_meta.get(upload.filename) or parsed_meta.get(str(idx)) or {}
-        saved = await save_upload(upload, DOCUMENTS_DIR, MAX_FILE_BYTES)
+        saved = await save_upload(upload, DOCUMENTS, MAX_FILE_BYTES)
         stored = saved["storedFileName"]
         doc = _new_document(
             user, emp,
@@ -175,9 +185,9 @@ async def download_document(doc_id: str, _: dict = Depends(require_auth)):
 
     stored = doc.get("storedFileName")
     if stored:
-        physical = DOCUMENTS_DIR / stored
-        if physical.is_file():
-            return FileResponse(physical, filename=doc.get("fileName"))
+        response = await stored_file_response(DOCUMENTS, stored, doc.get("fileName"))
+        if response:
+            return response
 
     content = (
         "%PDF-1.4\n% vetan.ai HRMS Enterprise Compliance Document Vault\n"

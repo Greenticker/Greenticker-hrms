@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { VetanLogo } from '../components/common/anusyuti_logo';
 import { Building2, Image, FileText, FileCode, CheckCircle2, ArrowRight, ArrowLeft, Upload, Loader2, Printer, Eye, Trash2, Plus } from 'lucide-react';
 import { api } from '../services/api';
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '../utils/uploadLimits';
 
 interface CompanySetupPageProps {
   onComplete: () => void;
@@ -142,8 +143,8 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
       setStep(4);
       return;
     }
-    if (policyFile.size > 10 * 1024 * 1024) {
-      setError('Policy PDF size must not exceed 10MB.');
+    if (policyFile.size > MAX_UPLOAD_BYTES) {
+      setError(`Policy PDF size must not exceed ${MAX_UPLOAD_LABEL}.`);
       return;
     }
     setError('');
@@ -470,7 +471,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
               <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Step 3: Company Policies & Handbooks</h3>
-                  <p className="text-xs text-slate-500">Upload compliance PDFs (Code of Conduct, POSH, InfoSec) up to 10MB.</p>
+                  <p className="text-xs text-slate-500">Upload compliance PDFs (Code of Conduct, POSH, InfoSec) up to {MAX_UPLOAD_LABEL}.</p>
                 </div>
               </div>
 

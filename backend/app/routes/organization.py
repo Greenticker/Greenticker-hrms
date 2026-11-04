@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
-from app.routes.common import LOGOS_DIR, audit, read_body, save_upload
+from app.routes.common import LOGOS, audit, read_body, save_upload
 from app.services.mailer import send_mail
 from app.stores.db_store import db_store
 from app.utils.jsutil import js_str, now_iso, now_ms, truthy
@@ -20,7 +20,8 @@ def _encode_uri_component(value: str) -> str:
 
 
 def _subdept_id(dept_id: str, name: str) -> str:
-    return f"subdept_{dept_id}_{_encode_uri_component(re.sub(r'\s+', '_', name.lower()))}"
+    slug = re.sub(r"\s+", "_", name.lower())  # outside the f-string: Python < 3.12 rejects backslashes there
+    return f"subdept_{dept_id}_{_encode_uri_component(slug)}"
 
 
 # -------------------------------------------------------------- departments
@@ -307,7 +308,7 @@ async def upload_logo(logo: Optional[UploadFile] = File(None), user: dict = Depe
     if logo is None or not logo.filename:
         raise ApiError(400, "No logo file uploaded.")
     try:
-        saved = await save_upload(logo, LOGOS_DIR, 2 * 1024 * 1024)
+        saved = await save_upload(logo, LOGOS, 2 * 1024 * 1024)
     except ApiError:
         raise ApiError(400, "Logo file size cannot exceed 2MB.")
 
