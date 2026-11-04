@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import FRONTEND_DIST, IS_VERCEL, PORT, is_production
 from app.database import persistence
 from app.errors import ApiError
+from app.request_path import RequestPathMiddleware
 from app.routes import (
     attendance,
     auth,
@@ -87,6 +88,10 @@ async def sync_data(request: Request, call_next):
         return await call_next(request)
     async with persistence.request_scope(writes=request.method not in ("GET", "HEAD", "OPTIONS")):
         return await call_next(request)
+
+
+# Added last, so it runs first: fixes the request path before routing (see app/request_path.py)
+app.add_middleware(RequestPathMiddleware)
 
 
 # ------------------------------------------------------------------ routes
