@@ -1,11 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60,
-      "excludeFiles": "{scripts/**,data/**,uploads/**,.venv/**,**/__pycache__/**}"
-    }
-  },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "builds": [{ "src": "api/index.py", "use": "@vercel/python" }],
+  "routes": [{ "src": "/(.*)", "dest": "api/index.py" }],
   "crons": [{ "path": "/api/performance/reminders/cron", "schedule": "30 3 * * *" }]
 }
