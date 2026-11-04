@@ -9,7 +9,8 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_ROOT / ".env")
 
 DATA_FILE = Path(os.environ.get("HRMS_DATA_FILE") or BACKEND_ROOT / "data" / "hrms_store.json")
-UPLOADS_DIR = BACKEND_ROOT / "uploads"
+# Point both at a persistent disk in production (e.g. /var/data/...)
+UPLOADS_DIR = Path(os.environ.get("HRMS_UPLOADS_DIR") or BACKEND_ROOT / "uploads")
 FRONTEND_DIST = BACKEND_ROOT.parent / "frontend" / "dist"
 
 DEV_JWT_SECRET = "zenith-hrms-enterprise-jwt-super-secret-key-2026"
