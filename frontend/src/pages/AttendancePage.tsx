@@ -15,8 +15,6 @@ import {
   MapPin,
 } from 'lucide-react';
 import { GeofenceD3Summary } from '../components/common/GeofenceD3Summary';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 
 type GPSLocation = {
   latitude: number;
@@ -294,50 +292,7 @@ export const AttendancePage: React.FC = () => {
     );
   });
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredRecords,
-      'Attendance_Overtime_Report',
-      'Attendance',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Department', key: 'department' },
-        { header: 'Date', key: 'date' },
-        { header: 'Shift Name', key: 'shiftName' },
-        { header: 'Check In', key: (r) => r.checkInTime || 'N/A' },
-        { header: 'Check Out', key: (r) => r.checkOutTime || 'N/A' },
-        { header: 'Effective Hours', key: 'effectiveWorkingHours' },
-        { header: 'Overtime Hours', key: 'overtimeHours' },
-        { header: 'Extra Salary Credit', key: (r) => r.extraDayCredit ? `+${r.extraDayCredit} day` : '0' },
-        { header: 'Status', key: 'status' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Name', 'Department', 'Date', 'Shift', 'In', 'Out', 'Hours', 'OT', 'Credit', 'Status'];
-    const rows = filteredRecords.map((r) => [
-      r.employeeCode,
-      r.employeeName,
-      r.department,
-      r.date,
-      r.shiftName,
-      r.checkInTime || '-',
-      r.checkOutTime || '-',
-      r.effectiveWorkingHours ? `${r.effectiveWorkingHours.toFixed(1)}h` : '-',
-      r.overtimeHours ? `${r.overtimeHours.toFixed(1)}h` : '0h',
-      r.extraDayCredit ? `+${r.extraDayCredit}` : '0',
-      r.status,
-    ]);
-    exportToPdf(
-      'Attendance & Overtime Timesheet Report',
-      headers,
-      rows,
-      'Attendance_Overtime_Report',
-      `Exported ${filteredRecords.length} attendance records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -350,10 +305,6 @@ export const AttendancePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={fetchAttendance}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-semibold transition border border-[#039583]"

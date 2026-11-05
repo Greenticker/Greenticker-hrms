@@ -5,8 +5,6 @@ import { employeeService } from '../services/employeeService';
 import { Payslip } from '../types/modules';
 import { Employee } from '../types/employee';
 import { VetanLogo } from '../components/common/anusyuti_logo';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   Banknote,
   Calendar,
@@ -313,49 +311,7 @@ export const PayrollPage: React.FC = () => {
     );
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredPayslips,
-      'Payroll_Payslips_Report',
-      'Payslips',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Department', key: 'department' },
-        { header: 'Designation', key: 'designation' },
-        { header: 'Month', key: 'monthName' },
-        { header: 'Basic Salary (₹)', key: 'basicSalary' },
-        { header: 'HRA (₹)', key: 'hra' },
-        { header: 'Special Allowance (₹)', key: (p) => p.specialAllowance || 0 },
-        { header: 'Gross Salary (₹)', key: 'grossSalary' },
-        { header: 'PF Deduction (₹)', key: 'providentFund' },
-        { header: 'PT Deduction (₹)', key: 'professionalTax' },
-        { header: 'TDS Deduction (₹)', key: (p) => p.tds || 0 },
-        { header: 'Total Deductions (₹)', key: 'totalDeductions' },
-        { header: 'Net Salary (₹)', key: 'netSalary' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Name', 'Department', 'Month', 'Gross (₹)', 'Deductions (₹)', 'Net Pay (₹)'];
-    const rows = filteredPayslips.map((p) => [
-      p.employeeCode,
-      p.employeeName,
-      p.department,
-      p.monthName,
-      `₹${fmt(p.grossSalary)}`,
-      `₹${fmt(p.totalDeductions)}`,
-      `₹${fmt(p.netSalary)}`,
-    ]);
-    exportToPdf(
-      'Enterprise Payroll Statements Summary Report',
-      headers,
-      rows,
-      'Payroll_Payslips_Report',
-      `Exported ${filteredPayslips.length} monthly salary payslip records`
-    );
-  };
 
   const handleSinglePrint = () => {
     const el = document.getElementById('payslip-print');
@@ -411,10 +367,6 @@ export const PayrollPage: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
 
           {isAdmin && (
             <>

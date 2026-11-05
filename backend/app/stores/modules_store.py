@@ -72,6 +72,8 @@ class ModulesStore:
         ]
         for name in names:
             setattr(self, name, seed_container("modules", name))
+        # Employee-submitted resignations (no seed data)
+        self.resignations: dict = {}
 
     # ------------------------------------------------------------------ leave
 

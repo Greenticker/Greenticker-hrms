@@ -24,6 +24,7 @@ import {
   Target,
   LifeBuoy,
   UserMinus,
+  LogOut,
   BarChart3,
   TrendingUp,
   ScrollText,
@@ -118,6 +119,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
             label: 'Exit Management',
             icon: UserMinus,
             roles: ['SUPER_ADMIN', 'ADMIN_1', 'ADMIN_2', 'FINANCE', 'HR', 'ACCOUNTS', 'AUDITORS', 'ADMIN'],
+          },
+          {
+            id: 'resignation',
+            label: 'My Resignation',
+            icon: LogOut,
+            roles: ALL_ENTERPRISE_ROLES,
           },
           {
             id: 'documents',

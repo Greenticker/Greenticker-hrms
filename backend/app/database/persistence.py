@@ -93,6 +93,7 @@ BINDINGS = [
     _map("assets", lambda: modules_store.assets),
     _map("hrRequests", lambda: modules_store.hrRequests),
     _map("fullFinalSettlements", lambda: modules_store.fullFinalSettlements),
+    _map("resignations", lambda: modules_store.resignations),
     _map("insuranceEnrollments", lambda: modules_store.insuranceEnrollments),
     _map("insuranceClaims", lambda: modules_store.insuranceClaims),
     # performance management store

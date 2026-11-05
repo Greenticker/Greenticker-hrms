@@ -34,6 +34,7 @@ import { RecruitmentPage } from './pages/RecruitmentPage';
 import { HrRequestsPage } from './pages/HrRequestsPage';
 import { FullFinalPage } from './pages/FullFinalPage';
 import { ExitManagementPage } from './pages/ExitManagementPage';
+import { ResignationPage } from './pages/ResignationPage';
 import { IncomeTaxCalculatorPage } from './pages/IncomeTaxCalculatorPage';
 import { SalaryArrearPage } from './pages/SalaryArrearPage';
 import { ReportsPage } from './pages/ReportsPage';
@@ -82,6 +83,7 @@ const SECTION_TITLES: Record<string, string> = {
   hr_requests: 'HR Service Desk',
   full_final: 'Full & Final Settlement',
   exit_management: 'Exit Management',
+  resignation: 'My Resignation',
   income_tax_calculator: 'Income Tax Calculator',
   salary_arrears: 'Salary Arrears',
   reports: 'Structured HR Reports',
@@ -116,6 +118,7 @@ const SIMPLE_PAGES: Record<string, React.ComponentType> = {
   hr_requests: HrRequestsPage,
   full_final: FullFinalPage,
   exit_management: ExitManagementPage,
+  resignation: ResignationPage,
   income_tax_calculator: IncomeTaxCalculatorPage,
   salary_arrears: SalaryArrearPage,
   reports: ReportsPage,

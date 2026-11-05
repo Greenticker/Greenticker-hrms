@@ -4,8 +4,6 @@ import { modulesService } from '../services/modulesService';
 import { employeeService } from '../services/employeeService';
 import { Employee } from '../types/employee';
 import { ExpenseClaim, ExpenseCategory } from '../types/modules';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   Receipt,
   Plus,
@@ -146,43 +144,7 @@ export const ExpensesPage: React.FC = () => {
     );
   });
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredClaims,
-      'Expense_Claims_Report',
-      'ExpenseClaims',
-      [
-        { header: 'Claim Title', key: 'title' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Category', key: 'category' },
-        { header: 'Expense Date', key: 'expenseDate' },
-        { header: 'Currency', key: 'currency' },
-        { header: 'Amount', key: 'amount' },
-        { header: 'Status', key: 'status' },
-        { header: 'Description', key: 'description' },
-        { header: 'Receipt File', key: (c) => c.receiptName || 'N/A' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Title', 'Employee', 'Category', 'Date', 'Amount', 'Status'];
-    const rows = filteredClaims.map((c) => [
-      c.title,
-      c.employeeName,
-      c.category,
-      c.expenseDate,
-      `${c.currency} ${c.amount.toLocaleString()}`,
-      c.status,
-    ]);
-    exportToPdf(
-      'Expense Claims & Reimbursement Audit Report',
-      headers,
-      rows,
-      'Expense_Claims_Report',
-      `Exported ${filteredClaims.length} expense reimbursement records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -195,10 +157,6 @@ export const ExpensesPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={() => setIsSubmitOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm transition-all border border-[#039583] cursor-pointer"

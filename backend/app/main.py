@@ -19,6 +19,7 @@ from app.routes import (
     common,
     documents,
     employees,
+    exits,
     leave_expenses,
     onboarding,
     operations,
@@ -96,7 +97,7 @@ app.add_middleware(RequestPathMiddleware)
 
 # ------------------------------------------------------------------ routes
 
-for module in (auth, employees, organization, onboarding, documents, attendance, leave_expenses,
+for module in (auth, employees, exits, organization, onboarding, documents, attendance, leave_expenses,
                payroll, payroll_calculators, performance, performance_feedback, performance_appraisal, performance_ops, policies, rbac, recruitment, operations):
     app.include_router(module.router, prefix="/api")
 

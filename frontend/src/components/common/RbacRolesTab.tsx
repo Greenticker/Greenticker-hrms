@@ -3,7 +3,6 @@ import { request } from '../../services/api';
 import {
   Shield,
   Plus,
-  Check,
   X,
   Edit2,
   Trash2,
@@ -152,7 +151,6 @@ export const RbacRolesTab: React.FC<RbacRolesTabProps> = ({ readOnly = false }) 
   const [activeRoleKey, setActiveRoleKey] = useState<string>('ADMIN');
   const [editModalRole, setEditModalRole] = useState<RoleData | null>(null);
   const [isAddRoleModalOpen, setIsAddRoleModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'cards' | 'matrix'>('cards');
 
   // Form states
   const [roleName, setRoleName] = useState('');
@@ -290,25 +288,6 @@ export const RbacRolesTab: React.FC<RbacRolesTabProps> = ({ readOnly = false }) 
         </div>
 
         <div className="flex items-center gap-3 self-start md:self-auto">
-          <div className="bg-slate-800 p-1 rounded-xl border border-slate-700 flex items-center gap-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                viewMode === 'cards' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Role Cards
-            </button>
-            <button
-              onClick={() => setViewMode('matrix')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
-                viewMode === 'matrix' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              Access Matrix
-            </button>
-          </div>
-
           {!readOnly && (
             <button
               onClick={handleOpenAddModal}
@@ -326,7 +305,7 @@ export const RbacRolesTab: React.FC<RbacRolesTabProps> = ({ readOnly = false }) 
           <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-xs text-slate-500 font-mono">Loading RBAC roles & access map...</p>
         </div>
-      ) : viewMode === 'cards' ? (
+      ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Roles Selector Sidebar */}
           <div className="lg:col-span-4 space-y-3">
@@ -496,65 +475,6 @@ export const RbacRolesTab: React.FC<RbacRolesTabProps> = ({ readOnly = false }) 
               </div>
             </div>
           )}
-        </div>
-      ) : (
-        /* Full Access Matrix View */
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Comprehensive Role Permission Matrix</h3>
-              <p className="text-xs text-slate-500">Cross-role permission comparison for auditing access controls</p>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100/80 text-[11px] font-bold text-slate-600 uppercase">
-                  <th className="py-3.5 px-4 sticky left-0 bg-slate-100 z-10 w-64">Permission Capability</th>
-                  {roles.map((r) => (
-                    <th key={r.key} className="py-3.5 px-3 text-center min-w-[110px]">
-                      <div className="font-bold text-slate-900 font-mono text-xs">{r.key}</div>
-                      <div className="text-[10px] font-normal text-slate-500 truncate max-w-[120px] mx-auto">{r.name}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                {Object.entries(PERMISSION_GROUPS).map(([grpKey, grp]) => (
-                  <React.Fragment key={grpKey}>
-                    <tr className="bg-slate-900 text-white font-sans font-bold text-xs">
-                      <td colSpan={roles.length + 1} className="py-2.5 px-4">
-                        {grp.label}
-                      </td>
-                    </tr>
-                    {grp.perms.map((p) => (
-                      <tr key={p.key} className="hover:bg-slate-50">
-                        <td className="py-2.5 px-4 font-sans text-slate-800 font-medium sticky left-0 bg-white shadow-2xs">
-                          <div>{p.label}</div>
-                          <div className="text-[10px] font-mono text-slate-400">{p.key}</div>
-                        </td>
-                        {roles.map((r) => {
-                          const hasPerm = r.permissions.includes(p.key);
-                          return (
-                            <td key={r.key} className="py-2.5 px-3 text-center">
-                              {hasPerm ? (
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-700">
-                                  <Check className="w-3.5 h-3.5" />
-                                </span>
-                              ) : (
-                                <span className="text-slate-300 font-sans text-xs">-</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
 

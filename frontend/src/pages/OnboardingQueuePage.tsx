@@ -4,11 +4,10 @@ import { onboardingQueueService } from '../services/onboardingQueueService';
 import { employeeService } from '../services/employeeService';
 import { attendanceService } from '../services/attendanceService';
 import { request } from '../services/api';
+import { canWrite } from '../utils/access';
 import { OnboardingQueueItem, OnboardingQueueStats, SectionReview } from '../types/onboardingQueue';
 import { Department, Designation } from '../types/employee';
 import { Shift } from '../types/attendance';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   UserPlus,
   Search,
@@ -364,42 +363,7 @@ export const OnboardingQueuePage: React.FC = () => {
     return matchesStatus && matchesSearch;
   });
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredList,
-      'Onboarding_Queue_Report',
-      'OnboardingQueue',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Work Email', key: 'workEmail' },
-        { header: 'Department', key: 'department' },
-        { header: 'Designation', key: 'designation' },
-        { header: 'Joining Date', key: (i) => i.sectionsData?.employment?.dateOfJoining || 'N/A' },
-        { header: 'Status', key: 'status' },
-        { header: 'Submitted At', key: (i) => i.submittedAt ? new Date(i.submittedAt).toLocaleDateString() : 'Pending' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Candidate', 'Email', 'Department', 'Designation', 'Status'];
-    const rows = filteredList.map((i) => [
-      i.employeeCode,
-      i.employeeName,
-      i.workEmail,
-      i.department,
-      i.designation,
-      i.status,
-    ]);
-    exportToPdf(
-      'New Joiner Onboarding Review Queue Audit Report',
-      headers,
-      rows,
-      'Onboarding_Queue_Report',
-      `Exported ${filteredList.length} candidate onboarding records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -412,11 +376,7 @@ export const OnboardingQueuePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
-          {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+          {canWrite(user?.role, 'self_onboarding') && (
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs"

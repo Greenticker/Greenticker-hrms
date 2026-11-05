@@ -3,8 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { modulesService } from '../services/modulesService';
 import { employeeService } from '../services/employeeService';
 import { AllocatedAsset, AssetType, AssetCategory } from '../types/modules';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
+import { canWrite } from '../utils/access';
 import {
   Laptop,
   Plug,
@@ -98,7 +97,7 @@ export const AssetsPage: React.FC = () => {
   }, [filterEmployee]);
 
   useEffect(() => {
-    if (user?.role === 'ADMIN') {
+    if (canWrite(user?.role, 'asset')) {
       employeeService
         .getEmployees()
         .then((res) =>
@@ -161,45 +160,7 @@ export const AssetsPage: React.FC = () => {
     }
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filtered,
-      'Organization_Assets_Report',
-      'Assets',
-      [
-        { header: 'Asset Tag', key: 'assetTag' },
-        { header: 'Asset Name', key: 'name' },
-        { header: 'Category', key: 'category' },
-        { header: 'Type', key: 'type' },
-        { header: 'Serial Number', key: (a) => a.serialNumber || 'N/A' },
-        { header: 'Assigned Employee', key: 'employeeName' },
-        { header: 'Allocated Date', key: 'issuedDate' },
-        { header: 'Returned Date', key: (a) => a.returnedDate || 'Active' },
-        { header: 'Status', key: 'status' },
-        { header: 'Notes', key: (a) => a.notes || '' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Tag', 'Asset Name', 'Category', 'Employee', 'Serial No', 'Allocated', 'Status'];
-    const rows = filtered.map((a) => [
-      a.assetTag,
-      a.name,
-      a.category,
-      a.employeeName,
-      a.serialNumber || '-',
-      a.issuedDate,
-      a.status,
-    ]);
-    exportToPdf(
-      'Organization IT & Physical Asset Inventory Report',
-      headers,
-      rows,
-      'Organization_Assets_Report',
-      `Exported ${filtered.length} asset inventory records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -211,10 +172,6 @@ export const AssetsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           {canManage && (
             <button
               onClick={() => {

@@ -4,8 +4,6 @@ import { Employee, Department, Designation, Location, Subdepartment } from '../t
 import { Shift } from '../types/attendance';
 import { employeeService } from '../services/employeeService';
 import { attendanceService } from '../services/attendanceService';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import { getProbationDetails, formatProbationDate } from '../utils/probation';
 import {
   Users,
@@ -417,51 +415,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
     return <span className="text-xs text-slate-500">{status}</span>;
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      displayedEmployees,
-      'Employee_Directory_Report',
-      'Employees',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'First Name', key: 'firstName' },
-        { header: 'Last Name', key: 'lastName' },
-        { header: 'Work Email', key: 'workEmail' },
-        { header: 'Phone', key: (e) => e.phone || 'N/A' },
-        { header: 'Department', key: 'department' },
-        { header: 'Sub-Department', key: (e) => e.subdepartment || 'N/A' },
-        { header: 'Designation', key: 'designation' },
-        { header: 'Joining Date', key: 'joiningDate' },
-        { header: 'Employment Type', key: 'employmentType' },
-        { header: 'Status', key: 'status' },
-        { header: 'Location', key: 'location' },
-        { header: 'Shift', key: (e) => e.shift || 'Default' },
-        { header: 'Annual Salary (₹)', key: (e) => e.annualSalary ?? 0 },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Name', 'Email', 'Department', 'Sub-Dept', 'Designation', 'Type', 'Status', 'Location'];
-    const rows = displayedEmployees.map((e) => [
-      e.employeeCode,
-      `${e.firstName} ${e.lastName}`,
-      e.workEmail,
-      e.department,
-      e.subdepartment || '-',
-      e.designation,
-      e.employmentType,
-      e.status,
-      e.location,
-    ]);
-    exportToPdf(
-      'Organization Employee Master Directory Report',
-      headers,
-      rows,
-      'Employee_Directory_Report',
-      `Exported ${displayedEmployees.length} active employee records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -474,10 +428,6 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           {user?.role === 'ADMIN' && (
             <button
               onClick={() => setIsAddModalOpen(true)}

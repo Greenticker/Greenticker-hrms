@@ -18,6 +18,10 @@ import {
   ReferralStatus,
   HrRequest,
   FullFinalSettlement,
+  InitiateExitInput,
+  ClearanceKey,
+  MyResignationView,
+  Resignation,
   AllocatedAsset,
   InsurancePolicy,
   InsuranceEnrollment,
@@ -763,10 +767,45 @@ export const modulesService = {
 
   getFullFinalSettlements: async (): Promise<{
     settlements: FullFinalSettlement[];
+    canInitiate?: boolean;
+    pendingResignations?: number;
   }> => {
     return request<{
       settlements: FullFinalSettlement[];
+      canInitiate?: boolean;
+      pendingResignations?: number;
     }>('/full-final');
+  },
+
+  setExitClearance: async (exitId: string, key: ClearanceKey, cleared: boolean, remarks: string): Promise<{ settlement: FullFinalSettlement }> => {
+    return request<{ settlement: FullFinalSettlement }>(`/full-final/${exitId}/clearances/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ cleared, remarks }),
+    });
+  },
+
+  approveExit: async (exitId: string, comment: string): Promise<{ settlement: FullFinalSettlement; emails: { email: string }[] }> => {
+    return request(`/full-final/${exitId}/approve`, { method: 'POST', body: JSON.stringify({ comment }) });
+  },
+
+  // Resignations
+  getMyResignation: async (): Promise<MyResignationView> => request<MyResignationView>('/resignations/me'),
+
+  submitResignation: async (data: { reason: string; proposedLastWorkingDay: string }): Promise<{ resignation: Resignation; emails: { email: string; delivered: boolean }[] }> => {
+    return request('/resignations', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  withdrawResignation: async (id: string): Promise<{ resignation: Resignation }> => {
+    return request(`/resignations/${id}/withdraw`, { method: 'POST', body: JSON.stringify({}) });
+  },
+
+  getResignations: async (): Promise<{ resignations: Resignation[] }> => request<{ resignations: Resignation[] }>('/resignations'),
+
+  initiateExit: async (data: InitiateExitInput): Promise<{ success: boolean; settlement: FullFinalSettlement }> => {
+    return request<{ success: boolean; settlement: FullFinalSettlement }>('/full-final', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   getAssets: async (employeeId?: string): Promise<{ assets: AllocatedAsset[]; canManage: boolean }> => {

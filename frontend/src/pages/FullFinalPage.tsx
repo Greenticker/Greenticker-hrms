@@ -2,8 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { modulesService } from '../services/modulesService';
 import { FullFinalSettlement } from '../types/modules';
 import { CheckCircle2, Clock, Wallet, Banknote, Landmark, AlertCircle } from 'lucide-react';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 
 const inr = (n: number | undefined) => `₹${(n || 0).toLocaleString('en-IN')}`;
 
@@ -59,45 +57,7 @@ export const FullFinalPage: React.FC = () => {
     };
   }, [settlements]);
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      settlements,
-      'Full_Final_Settlement_Report',
-      'FnFSettlements',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Department', key: 'department' },
-        { header: 'Last Working Day', key: 'lastWorkingDay' },
-        { header: 'Unpaid Salary (₹)', key: (f) => f.settlementComponents?.unpaidSalary || 0 },
-        { header: 'Encashable Leaves (₹)', key: (f) => f.settlementComponents?.leaveEncashmentAmount || 0 },
-        { header: 'Gratuity (₹)', key: (f) => f.settlementComponents?.gratuity || 0 },
-        { header: 'Bonus / Incentive (₹)', key: (f) => f.settlementComponents?.bonusOrIncentive || 0 },
-        { header: 'Notice Shortfall (₹)', key: (f) => f.settlementComponents?.noticePayShortfallDeduction || 0 },
-        { header: 'Net Payable (₹)', key: (f) => f.settlementComponents?.totalPayable || 0 },
-        { header: 'Payout Status', key: (f) => PAYOUT_BADGE[payoutState(f)].label },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Employee', 'Department', 'Last Working Day', 'Net Payable (₹)', 'Payout'];
-    const rows = settlements.map((f) => [
-      f.employeeCode,
-      f.employeeName,
-      f.department,
-      f.lastWorkingDay,
-      inr(f.settlementComponents?.totalPayable),
-      PAYOUT_BADGE[payoutState(f)].label,
-    ]);
-    exportToPdf(
-      'Full and Final (F&F) Separation Settlement Audit Report',
-      headers,
-      rows,
-      'Full_Final_Settlement_Report',
-      `Exported ${settlements.length} employee separation settlement dossiers`
-    );
-  };
 
   const summaryTiles = [
     { label: 'Total Net Settlements', value: inr(totals.netPayable), icon: Wallet, tone: 'text-[#023b77]' },
@@ -116,7 +76,6 @@ export const FullFinalPage: React.FC = () => {
             Final pay computation and payout status for separating employees.
           </p>
         </div>
-        <ExportButtons onExportExcel={handleExportExcel} onExportPdf={handleExportPdf} disabled={settlements.length === 0} />
       </div>
 
       {/* Summary */}

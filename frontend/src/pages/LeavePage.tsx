@@ -4,8 +4,6 @@ import { modulesService } from '../services/modulesService';
 import { employeeService } from '../services/employeeService';
 import { LeaveRequest, LeaveBalance, LeaveType } from '../types/modules';
 import { Employee } from '../types/employee';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   CalendarDays,
   Plus,
@@ -136,46 +134,7 @@ export const LeavePage: React.FC = () => {
     return matchesSearch;
   });
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredRequests,
-      'Leave_Requests_Report',
-      'LeaveRequests',
-      [
-        { header: 'Employee Code', key: 'employeeCode' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Department', key: 'department' },
-        { header: 'Leave Type', key: 'leaveType' },
-        { header: 'Start Date', key: 'startDate' },
-        { header: 'End Date', key: 'endDate' },
-        { header: 'Total Days', key: 'daysCount' },
-        { header: 'Status', key: 'status' },
-        { header: 'Reason', key: 'reason' },
-        { header: 'Reviewed By', key: (r) => r.reviewedBy || 'N/A' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Code', 'Employee', 'Department', 'Leave Type', 'Start', 'End', 'Days', 'Status'];
-    const rows = filteredRequests.map((r) => [
-      r.employeeCode,
-      r.employeeName,
-      r.department,
-      r.leaveType,
-      r.startDate,
-      r.endDate,
-      `${r.daysCount}d`,
-      r.status,
-    ]);
-    exportToPdf(
-      'Leave Applications & Entitlements Summary Report',
-      headers,
-      rows,
-      'Leave_Requests_Report',
-      `Exported ${filteredRequests.length} leave application records`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -188,10 +147,6 @@ export const LeavePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={() => setIsApplyOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm transition-all border border-[#039583] cursor-pointer"

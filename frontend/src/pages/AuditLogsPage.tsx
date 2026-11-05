@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { request } from '../services/api';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import { useAuth } from '../context/AuthContext';
 import {
   Search,
@@ -75,43 +73,7 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onNavigateTab }) =
     setTimeout(() => setCopiedId(false), 2000);
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      filteredLogs,
-      'System_Audit_Logs_Report',
-      'AuditLogs',
-      [
-        { header: 'Log ID', key: '_id' },
-        { header: 'Timestamp', key: 'timestamp' },
-        { header: 'User Email', key: 'userEmail' },
-        { header: 'Role', key: 'role' },
-        { header: 'Module', key: 'module' },
-        { header: 'Action', key: 'action' },
-        { header: 'Entity', key: 'entity' },
-        { header: 'Entity ID', key: 'entityId' },
-        { header: 'IP Address', key: (l) => l.ipAddress || '103.21.124.89' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Timestamp', 'User Email', 'Role', 'Module', 'Action', 'IP Address'];
-    const rows = filteredLogs.map((l) => [
-      new Date(l.timestamp).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' }),
-      l.userEmail,
-      l.role,
-      l.module,
-      l.action,
-      l.ipAddress || '103.21.124.89',
-    ]);
-    exportToPdf(
-      'Enterprise Immutable Security & Audit Log Report',
-      headers,
-      rows,
-      'System_Audit_Logs_Report',
-      `Exported ${filteredLogs.length} audit log entries`
-    );
-  };
 
   return (
     <div className="space-y-6 font-sans">
@@ -133,7 +95,6 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ onNavigateTab }) =
         </div>
 
         <div className="flex items-center gap-2 self-start md:self-auto">
-          <ExportButtons onExportExcel={handleExportExcel} onExportPdf={handleExportPdf} />
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/20 text-xs font-mono font-bold">
             <Globe className="w-4 h-4 text-emerald-400" />
             <span>Active Role: {user?.role || 'SUPER_ADMIN'}</span>

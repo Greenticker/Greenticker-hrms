@@ -533,22 +533,82 @@ export interface HrRequest {
   resolutionRemarks?: string;
 }
 
+export interface ClearanceItem {
+  cleared: boolean;
+  remarks?: string;
+  clearedBy?: string;
+  clearedOn?: string | null;
+}
+export type ClearanceKey = 'department' | 'itAssets' | 'finance' | 'admin';
+
+export type SeparationType ='RESIGNATION' | 'TERMINATION' | 'RETIREMENT' | 'MUTUAL_SEPARATION' | 'END_OF_CONTRACT';
+
+export interface Resignation {
+  _id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeCode: string;
+  department: string;
+  designation: string;
+  managerId: string | null;
+  managerName: string | null;
+  submittedOn: string;
+  noticeDate: string;
+  proposedLastWorkingDay: string;
+  reason: string;
+  status: 'SUBMITTED' | 'EXIT_INITIATED' | 'WITHDRAWN';
+  exitId: string | null;
+  withdrawnOn?: string;
+  exitInitiatedOn?: string;
+  notified?: { emails: string[]; on: string };
+}
+
+export interface MyResignationView {
+  employee: { _id: string; name: string; employeeCode: string; department: string; managerName: string | null } | null;
+  resignation: Resignation | null;
+  exit: Pick<
+    FullFinalSettlement,
+    | '_id' | 'status' | 'separationType' | 'resignationDate' | 'lastWorkingDay' | 'noticePeriodDays'
+    | 'noticeServedDays' | 'clearances' | 'initiatedOn' | 'exitApprovedOn' | 'fnf'
+  > | null;
+  canResign?: boolean;
+}
+
+export interface InitiateExitInput {
+  resignationId?: string;
+  employeeId: string;
+  separationType: SeparationType;
+  resignationDate: string;
+  lastWorkingDay: string;
+  noticePeriodDays: number;
+  reason: string;
+}
+
 export interface FullFinalSettlement {
   _id: string;
   employeeId: string;
   employeeName: string;
   employeeCode: string;
   department: string;
+  separationType?: SeparationType;
   resignationDate: string;
   lastWorkingDay: string;
   noticePeriodDays: number;
   noticeServedDays: number;
   status: 'INITIATED' | 'DEPARTMENT_CLEARANCE' | 'IT_CLEARANCE' | 'FINANCE_CLEARANCE' | 'HR_APPROVED' | 'DISBURSED';
+  resignationId?: string | null;
+  initiatedBy?: string;
+  initiatedOn?: string;
+  exitApprovedBy?: string;
+  exitApprovedOn?: string;
+  exitApprovalComment?: string;
+  fnf?: { status: 'INITIATED'; initiatedOn: string; initiatedBy: string };
+  permissions?: { canClear: ClearanceKey[]; canApprove: boolean };
   clearances: {
-    department: { cleared: boolean; remarks?: string; clearedBy?: string };
-    itAssets: { cleared: boolean; remarks?: string; clearedBy?: string };
-    finance: { cleared: boolean; remarks?: string; clearedBy?: string };
-    admin: { cleared: boolean; remarks?: string; clearedBy?: string };
+    department: ClearanceItem;
+    itAssets: ClearanceItem;
+    finance: ClearanceItem;
+    admin: ClearanceItem;
   };
   settlementComponents: {
     unpaidSalary: number;

@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from app.auth.module_access import can_write, require_read, require_write
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import audit, read_body
@@ -64,15 +65,11 @@ async def resolve_hr_request(req_id: str, request: Request, _: dict = Depends(re
     return {"success": True, "request": updated}
 
 
-# ------------------------------------------------------- F&F and audit logs
-
-@router.get("/full-final")
-async def full_final(_: dict = Depends(require_role("ADMIN"))):
-    return {"settlements": modules_store.get_full_final_settlements()}
-
+# --------------------------------------------------------------- audit logs
+# (Resignations, exits and F&F live in routes/exits.py)
 
 @router.get("/audit-logs")
-async def audit_logs(_: dict = Depends(require_role("ADMIN"))):
+async def audit_logs(_: dict = Depends(require_read("audit_log"))):
     return {"logs": db_store.auditLogs[:200]}
 
 
@@ -81,11 +78,11 @@ async def audit_logs(_: dict = Depends(require_role("ADMIN"))):
 @router.get("/assets")
 async def list_assets(employeeId: Optional[str] = None, user: dict = Depends(require_auth)):
     result = modules_store.get_assets(user, employee_id=employeeId or None)
-    return {"assets": result["assets"], "canManage": user.get("role") == "ADMIN"}
+    return {"assets": result["assets"], "canManage": can_write(user, "asset")}
 
 
 @router.post("/assets")
-async def allocate_asset(request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def allocate_asset(request: Request, user: dict = Depends(require_write("asset"))):
     b = await read_body(request)
     employee_id = s(b.get("employeeId") or "")
     a_type = s(b.get("type") or "").upper()
@@ -129,7 +126,7 @@ async def allocate_asset(request: Request, user: dict = Depends(require_role("AD
 
 
 @router.put("/assets/{asset_id}/return")
-async def return_asset(asset_id: str, user: dict = Depends(require_role("ADMIN"))):
+async def return_asset(asset_id: str, user: dict = Depends(require_write("asset"))):
     asset = modules_store.return_asset(asset_id)
     if not asset:
         raise ApiError(404, "Asset not found.")
@@ -162,7 +159,7 @@ async def preview_gallery_template(key: str, request: Request, user: dict = Depe
 
 
 @router.post("/letter-templates/gallery/{key}/use")
-async def use_gallery_template(key: str, user: dict = Depends(require_role("ADMIN"))):
+async def use_gallery_template(key: str, user: dict = Depends(require_write("core_hr"))):
     """Copies a gallery template into the organisation's own (editable) letter templates."""
     tmpl = get_gallery_template(key)
     if not tmpl:
@@ -178,7 +175,7 @@ async def use_gallery_template(key: str, user: dict = Depends(require_role("ADMI
 
 
 @router.post("/letter-templates")
-async def create_letter_template(request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def create_letter_template(request: Request, user: dict = Depends(require_write("core_hr"))):
     body = await read_body(request)
     title, content = body.get("title"), body.get("content")
     if not truthy(title) or not truthy(content):
@@ -194,7 +191,7 @@ async def create_letter_template(request: Request, user: dict = Depends(require_
 
 
 @router.put("/letter-templates/{tmpl_id}")
-async def update_letter_template(tmpl_id: str, request: Request, _: dict = Depends(require_role("ADMIN"))):
+async def update_letter_template(tmpl_id: str, request: Request, _: dict = Depends(require_write("core_hr"))):
     body = await read_body(request)
     updated = modules_store.update_letter_template(tmpl_id, {k: body.get(k) for k in ("title", "category", "subject", "content")})
     if not updated:
@@ -203,7 +200,7 @@ async def update_letter_template(tmpl_id: str, request: Request, _: dict = Depen
 
 
 @router.delete("/letter-templates/{tmpl_id}")
-async def delete_letter_template(tmpl_id: str, _: dict = Depends(require_role("ADMIN"))):
+async def delete_letter_template(tmpl_id: str, _: dict = Depends(require_write("core_hr"))):
     if not modules_store.delete_letter_template(tmpl_id):
         raise ApiError(404, "Template not found.")
     return {"success": True}

@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { modulesService } from '../services/modulesService';
 import { InsurancePolicy, InsuranceEnrollment, InsuranceClaim } from '../types/modules';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   Shield,
   CreditCard,
@@ -194,48 +192,7 @@ export const InsurancePage: React.FC = () => {
     }
   };
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      claims,
-      'Insurance_Claims_Report',
-      'InsuranceClaims',
-      [
-        { header: 'Claim ID', key: '_id' },
-        { header: 'Employee Name', key: 'employeeName' },
-        { header: 'Patient Name', key: 'patientName' },
-        { header: 'Relation', key: 'relation' },
-        { header: 'Hospital Name', key: 'hospitalName' },
-        { header: 'Admission Date', key: 'admissionDate' },
-        { header: 'Discharge Date', key: (c) => c.dischargeDate || 'N/A' },
-        { header: 'Claim Type', key: 'claimType' },
-        { header: 'Requested (₹)', key: 'amountRequested' },
-        { header: 'Approved (₹)', key: (c) => c.amountApproved ?? 0 },
-        { header: 'Status', key: 'status' },
-        { header: 'TPA Remarks', key: (c) => c.tpaRemarks || '' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Claim ID', 'Employee', 'Patient', 'Hospital', 'Type', 'Requested', 'Approved', 'Status'];
-    const rows = claims.map((c) => [
-      c._id,
-      c.employeeName,
-      `${c.patientName} (${c.relation})`,
-      c.hospitalName,
-      c.claimType,
-      `₹${c.amountRequested.toLocaleString()}`,
-      c.amountApproved ? `₹${c.amountApproved.toLocaleString()}` : '-',
-      c.status,
-    ]);
-    exportToPdf(
-      'Group Medical Coverage - Insurance Claims Audit',
-      headers,
-      rows,
-      'Insurance_Claims_Report',
-      `Exported ${claims.length} insurance claims and TPA tracking records`
-    );
-  };
 
   if (loading) {
     return (
@@ -263,10 +220,6 @@ export const InsurancePage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={() => setShowClaimModal(true)}
             className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"

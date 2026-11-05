@@ -5,6 +5,7 @@ import { employeeService } from '../services/employeeService';
 import { Employee } from '../types/employee';
 import { GalleryLetterTemplate, LetterTemplate, LetterTemplateCategory } from '../types/letterTemplates';
 import { Mail, Eye, Printer, Save, Trash2, Loader2, CopyPlus, FileText, X } from 'lucide-react';
+import { canWrite } from '../utils/access';
 
 type TabId = 'templates' | 'gallery';
 
@@ -68,7 +69,8 @@ interface PreviewState {
 
 export const LetterTemplatesPage: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN';
+  // Add / edit / delete follow the role matrix (Core HR: read & write)
+  const isAdmin = canWrite(user?.role, 'core_hr');
 
   const [tab, setTab] = useState<TabId>('templates');
   const [templates, setTemplates] = useState<LetterTemplate[]>([]);

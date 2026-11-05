@@ -4,8 +4,6 @@ import { attendanceService } from '../services/attendanceService';
 import { employeeService } from '../services/employeeService';
 import { Shift } from '../types/attendance';
 import { Department, Employee } from '../types/employee';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   Calendar,
   Clock,
@@ -269,89 +267,7 @@ export const ShiftsPage: React.FC = () => {
     return full.includes(search.toLowerCase());
   });
 
-  const handleExportExcel = () => {
-    if (activeMainTab === 'ROSTER') {
-      exportToExcel(
-        filteredEmployeesForRoster,
-        'Employee_Shift_Roster_Report',
-        'Roster',
-        [
-          { header: 'Employee Code', key: 'employeeCode' },
-          { header: 'Employee Name', key: (e) => `${e.firstName} ${e.lastName}` },
-          { header: 'Department', key: 'department' },
-          { header: 'Designation', key: 'designation' },
-          { header: 'Assigned Shift', key: (e) => e.shift || 'Default' },
-        ]
-      );
-    } else if (activeMainTab === 'HISTORY') {
-      exportToExcel(
-        filteredEndedShifts,
-        'Shift_History_Report',
-        'ShiftHistory',
-        [
-          { header: 'Shift Code', key: 'code' },
-          { header: 'Shift Name', key: 'name' },
-          { header: 'Start Time', key: 'startTime' },
-          { header: 'End Time', key: 'endTime' },
-          { header: 'Ended At', key: (s) => s.endedAt ? new Date(s.endedAt).toLocaleDateString() : 'N/A' },
-          { header: 'Ended By', key: (s) => s.endedBy || 'Admin' },
-          { header: 'Reason', key: (s) => s.endReason || 'Ended' },
-        ]
-      );
-    } else {
-      exportToExcel(
-        filteredActiveShifts,
-        'Active_Work_Shifts_Report',
-        'Shifts',
-        [
-          { header: 'Shift Code', key: 'code' },
-          { header: 'Shift Name', key: 'name' },
-          { header: 'Start Time', key: 'startTime' },
-          { header: 'End Time', key: 'endTime' },
-          { header: 'Expected Hours', key: 'expectedHours' },
-          { header: 'Night Shift', key: (s) => s.isNightShift ? 'Yes' : 'No' },
-          { header: 'Assigned Employees', key: (s) => s.assignedEmployees?.join(', ') || 'General' },
-        ]
-      );
-    }
-  };
 
-  const handleExportPdf = () => {
-    if (activeMainTab === 'ROSTER') {
-      const headers = ['Code', 'Employee', 'Department', 'Designation', 'Assigned Shift'];
-      const rows = filteredEmployeesForRoster.map((e) => [
-        e.employeeCode,
-        `${e.firstName} ${e.lastName}`,
-        e.department,
-        e.designation,
-        e.shift || 'Default',
-      ]);
-      exportToPdf('Employee Shift Allocation Roster Report', headers, rows, 'Employee_Shift_Roster_Report');
-    } else if (activeMainTab === 'HISTORY') {
-      const headers = ['Code', 'Shift Name', 'Timing', 'Ended Date', 'Ended By', 'End Reason'];
-      const rows = filteredEndedShifts.map((s) => [
-        s.code,
-        s.name,
-        `${s.startTime} - ${s.endTime}`,
-        s.endedAt ? new Date(s.endedAt).toLocaleDateString() : 'N/A',
-        s.endedBy || 'Admin',
-        s.endReason || 'Ended',
-      ]);
-      exportToPdf('Historical Ended Work Shifts Policy Audit Report', headers, rows, 'Shift_History_Report');
-    } else {
-      const headers = ['Code', 'Shift Name', 'Hours', 'Type', 'Break', 'Grace', 'Assigned Count'];
-      const rows = filteredActiveShifts.map((s) => [
-        s.code,
-        s.name,
-        `${s.startTime} - ${s.endTime}`,
-        s.isNightShift ? 'Night' : 'Day',
-        `${s.breakMinutes}m`,
-        `${s.gracePeriodMinutes}m`,
-        `${s.assignedEmployees?.length || 0} employees`,
-      ]);
-      exportToPdf('Active Work Shifts & Roster Policies Report', headers, rows, 'Active_Work_Shifts_Report');
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -368,10 +284,6 @@ export const ShiftsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={fetchShiftsAndEmployees}
             className="p-2.5 bg-[#012a52] hover:bg-[#023b77] text-white rounded-xl transition cursor-pointer border border-[#039583]/50"

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { modulesService } from '../services/modulesService';
 import { PoshCase } from '../types/modules';
-import { exportToExcel, exportToPdf } from '../utils/exportUtils';
-import { ExportButtons } from '../components/common/ExportButtons';
 import {
   ShieldAlert,
   ShieldCheck,
@@ -47,7 +45,7 @@ export const PoshPage: React.FC = () => {
   const [stageNotes, setStageNotes] = useState('');
 
   // Enforce Rule 21: Highly confidential, not visible to managers or employees
-  if (user?.role !== 'ADMIN' && user?.role !== 'HR') {
+  if (!['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR'].includes(user?.role || '')) {
     return (
       <div className="min-h-[400px] flex flex-col items-center justify-center p-8 bg-white rounded-2xl border border-slate-200 text-center">
         <Lock className="w-12 h-12 text-rose-500 mb-3" />
@@ -125,42 +123,7 @@ export const PoshPage: React.FC = () => {
     'CLOSED',
   ];
 
-  const handleExportExcel = () => {
-    exportToExcel(
-      cases,
-      'POSH_Governance_Report',
-      'POSHCases',
-      [
-        { header: 'Case Number', key: 'caseNumber' },
-        { header: 'Complainant', key: 'complainantName' },
-        { header: 'Respondent', key: 'respondentName' },
-        { header: 'Stage', key: 'stage' },
-        { header: 'Incident Date', key: 'incidentDate' },
-        { header: 'Reported Date', key: 'reportedDate' },
-        { header: 'Status', key: 'status' },
-      ]
-    );
-  };
 
-  const handleExportPdf = () => {
-    const headers = ['Case No', 'Complainant', 'Respondent', 'Stage', 'Incident Date', 'Reported Date', 'Status'];
-    const rows = cases.map((c) => [
-      c.caseNumber,
-      c.complainantName,
-      c.respondentName,
-      c.stage,
-      c.incidentDate,
-      c.reportedDate,
-      c.status,
-    ]);
-    exportToPdf(
-      'Internal Complaints Committee (ICC) & POSH Cases Governance Audit Report',
-      headers,
-      rows,
-      'POSH_Governance_Report',
-      `Exported ${cases.length} confidential ICC grievance case dossiers`
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -182,10 +145,6 @@ export const PoshPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <ExportButtons
-            onExportExcel={handleExportExcel}
-            onExportPdf={handleExportPdf}
-          />
           <button
             onClick={() => setIsLogOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 font-semibold text-xs shadow-sm transition-all shrink-0 cursor-pointer rounded-xl"

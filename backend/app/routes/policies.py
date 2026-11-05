@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from app.auth.module_access import require_write
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import DOCUMENTS, MAX_UPLOAD_BYTES, audit, client_ip, format_bytes, read_body, read_fields_and_files, save_upload
@@ -12,6 +13,9 @@ from app.stores.modules_store import modules_store
 from app.utils.jsutil import js_str, now_iso, now_ms, rand_int, today_str, truthy
 
 router = APIRouter()
+
+# POSH is strictly confidential (Rule 21): executive administration and HR only
+POSH_VIEW_ROLES = ("ADMIN", "SUPER_ADMIN", "ADMIN_1", "HR")
 
 
 # ---------------------------------------------------------------- policies
@@ -101,12 +105,12 @@ async def acknowledge_policy(policy_id: str, request: Request, user: dict = Depe
 # -------------------------------------------------------------------- POSH
 
 @router.get("/posh/cases")
-async def posh_cases(_: dict = Depends(require_role("ADMIN"))):
+async def posh_cases(_: dict = Depends(require_role(*POSH_VIEW_ROLES))):
     return {"cases": modules_store.get_posh_cases()}
 
 
 @router.post("/posh/cases")
-async def create_posh_case(request: Request, _: dict = Depends(require_role("ADMIN"))):
+async def create_posh_case(request: Request, _: dict = Depends(require_write("core_hr"))):
     body = await read_body(request)
     if not truthy(body.get("respondentName")) or not truthy(body.get("description")):
         raise ApiError(400, "Missing required POSH case fields.")
@@ -127,7 +131,7 @@ async def create_posh_case(request: Request, _: dict = Depends(require_role("ADM
 
 
 @router.put("/posh/cases/{case_id}/stage")
-async def update_posh_stage(case_id: str, request: Request, _: dict = Depends(require_role("ADMIN"))):
+async def update_posh_stage(case_id: str, request: Request, _: dict = Depends(require_write("core_hr"))):
     body = await read_body(request)
     updated = modules_store.update_posh_stage(case_id, body.get("stage"), body.get("notes"), body.get("status"))
     if not updated:

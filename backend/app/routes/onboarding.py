@@ -3,6 +3,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from app.auth.module_access import require_read, require_write
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import (
@@ -322,7 +323,7 @@ async def onboarding_complete(request: Request, user: dict = Depends(require_aut
 # ---------------------------------------------------------------- HR side
 
 @router.post("/onboarding/employees")
-async def onboarding_create_employee(request: Request, actor: dict = Depends(require_role("ADMIN"))):
+async def onboarding_create_employee(request: Request, actor: dict = Depends(require_write("self_onboarding"))):
     body = await read_body(request)
     first_name = body.get("firstName")
     last_name = body.get("lastName")
@@ -457,7 +458,7 @@ async def onboarding_create_employee(request: Request, actor: dict = Depends(req
 
 
 @router.post("/onboarding/employees/{employee_id}/resend-invite")
-async def resend_invite(employee_id: str, request: Request, actor: dict = Depends(require_role("ADMIN"))):
+async def resend_invite(employee_id: str, request: Request, actor: dict = Depends(require_write("self_onboarding"))):
     emp = db_store.get_employee_by_id(employee_id)
     if not emp:
         raise ApiError(404, "Employee not found.")
@@ -471,7 +472,7 @@ async def resend_invite(employee_id: str, request: Request, actor: dict = Depend
 
 
 @router.get("/onboarding/queue")
-async def onboarding_queue(_: dict = Depends(require_role("ADMIN"))):
+async def onboarding_queue(_: dict = Depends(require_read("self_onboarding"))):
     submissions = []
     for sub in db_store.get_onboarding_submissions():
         u = db_store.users.get(sub.get("userId"))
@@ -494,7 +495,7 @@ async def onboarding_queue(_: dict = Depends(require_role("ADMIN"))):
 
 
 @router.get("/onboarding/submissions/{sub_id}")
-async def onboarding_submission(sub_id: str, _: dict = Depends(require_role("ADMIN"))):
+async def onboarding_submission(sub_id: str, _: dict = Depends(require_read("self_onboarding"))):
     sub = db_store.get_onboarding_submission_by_id(sub_id)
     if not sub:
         raise ApiError(404, "Onboarding submission not found.")
@@ -502,7 +503,7 @@ async def onboarding_submission(sub_id: str, _: dict = Depends(require_role("ADM
 
 
 @router.post("/onboarding/submissions/{sub_id}/verify")
-async def verify_submission(sub_id: str, user: dict = Depends(require_role("ADMIN", "HR"))):
+async def verify_submission(sub_id: str, user: dict = Depends(require_write("self_onboarding"))):
     sub = db_store.get_onboarding_submission_by_id(sub_id)
     if not sub:
         raise ApiError(404, "Submission not found.")
@@ -546,7 +547,7 @@ async def verify_submission(sub_id: str, user: dict = Depends(require_role("ADMI
 
 
 @router.post("/onboarding/submissions/{sub_id}/section-review")
-async def section_review(sub_id: str, request: Request, user: dict = Depends(require_role("ADMIN", "HR"))):
+async def section_review(sub_id: str, request: Request, user: dict = Depends(require_write("self_onboarding"))):
     body = await read_body(request)
     section_key = body.get("sectionKey")
     status = body.get("status")
@@ -595,7 +596,7 @@ async def section_review(sub_id: str, request: Request, user: dict = Depends(req
 
 
 @router.post("/onboarding/submissions/{sub_id}/send-revisions")
-async def send_revisions(sub_id: str, request: Request, user: dict = Depends(require_role("ADMIN", "HR"))):
+async def send_revisions(sub_id: str, request: Request, user: dict = Depends(require_write("self_onboarding"))):
     body = await read_body(request)
     override = body.get("revisions")
     general_note = body.get("generalNote")
@@ -695,7 +696,7 @@ async def send_revisions(sub_id: str, request: Request, user: dict = Depends(req
 
 
 @router.post("/onboarding/submissions/{sub_id}/request-changes")
-async def request_changes(sub_id: str, request: Request, user: dict = Depends(require_role("ADMIN", "HR"))):
+async def request_changes(sub_id: str, request: Request, user: dict = Depends(require_write("self_onboarding"))):
     body = await read_body(request)
     remarks = body.get("remarks")
     if not truthy(remarks):
