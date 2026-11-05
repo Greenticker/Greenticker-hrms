@@ -5,18 +5,11 @@ Serverless runtimes (Vercel) can pass a request in ways that stop routes matchin
 - a `root_path`, which Starlette strips from the path before routing (so /api/health
   would be routed as /health and miss every route);
 - the function's own path (/api/index, /api/index.py) with the original path in a header.
-
-GET .../__routing_debug returns what actually arrived: paths, header *names* and which
-required settings are present (yes/no only, never values).
 """
 
-import json
-import os
-import sys
 from urllib.parse import parse_qs, unquote
 
 _FUNCTION_PATHS = ("/api/index", "/api/index.py", "/api/main", "/api/main.py")
-_REQUIRED_ENV = ("MONGODB_URI", "MONGODB_DB_NAME", "JWT_SECRET", "NODE_ENV", "APP_URL", "CRON_SECRET")
 
 
 def _headers(scope: dict) -> dict:
@@ -45,27 +38,7 @@ class RequestPathMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] not in ("http", "websocket"):
-            return await self.app(scope, receive, send)
-
-        received = {"path": scope.get("path"), "root_path": scope.get("root_path"),
-                    "raw_path": (scope.get("raw_path") or b"").decode("latin-1")}
-        path = original_path(scope)
-        scope = {**scope, "path": path, "raw_path": path.encode("utf-8"), "root_path": ""}
-
-        if scope["type"] == "http" and path.rstrip("/").endswith("/__routing_debug"):
-            main = sys.modules.get("__main__")
-            body = json.dumps({
-                "received": received,
-                "routedTo": path,
-                "headerNames": sorted(_headers(scope)),
-                "settingsPresent": {name: bool(os.environ.get(name)) for name in _REQUIRED_ENV},
-                "onVercel": bool(os.environ.get("VERCEL")),
-                "entry": {"mainModule": getattr(main, "__file__", None), "cwd": os.getcwd()},
-            }).encode("utf-8")
-            await send({"type": "http.response.start", "status": 200,
-                        "headers": [(b"content-type", b"application/json"), (b"cache-control", b"no-store")]})
-            await send({"type": "http.response.body", "body": body})
-            return
-
+        if scope["type"] in ("http", "websocket"):
+            path = original_path(scope)
+            scope = {**scope, "path": path, "raw_path": path.encode("utf-8"), "root_path": ""}
         await self.app(scope, receive, send)
