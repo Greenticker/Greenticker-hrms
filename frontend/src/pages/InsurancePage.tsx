@@ -1,804 +1,327 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import jsPDF from 'jspdf';
 import { useAuth } from '../context/AuthContext';
-import { modulesService } from '../services/modulesService';
-import { InsurancePolicy, InsuranceEnrollment, InsuranceClaim } from '../types/modules';
+import { api } from '../services/api';
+import { isReadOnlyRole } from '../utils/access';
 import {
-  Shield,
-  CreditCard,
-  FileText,
-  Plus,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
-  XCircle,
-  PhoneCall,
-  Building,
-  Users,
-  Search,
-  Check,
-  X,
-  FileCheck,
-} from 'lucide-react';
+  Badge, BAD, btn, card, errMsg, fmtMoney, GOOD, inputCls, Modal, Msg, MsgState, okMsg, openApiFile, PageHeader, PRIMARY, saveCsv, SECONDARY, Table, Tabs,
+} from '../components/common/ui';
+
+type Tab = 'mine' | 'claims' | 'policies' | 'enrollments' | 'files' | 'premiums';
+const HR = ['HR'];
+const MANAGE = ['HR', 'ADMIN', 'SUPER_ADMIN', 'ADMIN_1'];
+const READ_ALL = ['HR', 'ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'AUDITORS'];
+const PREMIUM_READ = ['FINANCE', 'ACCOUNTS', 'AUDITORS', 'HR'];
+const RELATIONS = ['SPOUSE', 'CHILD', 'PARENT', 'PARENT_IN_LAW'];
 
 export const InsurancePage: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'HR';
-
-  const [activeTab, setActiveTab] = useState<'policy' | 'ecard' | 'claims' | 'admin'>('policy');
-  const [policy, setPolicy] = useState<InsurancePolicy | null>(null);
-  const [enrollment, setEnrollment] = useState<InsuranceEnrollment | null>(null);
-  const [claims, setClaims] = useState<InsuranceClaim[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-
-  // Claim modal state
-  const [showClaimModal, setShowClaimModal] = useState(false);
-  const [claimForm, setClaimForm] = useState({
-    patientName: '',
-    relation: 'Self',
-    hospitalName: '',
-    admissionDate: new Date().toISOString().split('T')[0],
-    dischargeDate: '',
-    claimType: 'CASHLESS' as 'CASHLESS' | 'REIMBURSEMENT',
-    amountRequested: '',
-    diagnosis: '',
-    documents: ['MedicalPrescription.pdf', 'HospitalBill.pdf'],
-  });
-  const [submittingClaim, setSubmittingClaim] = useState(false);
-
-  // Admin claims review modal
-  const [reviewingClaim, setReviewingClaim] = useState<InsuranceClaim | null>(null);
-  const [tpaRemarks, setTpaRemarks] = useState('');
-  const [amountApproved, setAmountApproved] = useState('');
-
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [polRes, enrRes, clmRes] = await Promise.all([
-        modulesService.getInsurancePolicy(),
-        modulesService.getInsuranceEnrollment(),
-        modulesService.getInsuranceClaims(),
-      ]);
-      setPolicy(polRes.policy);
-      setEnrollment(enrRes.enrollment);
-      setClaims(clmRes.claims);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load insurance details.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const handlePrintECard = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow popups for printing');
-      return;
-    }
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Insurance E-Card - ${enrollment?.employeeName}</title>
-          <style>
-            body { font-family: sans-serif; padding: 40px; background: #f8fafc; color: #0f172a; }
-            .card { background: #0f172a; color: white; padding: 32px; border-radius: 24px; max-width: 600px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #14b8a6; }
-            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(20, 184, 166, 0.3); padding-bottom: 16px; margin-bottom: 24px; }
-            .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
-            .label { font-size: 11px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
-            .value { font-size: 15px; font-weight: bold; }
-            .highlight { color: #5eead4; font-family: monospace; }
-          </style>
-        </head>
-        <body>
-          <div class="card">
-            <div class="header">
-              <div>
-                <h2>Greenticker Financial Services LLP</h2>
-                <p style="color: #5eead4; font-size: 12px; margin: 0;">Group Medical Insurance E-Card</p>
-              </div>
-              <div style="background: rgba(16, 185, 129, 0.2); color: #6ee7b7; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: bold;">
-                ${enrollment?.status}
-              </div>
-            </div>
-            <div class="grid">
-              <div>
-                <div class="label">Employee Name</div>
-                <div class="value">${enrollment?.employeeName}</div>
-              </div>
-              <div>
-                <div class="label">Employee Code</div>
-                <div class="value highlight">${enrollment?.employeeCode}</div>
-              </div>
-              <div>
-                <div class="label">E-Card Number</div>
-                <div class="value highlight">${enrollment?.eCardNumber}</div>
-              </div>
-              <div>
-                <div class="label">Policy Number</div>
-                <div class="value highlight">${policy?.policyName}</div>
-              </div>
-              <div>
-                <div class="label">Sum Insured</div>
-                <div class="value" style="color: #34d399;">₹${enrollment?.sumInsured.toLocaleString('en-IN')}</div>
-              </div>
-              <div>
-                <div class="label">TPA Provider</div>
-                <div class="value">${policy?.tpaName}</div>
-              </div>
-            </div>
-            <div style="border-top: 1px solid rgba(20, 184, 166, 0.3); padding-top: 16px; font-size: 11px; color: #94a3b8; text-align: center;">
-              Emergency Helpline: ${policy?.emergencyHelpline} | TPA Toll-Free: 1800-425-9988
-            </div>
-          </div>
-          <script>
-            window.onload = function() { window.print(); window.close(); }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  const handleClaimSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmittingClaim(true);
-    try {
-      await modulesService.submitInsuranceClaim({
-        ...claimForm,
-        amountRequested: Number(claimForm.amountRequested),
-      });
-      setNotice('Insurance claim submitted successfully to TPA for processing.');
-      setShowClaimModal(false);
-      setClaimForm({
-        patientName: '',
-        relation: 'Self',
-        hospitalName: '',
-        admissionDate: new Date().toISOString().split('T')[0],
-        dischargeDate: '',
-        claimType: 'CASHLESS',
-        amountRequested: '',
-        diagnosis: '',
-        documents: ['MedicalPrescription.pdf', 'HospitalBill.pdf'],
-      });
-      loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to submit claim.');
-    } finally {
-      setSubmittingClaim(false);
-    }
-  };
-
-  const handleUpdateClaimStatus = async (claimId: string, status: string) => {
-    try {
-      await modulesService.updateInsuranceClaimStatus(
-        claimId,
-        status,
-        tpaRemarks,
-        amountApproved ? Number(amountApproved) : undefined
-      );
-      setNotice(`Claim status updated to ${status}.`);
-      setReviewingClaim(null);
-      setTpaRemarks('');
-      setAmountApproved('');
-      loadData();
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update claim status.');
-    }
-  };
-
-
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
-      </div>
-    );
-  }
-
+  const role = user?.role || '';
+  const hasEmployee = !!(user?.employee || user?.employeeId);
+  const tabs = useMemo(() => {
+    const t: { id: Tab; label: string }[] = [];
+    if (hasEmployee) t.push({ id: 'mine', label: 'My benefits' }, { id: 'claims', label: 'Claims' });
+    if (READ_ALL.includes(role) || PREMIUM_READ.includes(role)) t.push({ id: 'policies', label: 'Policies' });
+    if (READ_ALL.includes(role)) t.push({ id: 'enrollments', label: 'Enrolments & dependents' });
+    if (HR.includes(role) || role === 'AUDITORS') t.push({ id: 'files', label: 'Insurer files & exits' });
+    if (PREMIUM_READ.includes(role)) t.push({ id: 'premiums', label: 'Premium payments' });
+    return t.length ? t : [{ id: 'mine' as Tab, label: 'My benefits' }];
+  }, [hasEmployee, role]);
+  const [tab, setTab] = useState<Tab>(tabs[0].id);
+  const [msg, setMsg] = useState<MsgState>(null);
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center font-bold text-xl shadow-inner">
-            <Shield className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              Employee Insurance & Health Benefits
-            </h1>
-            <p className="text-sm font-medium text-slate-500">
-              Manage Group Medical Coverage (GMC), Digital E-Cards, Payroll Deductions, & Claim Tracking
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowClaimModal(true)}
-            className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Submit Claim
-          </button>
-        </div>
-      </div>
+    <div className="space-y-5">
+      <PageHeader title="Insurance & benefits" subtitle="Group mediclaim, accident and term-life cover. Medical details are visible only to you and HR." />
+      <Tabs tabs={tabs} value={tab} onChange={(t) => { setTab(t); setMsg(null); }} />
+      <Msg msg={msg} />
+      {tab === 'mine' && <MyBenefits setMsg={setMsg} readOnly={isReadOnlyRole(role)} />}
+      {tab === 'claims' && <Claims setMsg={setMsg} isHr={HR.includes(role)} />}
+      {tab === 'policies' && <Policies setMsg={setMsg} canManage={MANAGE.includes(role)} />}
+      {tab === 'enrollments' && <Enrollments setMsg={setMsg} isHr={HR.includes(role)} />}
+      {tab === 'files' && <Files setMsg={setMsg} isHr={HR.includes(role)} />}
+      {tab === 'premiums' && <Premiums setMsg={setMsg} isFinance={role === 'FINANCE'} />}
+    </div>
+  );
+};
 
-      {notice && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center justify-between text-sm font-medium">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            <span>{notice}</span>
-          </div>
-          <button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-800 font-bold">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+type SetMsg = { setMsg: (m: MsgState) => void };
 
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-800 px-4 py-3 rounded-xl flex items-center justify-between text-sm font-medium">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-rose-600" />
-            <span>{error}</span>
-          </div>
-          <button onClick={() => setError(null)} className="text-rose-600 hover:text-rose-800 font-bold">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+function ecardPdf(c: any) {
+  const doc = new jsPDF({ unit: 'mm', format: [86, 120] });
+  doc.setFontSize(11);
+  doc.text(c.policyName, 6, 10);
+  doc.setFontSize(8);
+  [`Insurer: ${c.insurer}`, `Policy: ${c.policyNumber}`, `Card: ${c.cardNumber}`, `Member: ${c.member} (${c.employeeCode})`,
+    `Sum insured: INR ${fmtMoney(c.sumInsured)}`, `Valid: ${c.validFrom} to ${c.validTo}`, 'Dependents:',
+    ...c.dependents.map((d: any) => `  ${d.name} (${d.relation.toLowerCase()}, ${d.dob})`)].forEach((l, i) => doc.text(l, 6, 18 + i * 5));
+  doc.save(`ecard_${c.cardNumber}.pdf`);
+}
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-8">
-        <button
-          onClick={() => setActiveTab('policy')}
-          className={`pb-3 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
-            activeTab === 'policy' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <FileText className="w-4 h-4" /> Policy & Eligibility
-        </button>
-        <button
-          onClick={() => setActiveTab('ecard')}
-          className={`pb-3 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
-            activeTab === 'ecard' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <CreditCard className="w-4 h-4" /> Digital E-Card
-        </button>
-        <button
-          onClick={() => setActiveTab('claims')}
-          className={`pb-3 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
-            activeTab === 'claims' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <FileCheck className="w-4 h-4" /> Claim Tracking ({claims.length})
-        </button>
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`pb-3 text-sm font-bold border-b-2 transition flex items-center gap-2 ${
-              activeTab === 'admin' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Users className="w-4 h-4" /> Admin & Payroll Deductions
-          </button>
-        )}
-      </div>
-
-      {/* Tab 1: Policy & Eligibility */}
-      {activeTab === 'policy' && policy && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 bg-teal-50 text-teal-700 text-xs font-black rounded-full uppercase tracking-wider">
-                  Active Corporate Policy
-                </span>
-                <span className="text-xs font-semibold text-slate-400">Valid Till: {policy.validTill}</span>
-              </div>
-              <h2 className="text-xl font-black text-slate-900">{policy.policyName}</h2>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Provided under partnership with <strong className="text-slate-900">{policy.provider}</strong>. Administered by{' '}
-                <strong className="text-slate-900">{policy.tpaName}</strong>. Covers cashless hospitalization across 8,500+ network hospitals nationwide.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-xs font-semibold text-slate-400 block mb-1">TPA Name</span>
-                  <span className="text-sm font-bold text-slate-900">{policy.tpaName}</span>
-                </div>
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="text-xs font-semibold text-slate-400 block mb-1">24/7 Emergency Helpline</span>
-                  <span className="text-sm font-bold text-teal-700 flex items-center gap-1.5">
-                    <PhoneCall className="w-4 h-4" /> {policy.emergencyHelpline}
-                  </span>
-                </div>
-              </div>
+const MyBenefits: React.FC<SetMsg & { readOnly: boolean }> = ({ setMsg, readOnly }) => {
+  const [data, setData] = useState<any>(null);
+  const [dep, setDep] = useState<any>(null);
+  const [proof, setProof] = useState<File | null>(null);
+  const load = () => api.get<any>('/benefits/me').then(setData).catch((e) => setMsg(errMsg(e)));
+  useEffect(() => { load(); }, []);
+  if (!data) return null;
+  const addDep = async () => {
+    try {
+      const fd = new FormData();
+      Object.entries(dep).forEach(([k, v]) => v && fd.append(k, String(v)));
+      if (proof) fd.append('proof', proof);
+      await api.upload('/benefits/me/dependents', fd);
+      setDep(null);
+      setProof(null);
+      setMsg(okMsg('Dependent added; HR will verify it before cover starts.'));
+      load();
+    } catch (e) { setMsg(errMsg(e)); }
+  };
+  const optIn = async (policyId: string, name: string, premium: number) => {
+    if (!window.confirm(`Opt into ${name}? ₹${fmtMoney(premium / 12)} will be deducted from each month's salary.`)) return;
+    try { await api.post('/benefits/me/topup', { policyId }); setMsg(okMsg('Opted in; the premium is deducted through payroll.')); load(); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-slate-600">Enrolment window: <b>{data.windowOpen ? 'open' : 'closed'}</b>
+        {data.settings?.enrollmentWindow?.until ? ` (until ${data.settings.enrollmentWindow.until})` : ''}. Outside the window you can add dependents only for a life event (birth, marriage, adoption) within {data.settings?.lifeEventDays} days, with proof.</p>
+      {data.enrollments.map((e: any) => (
+        <div key={e._id} className={card}>
+          <div className="flex flex-wrap justify-between gap-2">
+            <div>
+              <h3 className="font-bold text-sm">{e.policy.name} <Badge s={e.status} /></h3>
+              <p className="text-xs text-slate-500">{e.policy.insurer} · Policy {e.policy.policyNumber} · Sum insured ₹{fmtMoney(e.sumInsured)} · {e.coverageStart} to {e.coverageEnd}
+                {e.monthlyPremium ? ` · Premium ₹${fmtMoney(e.monthlyPremium)}/month via payroll` : ''}</p>
             </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-slate-900">Grade-Based Sum Insured Eligibility</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
-                      <th className="py-3 px-4">Grade / Designation Band</th>
-                      <th className="py-3 px-4">Default Sum Insured</th>
-                      <th className="py-3 px-4">Monthly Premium Deduction</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50 text-sm font-medium text-slate-700">
-                    {Object.entries(policy.gradeEligibility).map(([grade, sum]) => (
-                      <tr key={grade} className="hover:bg-slate-50/50">
-                        <td className="py-3 px-4 font-bold text-slate-900">{grade}</td>
-                        <td className="py-3 px-4 text-teal-700 font-bold">₹{sum.toLocaleString('en-IN')}</td>
-                        <td className="py-3 px-4 text-slate-600">
-                          ₹{Math.round(sum * 0.0012 / 12).toLocaleString('en-IN')} / month
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="flex gap-2">
+              <button className={btn(SECONDARY)} onClick={() => api.get<any>(`/benefits/ecard/${encodeURIComponent(e._id)}`).then((r) => ecardPdf(r.ecard)).catch((er) => setMsg(errMsg(er)))}>e-card</button>
+              {!readOnly && (e.policy.allowedRelations || []).length > 0 && e.status === 'ACTIVE' && (
+                <button className={btn(PRIMARY)} onClick={() => setDep({ policyId: e.policyId, name: '', relation: e.policy.allowedRelations[0], dob: '', gender: '', lifeEvent: '', eventDate: '' })}>Add dependent</button>
+              )}
             </div>
           </div>
-
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-2xl shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-teal-400 uppercase tracking-widest">Your Coverage</span>
-                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-md">Active</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Assigned Grade</span>
-                <span className="text-lg font-black">{enrollment?.grade || 'Staff'}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Sum Insured</span>
-                <span className="text-2xl font-black text-teal-300">₹{(enrollment?.sumInsured || 500000).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="pt-2 border-t border-slate-700">
-                <span className="text-xs text-slate-400 block mb-2">Covered Dependents ({enrollment?.dependents?.length || 0})</span>
-                <ul className="space-y-1.5 text-xs font-medium text-slate-300">
-                  {enrollment?.dependents?.map((d, i) => (
-                    <li key={i} className="flex items-center justify-between">
-                      <span>{d.name} ({d.relation})</span>
-                      <span className="text-teal-400">{d.gender}</span>
-                    </li>
-                  ))}
-                  {(!enrollment?.dependents || enrollment.dependents.length === 0) && (
-                    <li className="text-slate-400 italic">No dependents added yet.</li>
-                  )}
-                </ul>
-              </div>
+          <Table rows={e.dependents} empty="No dependents." cols={[
+            { key: 'name', label: 'Name' }, { key: 'relation', label: 'Relation' }, { key: 'dob', label: 'Date of birth' },
+            { key: 'addedVia', label: 'Added via' }, { key: 'status', label: 'Status', render: (d: any) => <Badge s={d.status} /> },
+          ]} />
+        </div>
+      ))}
+      {data.optionalPolicies?.length > 0 && !readOnly && (
+        <div className={card}>
+          <h3 className="font-bold text-sm">Optional covers</h3>
+          {data.optionalPolicies.map((p: any) => (
+            <div key={p._id} className="flex justify-between items-center text-xs">
+              <span>{p.name} — sum insured ₹{fmtMoney(p.sumInsured)}, premium ₹{fmtMoney(p.premiumAnnual)}/year</span>
+              <button className={btn(PRIMARY)} onClick={() => optIn(p._id, p.name, p.premiumAnnual)}>Opt in</button>
             </div>
-
-            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-3">
-              <h4 className="text-sm font-bold text-slate-900">Allowed Family Members</h4>
-              <ul className="space-y-2 text-xs text-slate-600">
-                {policy.dependentsAllowed.map((dep, i) => (
-                  <li key={i} className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
-                    <span>{dep}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
+          ))}
         </div>
       )}
-
-      {/* Tab 2: Digital E-Card */}
-      {activeTab === 'ecard' && enrollment && policy && (
-        <div className="max-w-2xl mx-auto space-y-6">
-          <div className="bg-gradient-to-br from-teal-900 via-slate-900 to-teal-950 text-white p-8 rounded-3xl shadow-xl relative overflow-hidden space-y-6 border border-teal-800/30">
-            <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="flex items-center justify-between border-b border-teal-800/50 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-black">
-                  GT
-                </div>
-                <div>
-                  <h3 className="text-base font-black tracking-wide">Greenticker Financial Services LLP</h3>
-                  <p className="text-xs text-teal-300">Group Medical Insurance E-Card</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full">
-                {enrollment.status}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-xs text-slate-400 block">Employee Name</span>
-                <span className="font-bold text-base">{enrollment.employeeName}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Employee Code</span>
-                <span className="font-bold font-mono text-teal-300">{enrollment.employeeCode}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">E-Card Number</span>
-                <span className="font-bold font-mono text-teal-300">{enrollment.eCardNumber}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Policy Number</span>
-                <span className="font-bold font-mono text-teal-300">{policy.policyName}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">Sum Insured</span>
-                <span className="font-bold text-base text-emerald-400">₹{enrollment.sumInsured.toLocaleString('en-IN')}</span>
-              </div>
-              <div>
-                <span className="text-xs text-slate-400 block">TPA Provider</span>
-                <span className="font-bold text-base">{policy.tpaName}</span>
-              </div>
-            </div>
-
-            {enrollment.dependents.length > 0 && (
-              <div className="pt-4 border-t border-teal-800/50">
-                <span className="text-xs font-bold text-teal-300 uppercase tracking-widest block mb-2">Covered Dependents</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {enrollment.dependents.map((d, i) => (
-                    <div key={i} className="bg-teal-900/40 p-2.5 rounded-xl border border-teal-800/40 text-xs flex justify-between">
-                      <span className="font-bold">{d.name}</span>
-                      <span className="text-teal-300">{d.relation}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+      {dep && (
+        <Modal title="Add dependent" onClose={() => setDep(null)}>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <label className="col-span-2">Name<input className={inputCls} value={dep.name} onChange={(e) => setDep({ ...dep, name: e.target.value })} /></label>
+            <label>Relation<select className={inputCls} value={dep.relation} onChange={(e) => setDep({ ...dep, relation: e.target.value })}>{RELATIONS.map((r) => <option key={r}>{r}</option>)}</select></label>
+            <label>Date of birth<input type="date" className={inputCls} value={dep.dob} onChange={(e) => setDep({ ...dep, dob: e.target.value })} /></label>
+            <label>Gender<select className={inputCls} value={dep.gender} onChange={(e) => setDep({ ...dep, gender: e.target.value })}><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></select></label>
+            {!data.windowOpen && (
+              <>
+                <label>Life event<select className={inputCls} value={dep.lifeEvent} onChange={(e) => setDep({ ...dep, lifeEvent: e.target.value })}><option value="">—</option><option value="BIRTH">Birth</option><option value="MARRIAGE">Marriage</option><option value="ADOPTION">Adoption</option></select></label>
+                <label>Event date<input type="date" className={inputCls} value={dep.eventDate} onChange={(e) => setDep({ ...dep, eventDate: e.target.value })} /></label>
+                <label className="col-span-2">Proof (certificate)<input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setProof(e.target.files?.[0] || null)} /></label>
+              </>
             )}
-
-            <div className="pt-4 border-t border-teal-800/50 flex items-center justify-between text-xs text-slate-400">
-              <span>Show this digital card at network hospital helpdesk with valid Govt ID.</span>
-              <button
-                onClick={handlePrintECard}
-                className="px-3 py-1.5 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded-lg transition"
-              >
-                Print / Download E-Card
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-
-      {/* Tab 3: Claim Tracking */}
-      {activeTab === 'claims' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Insurance Claims & Reimbursements History</h3>
-              <button
-                onClick={() => setShowClaimModal(true)}
-                className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> New Claim
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase bg-slate-50/50">
-                    <th className="py-3 px-4">Claim ID</th>
-                    <th className="py-3 px-4">Patient & Relation</th>
-                    <th className="py-3 px-4">Hospital & Admission</th>
-                    <th className="py-3 px-4">Diagnosis</th>
-                    <th className="py-3 px-4">Requested / Approved</th>
-                    <th className="py-3 px-4">Status</th>
-                    {isAdmin && <th className="py-3 px-4 text-right">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 text-sm font-medium text-slate-700">
-                  {claims.map((claim) => (
-                    <tr key={claim._id} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900">{claim._id}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900 block">{claim.patientName}</span>
-                        <span className="text-xs text-slate-500">{claim.relation} ({claim.employeeName})</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-800 block">{claim.hospitalName}</span>
-                        <span className="text-xs text-slate-500">Admitted: {claim.admissionDate}</span>
-                      </td>
-                      <td className="py-3 px-4 text-slate-600 max-w-xs truncate">{claim.diagnosis}</td>
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900 block">₹{claim.amountRequested.toLocaleString('en-IN')}</span>
-                        {claim.amountApproved !== undefined && (
-                          <span className="text-xs font-bold text-emerald-600">Approved: ₹{claim.amountApproved.toLocaleString('en-IN')}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-wider inline-block ${
-                            claim.status === 'SETTLED' || claim.status === 'APPROVED'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : claim.status === 'REJECTED'
-                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                              : 'bg-amber-50 text-amber-700 border border-amber-200'
-                          }`}
-                        >
-                          {claim.status}
-                        </span>
-                      </td>
-                      {isAdmin && (
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => setReviewingClaim(claim)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg transition"
-                          >
-                            Review / TPA Status
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                  {claims.length === 0 && (
-                    <tr>
-                      <td colSpan={isAdmin ? 7 : 6} className="py-8 text-center text-slate-400 text-sm">
-                        No insurance claims recorded.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab 4: Admin Management */}
-      {activeTab === 'admin' && isAdmin && (
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Company Insurance Program Overview & Payroll Deductions</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              All employee insurance premiums are deducted monthly via payroll based on grade-level slabs. TPA settlements are automatically reconciled every month with ICICI Lombard.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-teal-50 border border-teal-100">
-                <span className="text-xs font-semibold text-teal-600 block mb-1">Total Enrolled Employees</span>
-                <span className="text-2xl font-black text-teal-900">42 / 45</span>
-              </div>
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                <span className="text-xs font-semibold text-emerald-600 block mb-1">Total Claims Settled (FY25-26)</span>
-                <span className="text-2xl font-black text-emerald-900">₹14,20,500</span>
-              </div>
-              <div className="p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <span className="text-xs font-semibold text-blue-600 block mb-1">Monthly Premium Payroll Collection</span>
-                <span className="text-2xl font-black text-blue-900">₹38,500</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Submit Claim Modal */}
-      {showClaimModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-lg font-black text-slate-900">Submit Corporate Insurance Claim</h3>
-              <button onClick={() => setShowClaimModal(false)} className="text-slate-400 hover:text-slate-600 font-bold">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleClaimSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Patient Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={claimForm.patientName}
-                    onChange={(e) => setClaimForm({ ...claimForm, patientName: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                    placeholder="Full Name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Relation</label>
-                  <select
-                    value={claimForm.relation}
-                    onChange={(e) => setClaimForm({ ...claimForm, relation: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  >
-                    <option value="Self">Self</option>
-                    <option value="Spouse">Spouse</option>
-                    <option value="Child">Child</option>
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Hospital Name & City</label>
-                <input
-                  type="text"
-                  required
-                  value={claimForm.hospitalName}
-                  onChange={(e) => setClaimForm({ ...claimForm, hospitalName: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  placeholder="e.g. Manipal Hospital, Bengaluru"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Admission Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={claimForm.admissionDate}
-                    onChange={(e) => setClaimForm({ ...claimForm, admissionDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Claim Type</label>
-                  <select
-                    value={claimForm.claimType}
-                    onChange={(e) => setClaimForm({ ...claimForm, claimType: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  >
-                    <option value="CASHLESS">Cashless Hospitalization</option>
-                    <option value="REIMBURSEMENT">Reimbursement</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Amount Requested (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    value={claimForm.amountRequested}
-                    onChange={(e) => setClaimForm({ ...claimForm, amountRequested: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                    placeholder="25000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Hospital Bills & Discharge Summary</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => {
-                      const files = e.target.files;
-                      if (files && files.length > 0) {
-                        const fileNames = Array.from(files).map((f) => f.name);
-                        setClaimForm({ ...claimForm, documents: fileNames });
-                      }
-                    }}
-                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 file:mr-3 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 transition cursor-pointer"
-                  />
-                  <span className="text-[10px] text-slate-400 mt-1 block truncate">
-                    Attached: {claimForm.documents.join(', ')}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Diagnosis / Medical Condition</label>
-                <textarea
-                  required
-                  rows={2}
-                  value={claimForm.diagnosis}
-                  onChange={(e) => setClaimForm({ ...claimForm, diagnosis: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  placeholder="Brief description of illness or surgery..."
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowClaimModal(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingClaim}
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-sm font-bold transition shadow-sm"
-                >
-                  {submittingClaim ? 'Submitting...' : 'Submit Claim'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Admin Review Claim Modal */}
-      {reviewingClaim && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <h3 className="text-lg font-black text-slate-900">Review Insurance Claim ({reviewingClaim._id})</h3>
-              <button onClick={() => setReviewingClaim(null)} className="text-slate-400 hover:text-slate-600 font-bold">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="bg-slate-50 p-4 rounded-xl space-y-2 border border-slate-100">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Employee:</span>
-                  <span className="font-bold">{reviewingClaim.employeeName} ({reviewingClaim.employeeCode})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Patient:</span>
-                  <span className="font-bold">{reviewingClaim.patientName} ({reviewingClaim.relation})</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Hospital:</span>
-                  <span className="font-bold">{reviewingClaim.hospitalName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Requested Amount:</span>
-                  <span className="font-bold text-teal-700">₹{reviewingClaim.amountRequested.toLocaleString('en-IN')}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Approved Amount (₹)</label>
-                <input
-                  type="number"
-                  value={amountApproved || reviewingClaim.amountRequested}
-                  onChange={(e) => setAmountApproved(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">TPA / Reviewer Remarks</label>
-                <textarea
-                  rows={2}
-                  value={tpaRemarks}
-                  onChange={(e) => setTpaRemarks(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                  placeholder="Enter remarks or query..."
-                ></textarea>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
-                <button
-                  onClick={() => handleUpdateClaimStatus(reviewingClaim._id, 'REJECTED')}
-                  className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl transition"
-                >
-                  Reject Claim
-                </button>
-                <button
-                  onClick={() => handleUpdateClaimStatus(reviewingClaim._id, 'APPROVED')}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-xl transition"
-                >
-                  Approve TPA Review
-                </button>
-                <button
-                  onClick={() => handleUpdateClaimStatus(reviewingClaim._id, 'SETTLED')}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition"
-                >
-                  Settle Claim
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+          <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={addDep}>Submit for HR verification</button></div>
+        </Modal>
       )}
     </div>
   );
 };
+
+const Claims: React.FC<SetMsg & { isHr: boolean }> = ({ setMsg, isHr }) => {
+  const [rows, setRows] = useState<any[]>([]);
+  const [f, setF] = useState<any>(null);
+  const load = () => api.get<any>('/benefits/claims').then((r) => setRows(r.claims)).catch((e) => setMsg(errMsg(e)));
+  useEffect(() => { load(); }, []);
+  const submit = async () => {
+    try { await api.post('/benefits/claims', { ...f, amountRequested: Number(f.amountRequested) }); setF(null); setMsg(okMsg('Claim intimated. Track its status here.')); load(); } catch (e) { setMsg(errMsg(e)); }
+  };
+  const update = async (c: any, status: string) => {
+    const remarks = window.prompt('Remarks (optional)') || '';
+    try { await api.put(`/benefits/claims/${c._id}/status`, { status, remarks }); load(); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <div className={card}>
+      <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={() => setF({ policyId: 'benpol_gmc', patientName: '', relation: 'SELF', hospitalName: '', admissionDate: '', claimType: 'CASHLESS', amountRequested: '', diagnosis: '' })}>Intimate a claim</button></div>
+      <Table rows={rows} cols={[
+        { key: 'claimNumber', label: 'Claim', render: (c) => c.claimNumber || c._id }, { key: 'employeeName', label: 'Employee' }, { key: 'patientName', label: 'Patient' },
+        { key: 'hospitalName', label: 'Hospital' }, { key: 'amountRequested', label: 'Amount', right: true, render: (c) => fmtMoney(c.amountRequested) },
+        { key: 'status', label: 'Status', render: (c) => <Badge s={c.status} /> },
+        { key: 'a', label: '', render: (c) => isHr && !c._legacy && !['SETTLED', 'REJECTED'].includes(c.status) && (
+          <select className={inputCls} value="" aria-label="Update status" onChange={(e) => e.target.value && update(c, e.target.value)}>
+            <option value="">Update…</option>{['UNDER_REVIEW', 'SUBMITTED_TO_TPA', 'APPROVED', 'SETTLED', 'REJECTED'].map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+          </select>
+        ) },
+      ]} />
+      {f && (
+        <Modal title="Intimate an insurance claim" onClose={() => setF(null)}>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            {[['patientName', 'Patient name'], ['relation', 'Relation'], ['hospitalName', 'Hospital'], ['admissionDate', 'Admission date'], ['amountRequested', 'Estimated amount'], ['diagnosis', 'Diagnosis']].map(([k, l]) => (
+              <label key={k}>{l}<input className={inputCls} type={k === 'admissionDate' ? 'date' : k === 'amountRequested' ? 'number' : 'text'} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></label>
+            ))}
+            <label>Type<select className={inputCls} value={f.claimType} onChange={(e) => setF({ ...f, claimType: e.target.value })}><option>CASHLESS</option><option>REIMBURSEMENT</option></select></label>
+          </div>
+          <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={submit}>Submit</button></div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+const Policies: React.FC<SetMsg & { canManage: boolean }> = ({ setMsg, canManage }) => {
+  const [data, setData] = useState<any>({ policies: [], settings: {} });
+  const [edit, setEdit] = useState<any>(null);
+  const [win, setWin] = useState<any>(null);
+  const load = () => api.get<any>('/benefits/policies').then((r) => { setData(r); setWin(r.settings.enrollmentWindow); }).catch((e) => setMsg(errMsg(e)));
+  useEffect(() => { load(); }, []);
+  const save = async () => {
+    try {
+      const body = { ...edit, eligibleGrades: String(edit.eligibleGrades || '').split(',').map((g: string) => g.trim()).filter(Boolean) };
+      if (edit._id) await api.put(`/benefits/policies/${edit._id}`, body); else await api.post('/benefits/policies', body);
+      setEdit(null); setMsg(okMsg('Policy saved; eligible employees are enrolled automatically.')); load();
+    } catch (e) { setMsg(errMsg(e)); }
+  };
+  const saveWin = async () => {
+    try { await api.put('/benefits/settings', { enrollmentWindow: win }); setMsg(okMsg('Enrolment window saved.')); load(); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <div className="space-y-4">
+      {canManage && win && (
+        <div className={card}>
+          <h3 className="font-bold text-sm">Enrolment window</h3>
+          <div className="flex flex-wrap gap-3 items-end text-xs">
+            <label className="flex gap-1 items-center"><input type="checkbox" checked={!!win.open} onChange={(e) => setWin({ ...win, open: e.target.checked })} /> Open</label>
+            <label>From<input type="date" className={inputCls} value={win.from || ''} onChange={(e) => setWin({ ...win, from: e.target.value })} /></label>
+            <label>Until<input type="date" className={inputCls} value={win.until || ''} onChange={(e) => setWin({ ...win, until: e.target.value })} /></label>
+            <button className={btn(PRIMARY)} onClick={saveWin}>Save</button>
+          </div>
+        </div>
+      )}
+      <div className={card}>
+        {canManage && <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={() => setEdit({ type: 'GMC', name: '', insurer: '', policyNumber: '', sumInsured: '', premiumAnnual: '', validFrom: '', validTo: '', eligibleGrades: '', maxDependents: 5 })}>New policy</button></div>}
+        <Table rows={data.policies} cols={[
+          { key: 'type', label: 'Type' }, { key: 'name', label: 'Policy' }, { key: 'insurer', label: 'Insurer' }, { key: 'policyNumber', label: 'Policy no.' },
+          { key: 'sumInsured', label: 'Sum insured', right: true, render: (p) => fmtMoney(p.sumInsured) },
+          { key: 'premiumAnnual', label: 'Premium / life / yr', right: true, render: (p) => fmtMoney(p.premiumAnnual) },
+          { key: 'v', label: 'Valid', render: (p) => `${p.validFrom} → ${p.validTo}` }, { key: 'g', label: 'Grades', render: (p) => (p.eligibleGrades || []).join(', ') || 'All' },
+          { key: 'a', label: '', render: (p) => canManage && <button className={btn(SECONDARY)} onClick={() => setEdit({ ...p, eligibleGrades: (p.eligibleGrades || []).join(', ') })}>Edit</button> },
+        ]} />
+      </div>
+      {edit && (
+        <Modal title={edit._id ? `Edit ${edit.name}` : 'New insurance policy'} onClose={() => setEdit(null)}>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <label>Type<select className={inputCls} value={edit.type} onChange={(e) => setEdit({ ...edit, type: e.target.value })}>{['GMC', 'GPA', 'GTL', 'TOPUP'].map((t) => <option key={t}>{t}</option>)}</select></label>
+            {[['name', 'Name'], ['insurer', 'Insurer'], ['policyNumber', 'Policy number'], ['sumInsured', 'Sum insured'], ['premiumAnnual', 'Annual premium per life'],
+              ['validFrom', 'Valid from'], ['validTo', 'Valid to'], ['eligibleGrades', 'Eligible grades (comma separated, blank = all)'], ['maxDependents', 'Max dependents']].map(([k, l]) => (
+              <label key={k}>{l}<input className={inputCls} type={k.startsWith('valid') ? 'date' : ['sumInsured', 'premiumAnnual', 'maxDependents'].includes(k) ? 'number' : 'text'} value={edit[k] ?? ''} onChange={(e) => setEdit({ ...edit, [k]: e.target.value })} /></label>
+            ))}
+          </div>
+          <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={save}>Save</button></div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+const Enrollments: React.FC<SetMsg & { isHr: boolean }> = ({ setMsg, isHr }) => {
+  const [rows, setRows] = useState<any[]>([]);
+  const [onlyPending, setOnlyPending] = useState(true);
+  const load = () => api.get<any>('/benefits/enrollments').then((r) => setRows(r.enrollments)).catch((e) => setMsg(errMsg(e)));
+  useEffect(() => { load(); }, []);
+  const verify = async (e: any, d: any, decision: string) => {
+    const comment = decision === 'REJECTED' ? window.prompt('Reason?') || '' : '';
+    if (decision === 'REJECTED' && !comment) return;
+    try { await api.post(`/benefits/enrollments/${e.employeeId}/${e.policyId}/dependents/${d._id}/verify`, { decision, comment }); load(); } catch (er) { setMsg(errMsg(er)); }
+  };
+  const deps = rows.flatMap((e) => e.dependents.map((d: any) => ({ ...d, enr: e }))).filter((d) => !onlyPending || d.status === 'PENDING_VERIFICATION');
+  return (
+    <div className="space-y-4">
+      <div className={card}>
+        <div className="flex justify-between items-center">
+          <h3 className="font-bold text-sm">Dependents</h3>
+          <label className="text-xs flex gap-1 items-center"><input type="checkbox" checked={onlyPending} onChange={(e) => setOnlyPending(e.target.checked)} /> Waiting for verification only</label>
+        </div>
+        <Table rows={deps} empty="Nothing to verify." cols={[
+          { key: 'e', label: 'Employee', render: (d) => d.enr.employeeName }, { key: 'p', label: 'Policy', render: (d) => d.enr.policy.name },
+          { key: 'name', label: 'Dependent' }, { key: 'relation', label: 'Relation' }, { key: 'dob', label: 'DOB' },
+          { key: 'addedVia', label: 'Via', render: (d) => `${d.addedVia}${d.lifeEvent ? ` (${d.lifeEvent.toLowerCase()} ${d.eventDate})` : ''}` },
+          { key: 'proof', label: 'Proof', render: (d) => (d.proof ? <button className="underline text-indigo-700" onClick={() => openApiFile(`/benefits/enrollments/${d.enr.employeeId}/${d.enr.policyId}/dependents/${d._id}/proof`).catch((e) => setMsg(errMsg(e)))}>view</button> : '—') },
+          { key: 'status', label: 'Status', render: (d) => <Badge s={d.status} /> },
+          { key: 'a', label: '', render: (d) => isHr && d.canVerify && <div className="flex gap-1"><button className={btn(GOOD)} onClick={() => verify(d.enr, d, 'APPROVED')}>Verify</button><button className={btn(BAD)} onClick={() => verify(d.enr, d, 'REJECTED')}>Reject</button></div> },
+        ]} />
+      </div>
+      <div className={card}>
+        <h3 className="font-bold text-sm">Enrolments</h3>
+        <Table rows={rows} cols={[
+          { key: 'employeeName', label: 'Employee' }, { key: 'policyType', label: 'Policy' }, { key: 'coverageStart', label: 'From' }, { key: 'coverageEnd', label: 'To' },
+          { key: 'lives', label: 'Lives', right: true, render: (e) => 1 + e.dependents.filter((d: any) => d.status === 'ACTIVE').length },
+          { key: 'status', label: 'Status', render: (e) => <Badge s={e.status} /> },
+        ]} />
+      </div>
+    </div>
+  );
+};
+
+const Files: React.FC<SetMsg & { isHr: boolean }> = ({ setMsg, isHr }) => {
+  const [kind, setKind] = useState('deletion');
+  const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [rows, setRows] = useState<any[]>([]);
+  const load = () => api.get<any>(`/benefits/insurer-file?kind=${kind}&month=${month}`).then((r) => setRows(r.rows)).catch((e) => setMsg(errMsg(e)));
+  useEffect(() => { load(); }, [kind, month]);
+  const cols = ['policyNumber', 'employeeCode', 'relation', 'name', 'dob', 'effectiveDate', 'action'];
+  return (
+    <div className={card}>
+      <div className="flex flex-wrap gap-2 items-end text-xs">
+        <label>File<select className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}><option value="addition">Additions</option><option value="deletion">Deletions</option></select></label>
+        <label>Month<input type="month" className={inputCls} value={month} onChange={(e) => setMonth(e.target.value)} /></label>
+        <button className={btn(SECONDARY)} onClick={() => saveCsv(`insurer_${kind}_${month}.csv`, cols, rows)}>Download CSV</button>
+      </div>
+      {isHr && <p className="text-xs text-slate-500">Coverage ends automatically on the last working day when an exit is initiated; those lives appear in that month's deletion file.</p>}
+      <Table rows={rows} rowKey={(_, i) => String(i)} cols={cols.map((c) => ({ key: c, label: c.replace(/([A-Z])/g, ' $1') }))} />
+    </div>
+  );
+};
+
+const Premiums: React.FC<SetMsg & { isFinance: boolean }> = ({ setMsg, isFinance }) => {
+  const [rows, setRows] = useState<any[]>([]);
+  const [pols, setPols] = useState<any[]>([]);
+  const [f, setF] = useState({ policyId: '', amount: '', reference: '', period: '' });
+  const load = () => {
+    api.get<any>('/benefits/premium-payments').then((r) => setRows(r.payments)).catch((e) => setMsg(errMsg(e)));
+    api.get<any>('/benefits/policies').then((r) => setPols(r.policies)).catch(() => undefined);
+  };
+  useEffect(load, []);
+  const pay = async () => {
+    try { await api.post('/benefits/premium-payments', { ...f, amount: Number(f.amount) }); setMsg(okMsg('Premium payment recorded.')); load(); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <div className={card}>
+      {isFinance && (
+        <div className="grid md:grid-cols-5 gap-2">
+          <select className={inputCls} aria-label="Policy" value={f.policyId} onChange={(e) => setF({ ...f, policyId: e.target.value })}><option value="">Policy…</option>{pols.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}</select>
+          <input className={inputCls} type="number" placeholder="Amount" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} />
+          <input className={inputCls} placeholder="Payment reference" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} />
+          <input className={inputCls} placeholder="Period (e.g. 2026-27)" value={f.period} onChange={(e) => setF({ ...f, period: e.target.value })} />
+          <button className={btn(PRIMARY)} onClick={pay}>Record payment</button>
+        </div>
+      )}
+      <Table rows={rows} cols={[
+        { key: 'policyName', label: 'Policy' }, { key: 'insurer', label: 'Insurer' }, { key: 'period', label: 'Period' }, { key: 'livesCovered', label: 'Lives', right: true },
+        { key: 'amount', label: 'Amount', right: true, render: (p) => fmtMoney(p.amount) }, { key: 'reference', label: 'Reference' },
+        { key: 'gl', label: 'GL', render: (p) => `${p.glCode} ${p.glName}` }, { key: 'paidBy', label: 'Paid by' },
+      ]} />
+    </div>
+  );
+};
+
+export default InsurancePage;

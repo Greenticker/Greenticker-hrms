@@ -1,41 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { modulesService } from '../services/modulesService';
-import { JobOpening, JobCandidate, Referral, ReferralStatus } from '../types/modules';
+import { recruitmentService, OfferInput } from '../services/recruitmentService';
+import { employeeService } from '../services/employeeService';
 import {
-  Briefcase,
-  Users,
-  Search,
-  MapPin,
-  CheckCircle2,
-  X,
-  UserPlus,
-  FileText,
-  Download,
-  Mail,
-  Phone,
-  Calendar,
-  DollarSign,
-  Clock,
-  Building,
-  Lock,
-  Plus,
-  Layers,
-  Award,
-} from 'lucide-react';
+  JobCandidate,
+  JobOpening,
+  MyInterview,
+  OfferVersion,
+  Referral,
+  ReferralStatus,
+  Requisition,
+} from '../types/modules';
+import { Department, Employee } from '../types/employee';
+import { canRead, canWrite, canWriteMaster, apiErrorMessages, isReadOnlyRole } from '../utils/access';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '../utils/uploadLimits';
+import {
+  AlertTriangle,
+  Briefcase,
+  Calendar,
+  CheckCircle2,
+  ClipboardCheck,
+  Download,
+  FileText,
+  Globe,
+  Lock,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
+  Search,
+  Send,
+  Star,
+  UserCheck,
+  UserPlus,
+  X,
+  XCircle,
+} from 'lucide-react';
 
-const MAX_RESUME_BYTES = MAX_UPLOAD_BYTES;
+// ------------------------------------------------------------------ constants
 
-const STATUS_LABEL: Record<ReferralStatus, string> = {
+type Tab = 'requisitions' | 'candidates' | 'interviews' | 'approvals' | 'referrals';
+
+const STAGES: JobCandidate['stage'][] = [
+  'APPLIED',
+  'SCREENING',
+  'SHORTLISTED',
+  'TECHNICAL_INTERVIEW',
+  'HR_INTERVIEW',
+  'OFFERED',
+  'HIRED',
+  'REJECTED',
+];
+
+const STAGE_LABEL: Record<string, string> = {
+  APPLIED: 'Applied',
+  SCREENING: 'Screening',
+  SHORTLISTED: 'Shortlisted',
+  TECHNICAL_INTERVIEW: 'Interviewing',
+  HR_INTERVIEW: 'Cleared interviews',
+  OFFERED: 'Offered',
+  HIRED: 'Hired',
+  REJECTED: 'Rejected',
+};
+
+const REQ_STATUS: Record<string, { label: string; style: string }> = {
+  PENDING_APPROVAL: { label: 'Awaiting finance approval', style: 'bg-amber-100 text-amber-800' },
+  APPROVED: { label: 'Approved · ready to publish', style: 'bg-blue-100 text-blue-800' },
+  REJECTED: { label: 'Rejected', style: 'bg-rose-100 text-rose-800' },
+  PUBLISHED: { label: 'Published', style: 'bg-emerald-100 text-emerald-800' },
+};
+
+const OFFER_STATUS: Record<string, { label: string; style: string }> = {
+  PENDING_APPROVAL: { label: 'Awaiting approval (above band)', style: 'bg-amber-100 text-amber-800' },
+  SENT: { label: 'Sent', style: 'bg-blue-100 text-blue-800' },
+  ACCEPTED: { label: 'Accepted', style: 'bg-emerald-100 text-emerald-800' },
+  DECLINED: { label: 'Declined', style: 'bg-rose-100 text-rose-800' },
+  SUPERSEDED: { label: 'Superseded by revision', style: 'bg-slate-100 text-slate-600' },
+  APPROVAL_REJECTED: { label: 'Approval rejected', style: 'bg-rose-100 text-rose-800' },
+  WITHDRAWN: { label: 'Withdrawn', style: 'bg-slate-100 text-slate-600' },
+  JOINED: { label: 'Joined', style: 'bg-emerald-100 text-emerald-800' },
+};
+
+const REF_LABEL: Record<ReferralStatus, string> = {
   SUBMITTED: 'Submitted',
   IN_REVIEW: 'In review',
   SHORTLISTED: 'Shortlisted',
   HIRED: 'Hired',
   NOT_SELECTED: 'Not selected',
 };
-
-const STATUS_STYLE: Record<ReferralStatus, string> = {
+const REF_STYLE: Record<ReferralStatus, string> = {
   SUBMITTED: 'bg-slate-100 text-slate-700',
   IN_REVIEW: 'bg-amber-100 text-amber-800',
   SHORTLISTED: 'bg-indigo-100 text-indigo-800',
@@ -43,1397 +98,1614 @@ const STATUS_STYLE: Record<ReferralStatus, string> = {
   NOT_SELECTED: 'bg-rose-100 text-rose-800',
 };
 
-const emptyForm = {
-  fullName: '',
-  email: '',
-  phone: '',
-  city: '',
-  experienceYears: '',
-  jobId: '',
-  relationship: '',
-  notes: '',
-};
+const RECOMMENDATIONS = [
+  { value: 'STRONG_HIRE', label: 'Strong hire' },
+  { value: 'HIRE', label: 'Hire' },
+  { value: 'NO_HIRE', label: 'No hire' },
+  { value: 'STRONG_NO_HIRE', label: 'Strong no hire' },
+];
 
-export const RecruitmentPage: React.FC = () => {
-  const { user } = useAuth();
-  const isHr = user?.role === 'ADMIN' || user?.role === 'HR';
+const CHANNELS = [
+  { value: 'CAREERS_PAGE', label: 'Company careers page' },
+  { value: 'LINKEDIN', label: 'LinkedIn' },
+  { value: 'NAUKRI', label: 'Naukri' },
+  { value: 'INDEED', label: 'Indeed' },
+  { value: 'INTERNAL', label: 'Internal job board' },
+];
 
-  const [activeTab, setActiveTab] = useState<'pipeline' | 'referrals' | 'openings' | 'candidates'>(isHr ? 'pipeline' : 'referrals');
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [refSearch, setRefSearch] = useState('');
-  const [refStatusFilter, setRefStatusFilter] = useState<'ALL' | ReferralStatus>('ALL');
-  const [isReferOpen, setIsReferOpen] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+const inr = (n?: number) => (n || n === 0 ? `₹${Math.round(n).toLocaleString('en-IN')}` : '—');
+const dayOffset = (days: number) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
 
-  const [jobs, setJobs] = useState<JobOpening[]>([]);
-  const [candidates, setCandidates] = useState<JobCandidate[]>([]);
-  const [selectedJobId, setSelectedJobId] = useState<string>('');
-  // "All Candidates" tab (HR/Admin): every candidate across all openings
-  const [allCandidates, setAllCandidates] = useState<JobCandidate[]>([]);
-  const [candSearch, setCandSearch] = useState('');
-  const [candStageFilter, setCandStageFilter] = useState<'ALL' | JobCandidate['stage']>('ALL');
-  const [loading, setLoading] = useState(true);
+const inputCls =
+  'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+const btnPrimary =
+  'px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer text-xs';
+const btnGhost = 'px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer text-xs';
+const chip = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase';
+const actionBtn = (tone: string) =>
+  `px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer flex items-center gap-1 ${tone}`;
 
-  // Interview modal state with multi-round support
-  const [interviewCand, setInterviewCand] = useState<JobCandidate | null>(null);
-  const [interviewForm, setInterviewForm] = useState({
-    roundNumber: 1,
-    roundName: 'Round 1: Technical Screening',
-    date: new Date().toISOString().split('T')[0],
-    time: '10:00',
-    durationMinutes: 45,
-    mode: 'VIDEO' as 'IN_PERSON' | 'VIDEO' | 'PHONE',
-    locationOrLink: 'https://meet.google.com/vetan-hr-interview',
-    interviewer: 'Aditya Kapoor (HR Lead)',
-    notes: 'Please review portfolio and resume before the call.',
-  });
+// ------------------------------------------------------------------ small parts
 
-  // Offer modal state
-  const [offerCand, setOfferCand] = useState<JobCandidate | null>(null);
-  const [offerForm, setOfferForm] = useState({
-    annualCtc: 1800000,
-    designation: '',
-    location: 'Bengaluru HQ (Prestige Tech Park)',
-    joiningDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-    validTill: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-    reportingTo: 'Ananya Mehta (CEO)',
-    notes: 'Standard enterprise employment terms apply.',
-  });
-
-  // Feedback modal state with justification (public) and comments/notes (HR/Admin only)
-  const [feedbackCand, setFeedbackCand] = useState<JobCandidate | null>(null);
-  const [feedbackRound, setFeedbackRound] = useState<string>('Round 1: Technical Screening');
-  const [feedbackRoundNumber, setFeedbackRoundNumber] = useState<number>(1);
-  const [feedbackForm, setFeedbackForm] = useState({
-    rating: 5,
-    justification: '',
-    comments: '',
-    notes: '',
-    recommendation: 'NEXT_ROUND' as 'NEXT_ROUND' | 'READY_FOR_OFFER' | 'REJECT',
-  });
-
-  const handleOpenFeedback = (cand: JobCandidate, round: string, roundNum?: number) => {
-    setFeedbackCand(cand);
-    setFeedbackRound(round);
-    setFeedbackRoundNumber(roundNum || 1);
-    setFeedbackForm({
-      rating: 5,
-      justification: '',
-      comments: '',
-      notes: '',
-      recommendation: 'NEXT_ROUND',
-    });
-  };
-
-  const handleSubmitFeedback = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!feedbackCand) return;
-    try {
-      const res = await modulesService.submitFeedback(feedbackCand._id, {
-        round: feedbackRound,
-        roundNumber: feedbackRoundNumber,
-        ...feedbackForm,
-      });
-      setFeedbackCand(null);
-      setNotice(res.message || 'Interview feedback submitted successfully.');
-      setTimeout(() => setNotice(null), 6000);
-      await reloadCandidates();
-    } catch (err: any) {
-      alert(err?.message || 'Failed to submit interview feedback.');
-    }
-  };
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const jRes = await modulesService.getJobOpenings();
-        const fetchedJobs = jRes?.jobs || [];
-        setJobs(fetchedJobs);
-        await loadReferrals();
-        if (isHr) await loadAllCandidates();
-        if (isHr && fetchedJobs.length > 0) {
-          const firstJobId = fetchedJobs[0]?._id;
-          if (firstJobId) {
-            setSelectedJobId(firstJobId);
-            const cRes = await modulesService.getJobCandidates(firstJobId);
-            setCandidates(cRes?.candidates || []);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load recruitment data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const loadReferrals = async () => {
-    try {
-      const res = await modulesService.getReferrals();
-      setReferrals(res.referrals);
-    } catch (err) {
-      console.error('Failed to load referrals', err);
-    }
-  };
-
-  // Every candidate across all job openings (server returns all when no jobId is given)
-  const loadAllCandidates = async () => {
-    try {
-      const res = await modulesService.getJobCandidates();
-      setAllCandidates(res?.candidates || []);
-    } catch (err) {
-      console.error('Failed to load candidates', err);
-    }
-  };
-
-  // Refresh both the selected job's pipeline and the All Candidates list
-  const reloadCandidates = async () => {
-    if (selectedJobId) {
-      const cRes = await modulesService.getJobCandidates(selectedJobId);
-      setCandidates(cRes.candidates);
-    }
-    await loadAllCandidates();
-  };
-
-  const openReferForm = () => {
-    setForm(emptyForm);
-    setResumeFile(null);
-    setFormError(null);
-    setIsReferOpen(true);
-  };
-
-  const handleResumePick = (file: File | null) => {
-    setFormError(null);
-    if (!file) return setResumeFile(null);
-    const ok = /\.(pdf|doc|docx)$/i.test(file.name);
-    if (!ok) {
-      setResumeFile(null);
-      return setFormError('Resume must be a PDF, DOC or DOCX file.');
-    }
-    if (file.size > MAX_RESUME_BYTES) {
-      setResumeFile(null);
-      return setFormError(`Resume must be ${MAX_UPLOAD_LABEL} or smaller.`);
-    }
-    setResumeFile(file);
-  };
-
-  const handleSubmitReferral = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    if (!resumeFile) return setFormError("Please attach the candidate's resume.");
-    const years = Number(form.experienceYears);
-    if (form.experienceYears === '' || !Number.isFinite(years) || years < 0 || years > 60) {
-      return setFormError('Enter years of experience as a number (0 for freshers).');
-    }
-
-    setIsSubmitting(true);
-    try {
-      await modulesService.submitReferral({ ...form, resume: resumeFile });
-      setIsReferOpen(false);
-      setActiveTab('referrals');
-      setNotice(`Thanks! ${form.fullName} has been referred and is now visible in the Referrals list.`);
-      await loadReferrals();
-      setTimeout(() => setNotice(null), 6000);
-    } catch (err: any) {
-      setFormError(err?.message || 'Could not submit the referral. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleReferralStatus = async (id: string, status: ReferralStatus) => {
-    try {
-      await modulesService.updateReferralStatus(id, status);
-      await loadReferrals();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleResumeDownload = async (r: Referral) => {
-    try {
-      await modulesService.downloadReferralResume(r._id, r.resumeFileName || 'resume');
-    } catch (err: any) {
-      setNotice(err?.message || 'Could not download resume.');
-      setTimeout(() => setNotice(null), 5000);
-    }
-  };
-
-  const filteredReferrals = referrals.filter((r) => {
-    const q = refSearch.toLowerCase();
-    const matches =
-      !q ||
-      r.fullName.toLowerCase().includes(q) ||
-      r.city.toLowerCase().includes(q) ||
-      (r.jobTitle || '').toLowerCase().includes(q) ||
-      r.referredByName.toLowerCase().includes(q);
-    return matches && (refStatusFilter === 'ALL' || r.status === refStatusFilter);
-  });
-
-  const handleSelectJob = async (jobId: string) => {
-    setSelectedJobId(jobId);
-    try {
-      const cRes = await modulesService.getJobCandidates(jobId);
-      setCandidates(cRes.candidates);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleOpenInterview = (cand: JobCandidate, roundNum?: number, customRoundName?: string) => {
-    setInterviewCand(cand);
-    const existingCount = (cand as any).interviewRounds?.length || (cand.interviewFeedbacks?.length || 0);
-    const nextRoundNum = roundNum ?? (existingCount + 1);
-    const defaultRoundNames: Record<number, string> = {
-      1: 'Round 1: Initial Technical Screening',
-      2: 'Round 2: Deep Dive & System Architecture',
-      3: 'Round 3: Problem Solving & Live Coding',
-      4: 'Round 4: Leadership & Executive Fit',
-    };
-    const defaultName = customRoundName || defaultRoundNames[nextRoundNum] || `Round ${nextRoundNum}: Technical Interview`;
-
-    setInterviewForm({
-      roundNumber: nextRoundNum,
-      roundName: defaultName,
-      date: new Date().toISOString().split('T')[0],
-      time: '10:00',
-      durationMinutes: 45,
-      mode: 'VIDEO',
-      locationOrLink: 'https://meet.google.com/vetan-hr-interview',
-      interviewer: user ? `${user.firstName} ${user.lastName}` : 'Aditya Kapoor (HR Lead)',
-      notes: 'Please review portfolio and resume before the call.',
-    });
-  };
-
-  const handleSubmitInterview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!interviewCand) return;
-    try {
-      const res = await modulesService.scheduleInterview(interviewCand._id, interviewForm);
-      setInterviewCand(null);
-      setNotice(res.message || 'Interview scheduled and invitation e-mailed successfully.');
-      setTimeout(() => setNotice(null), 6000);
-      await reloadCandidates();
-    } catch (err: any) {
-      alert(err?.message || 'Failed to schedule interview.');
-    }
-  };
-
-  const handleOpenOffer = (cand: JobCandidate) => {
-    setOfferCand(cand);
-    const j = (jobs || []).find((job) => job._id === cand.jobId);
-    setOfferForm({
-      annualCtc: cand.offer?.annualCtc || 1800000,
-      designation: cand.jobTitle || j?.title || 'Software Engineer',
-      location: j?.location || 'Bengaluru HQ (Prestige Tech Park)',
-      joiningDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-      validTill: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
-      reportingTo: 'Ananya Mehta (CEO)',
-      notes: 'Standard enterprise employment terms apply.',
-    });
-  };
-
-  const handleSubmitOffer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!offerCand) return;
-    try {
-      const res = await modulesService.extendOffer(offerCand._id, offerForm);
-      setOfferCand(null);
-      setNotice(res.message || 'Offer letter e-mailed successfully.');
-      setTimeout(() => setNotice(null), 6000);
-      await reloadCandidates();
-    } catch (err: any) {
-      alert(err?.message || 'Failed to extend offer.');
-    }
-  };
-
-  const handleRejectCandidate = async (cand: JobCandidate) => {
-    try {
-      await modulesService.rejectCandidate(cand._id);
-      setNotice(`Candidate ${cand.fullName} has been rejected and notified via e-mail.`);
-      setTimeout(() => setNotice(null), 6000);
-      await reloadCandidates();
-    } catch (err: any) {
-      alert(err?.message || 'Failed to reject candidate.');
-    }
-  };
-
-  const stageStyle = (stage: JobCandidate['stage']) =>
-    stage === 'OFFERED' || stage === 'HIRED'
-      ? 'bg-emerald-100 text-emerald-800'
-      : stage === 'TECHNICAL_INTERVIEW' || stage === 'HR_INTERVIEW'
-      ? 'bg-indigo-100 text-indigo-800'
-      : stage === 'REJECTED'
-      ? 'bg-rose-100 text-rose-800'
-      : 'bg-amber-100 text-amber-800';
-
-  // One candidate row, shared by the Job Pipeline and All Candidates tabs
-  const renderCandidateCard = (cand: JobCandidate, showJobTitle: boolean) => (
+const Modal: React.FC<{ title: string; subtitle?: string; onClose: () => void; wide?: boolean; children: React.ReactNode }> = ({
+  title,
+  subtitle,
+  onClose,
+  wide,
+  children,
+}) => (
+  <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true">
     <div
-      key={cand._id}
-      className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+      className={`bg-white rounded-2xl ${wide ? 'max-w-2xl' : 'max-w-lg'} w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] overflow-y-auto`}
     >
-      <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <h4 className="font-bold text-slate-900 text-sm">{cand.fullName}</h4>
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${stageStyle(cand.stage)}`}>
-            {cand.stage.replace('_', ' ')}
-          </span>
-          {showJobTitle && (
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white border border-slate-200 text-slate-600">
-              {cand.jobTitle || 'General'}
-            </span>
-          )}
+      <div className="flex items-start justify-between border-b border-slate-100 pb-3 gap-3">
+        <div>
+          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
-        <p className="text-slate-500 text-[11px] mt-0.5">
-          {cand.currentCompany || 'Freelance'} • {cand.experienceYears} Years Exp • {cand.email}
-          {cand.phone ? ` • ${cand.phone}` : ''}
-        </p>
-        {cand.notes && <p className="text-[11px] text-slate-600 mt-1 italic">"{cand.notes}"</p>}
-        {cand.interview && (cand.stage === 'TECHNICAL_INTERVIEW' || cand.stage === 'HR_INTERVIEW') && (
-          <p className="text-[11px] text-indigo-700 mt-1 font-mono">
-            📅 Interview: {cand.interview.date} at {cand.interview.time} ({cand.interview.mode}) with {cand.interview.interviewer}
-          </p>
-        )}
-        {cand.interviewFeedbacks && cand.interviewFeedbacks.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {cand.interviewFeedbacks.map((fb: any, idx: number) => {
-              const roundLabel =
-                fb.roundNumber
-                  ? `Round ${fb.roundNumber}`
-                  : fb.round === 'TECHNICAL_INTERVIEW'
-                  ? 'Technical Screening'
-                  : fb.round === 'HR_INTERVIEW'
-                  ? 'HR / Fit Interview'
-                  : fb.round;
-              return (
-                <div
-                  key={idx}
-                  className="text-[11px] text-slate-700 bg-white p-2.5 rounded-xl border border-slate-200 space-y-1"
-                >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="font-bold text-[#023b77] flex items-center gap-1.5">
-                      <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-mono text-[10px]">
-                        {roundLabel}
-                      </span>
-                      <span>· Rating: {fb.rating}/5</span>
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        fb.recommendation === 'READY_FOR_OFFER'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : fb.recommendation === 'NEXT_ROUND'
-                          ? 'bg-blue-100 text-blue-800'
-                          : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {fb.recommendation === 'READY_FOR_OFFER'
-                        ? '🎉 Cleared for Offer'
-                        : fb.recommendation === 'NEXT_ROUND'
-                        ? '✅ Pass to Next Round'
-                        : '❌ Reject'}
-                    </span>
-                  </div>
-
-                  {/* Justification: Visible to Everyone */}
-                  <div className="text-slate-800">
-                    <span className="font-semibold text-slate-900">Decision Justification: </span>
-                    <span>{fb.justification || fb.comments || 'Feedback recorded.'}</span>
-                  </div>
-
-                  {/* Comments & Notes: Visible ONLY to HR & Admin */}
-                  {isHr ? (
-                    <div className="mt-1 pt-1 border-t border-slate-100 text-[10px] text-slate-600 bg-slate-50/70 p-2 rounded-lg">
-                      <p className="flex items-center gap-1 font-bold text-indigo-900">
-                        <Lock className="w-3 h-3 text-indigo-600" />
-                        Confidential HR/Admin Evaluation:
-                      </p>
-                      <p className="mt-0.5 text-slate-700">{fb.comments}</p>
-                      {fb.notes && (
-                        <p className="mt-0.5 text-slate-500 italic">Notes: {fb.notes}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-[10px] text-slate-400 italic pt-1 border-t border-slate-100">
-                      <Lock className="w-3 h-3 text-slate-400" />
-                      <span>Internal comments & notes restricted to HR & Admin</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <button onClick={onClose} aria-label="Close" className="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <X className="w-5 h-5" />
+        </button>
       </div>
+      {children}
+    </div>
+  </div>
+);
 
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
-        {cand.stage === 'SCREENING' && (
-          <button
-            onClick={() => handleOpenInterview(cand, 1, 'Round 1: Initial Technical Screening')}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1"
-          >
-            <Calendar className="w-3.5 h-3.5" /> Schedule Round 1
-          </button>
-        )}
+const Field: React.FC<{ label: string; children: React.ReactNode; hint?: string }> = ({ label, children, hint }) => (
+  <div>
+    <label className="block font-semibold text-slate-700 mb-1 text-xs">{label}</label>
+    {children}
+    {hint && <p className="text-[11px] text-slate-400 mt-1">{hint}</p>}
+  </div>
+);
 
-        {(cand.stage === 'TECHNICAL_INTERVIEW' || cand.stage === 'HR_INTERVIEW') && (
-          <>
-            <button
-              onClick={() => {
-                const nextNum = (cand.interviewFeedbacks?.length || 0) + 1;
-                const rName = cand.interview?.roundName || `Round ${nextNum}`;
-                handleOpenFeedback(cand, rName, nextNum);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1"
-            >
-              <FileText className="w-3.5 h-3.5" /> Submit Feedback
-            </button>
-
-            <button
-              onClick={() => {
-                const nextNum = (cand.interviewFeedbacks?.length || 0) + 1;
-                handleOpenInterview(cand, nextNum);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold text-xs cursor-pointer flex items-center gap-1"
-              title="Add another interview round according to this candidate's evaluation process"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add Interview Round
-            </button>
-
-            <button
-              onClick={() => handleOpenOffer(cand)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1"
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" /> Extend Offer
-            </button>
-          </>
-        )}
-
-        {cand.stage === 'OFFERED' && (
-          <button
-            onClick={() => handleOpenOffer(cand)}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1"
-          >
-            <FileText className="w-3.5 h-3.5" /> Extend Offer
-          </button>
-        )}
-
-        {cand.stage !== 'REJECTED' && cand.stage !== 'HIRED' && (
-          <button
-            onClick={() => handleRejectCandidate(cand)}
-            className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold text-xs cursor-pointer"
-          >
-            Reject
-          </button>
-        )}
-        {cand.stage === 'OFFERED' && (
-          <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" /> Offer Extended
-          </span>
-        )}
-        {cand.stage === 'REJECTED' && (
-          <span className="text-xs font-bold text-rose-600">Rejected & Notified</span>
-        )}
-      </div>
+const Errors: React.FC<{ errors: string[] }> = ({ errors }) =>
+  errors.length === 0 ? null : (
+    <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+      {errors.length === 1 ? (
+        errors[0]
+      ) : (
+        <ul className="list-disc pl-4 space-y-0.5">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 
-  const filteredAllCandidates = allCandidates.filter((c) => {
-    const q = candSearch.toLowerCase();
-    const matches =
-      !q ||
-      c.fullName.toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q) ||
-      (c.jobTitle || '').toLowerCase().includes(q) ||
-      (c.currentCompany || '').toLowerCase().includes(q);
-    return matches && (candStageFilter === 'ALL' || c.stage === candStageFilter);
-  });
+const Footer: React.FC<{ onCancel: () => void; busy: boolean; label: string; danger?: boolean }> = ({ onCancel, busy, label, danger }) => (
+  <div className="flex justify-end gap-2 pt-2">
+    <button type="button" onClick={onCancel} className={btnGhost}>
+      Cancel
+    </button>
+    <button
+      type="submit"
+      disabled={busy}
+      className={danger ? btnPrimary.replace('bg-slate-900 hover:bg-slate-800', 'bg-rose-600 hover:bg-rose-700') : btnPrimary}
+    >
+      {busy ? 'Working...' : label}
+    </button>
+  </div>
+);
 
-  const CANDIDATE_STAGES: JobCandidate['stage'][] = [
-    'APPLIED',
-    'SCREENING',
-    'TECHNICAL_INTERVIEW',
-    'HR_INTERVIEW',
-    'OFFERED',
-    'HIRED',
-    'REJECTED',
+// ------------------------------------------------------------------ page
+
+export const RecruitmentPage: React.FC = () => {
+  const { user } = useAuth();
+  const role = user?.role;
+  const isRecruiter = canWrite(role, 'recruitment'); // HR, Admin 1/2, Super Admin, Admin
+  const canSeePipeline = canRead(role, 'recruitment'); // + Finance, Auditors (read only)
+  const isManager = role === 'MANAGER';
+  const isApprover = ['FINANCE', 'SUPER_ADMIN', 'ADMIN'].includes(role || '');
+  const canHire = canWriteMaster(role);
+  const canRaise = isRecruiter || isManager;
+  const seesRequisitions = canRaise || isApprover || role === 'AUDITORS';
+  const seesCandidates = canSeePipeline || isManager;
+
+  const [tab, setTab] = useState<Tab>(seesRequisitions ? 'requisitions' : 'referrals');
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+  const flash = (text: string, ok = true) => {
+    setNotice({ ok, text });
+    window.setTimeout(() => setNotice(null), 8000);
+  };
+
+  // Data
+  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
+  const [jobs, setJobs] = useState<JobOpening[]>([]);
+  const [candidates, setCandidates] = useState<JobCandidate[]>([]);
+  const [myInterviews, setMyInterviews] = useState<MyInterview[]>([]);
+  const [referrals, setReferrals] = useState<Referral[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Candidate filters
+  const [jobFilter, setJobFilter] = useState('ALL');
+  const [stageFilter, setStageFilter] = useState<'ALL' | JobCandidate['stage']>('ALL');
+  const [search, setSearch] = useState('');
+
+  const loadRequisitions = () =>
+    seesRequisitions ? recruitmentService.getRequisitions().then((r) => setRequisitions(r.requisitions)).catch(() => {}) : Promise.resolve();
+  const loadJobs = () => recruitmentService.getJobs().then((r) => setJobs(r.jobs)).catch(() => {});
+  const loadCandidates = () =>
+    seesCandidates
+      ? recruitmentService
+          .getCandidates({ includeArchived })
+          .then((r) => setCandidates(r.candidates))
+          .catch(() => {})
+      : Promise.resolve();
+  const loadInterviews = () => recruitmentService.getMyInterviews().then((r) => setMyInterviews(r.interviews)).catch(() => {});
+  const loadReferrals = () => modulesService.getReferrals().then((r) => setReferrals(r.referrals)).catch(() => {});
+  const reloadAll = () => Promise.all([loadRequisitions(), loadJobs(), loadCandidates(), loadInterviews(), loadReferrals()]);
+
+  useEffect(() => {
+    setLoading(true);
+    reloadAll().finally(() => setLoading(false));
+    employeeService
+      .getDepartments()
+      .then((r) => setDepartments(r.departments))
+      .catch(() => {});
+    if (isRecruiter) {
+      employeeService
+        .getEmployees()
+        .then((r) => setEmployees(r.employees.filter((e) => !['TERMINATED', 'EXITED'].includes(e.status as string))))
+        .catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadCandidates();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeArchived]);
+
+  const pendingOfferApprovals = candidates.filter((c) => c.offer?.status === 'PENDING_APPROVAL');
+  const tabs: { id: Tab; label: string; show: boolean }[] = [
+    { id: 'requisitions', label: `Requisitions (${requisitions.length})`, show: seesRequisitions },
+    { id: 'candidates', label: `Candidates (${candidates.length})`, show: seesCandidates },
+    { id: 'interviews', label: `My Interviews (${myInterviews.length})`, show: isManager || isRecruiter || myInterviews.length > 0 },
+    { id: 'approvals', label: `Offer Approvals (${pendingOfferApprovals.length})`, show: isApprover },
+    { id: 'referrals', label: isRecruiter ? `Referrals (${referrals.length})` : `My Referrals (${referrals.length})`, show: true },
   ];
 
-  const selectedJob = (jobs || []).find((j) => j._id === selectedJobId);
+  // ---------------------------------------------------------------- modals state
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<string[]>([]);
+  const fail = (err: any) => setErrors(apiErrorMessages(err));
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setErrors([]);
+    try {
+      await fn();
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  // Requisition
+  const emptyReq = {
+    title: '',
+    department: '',
+    positions: '1',
+    budgetMin: '',
+    budgetMax: '',
+    description: '',
+    justification: '',
+    experienceRequired: '',
+    skillsRequired: '',
+    employmentType: 'FULL_TIME',
+    priority: 'MEDIUM',
+    location: '',
+    expectedJoiningDate: '',
+    hiringManagerId: '',
+  };
+  const [reqForm, setReqForm] = useState<typeof emptyReq | null>(null);
+  const [reviewing, setReviewing] = useState<{ req: Requisition; decision: 'APPROVED' | 'REJECTED' } | null>(null);
+  const [reviewComment, setReviewComment] = useState('');
+  const [publishing, setPublishing] = useState<Requisition | null>(null);
+  const [channels, setChannels] = useState<string[]>(['CAREERS_PAGE']);
+
+  // Candidate add / edit / duplicate
+  const emptyCand = { jobId: '', fullName: '', email: '', phone: '', experienceYears: '', currentCompany: '', notes: '' };
+  const [candForm, setCandForm] = useState<typeof emptyCand | null>(null);
+  const [candResume, setCandResume] = useState<File | null>(null);
+  const [duplicate, setDuplicate] = useState<any | null>(null);
+  const [editing, setEditing] = useState<JobCandidate | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', currentCompany: '' });
+
+  // Interview, decision, panel feedback
+  const [scheduling, setScheduling] = useState<JobCandidate | null>(null);
+  const [schedForm, setSchedForm] = useState({
+    roundName: '',
+    date: dayOffset(2),
+    time: '11:00',
+    durationMinutes: 45,
+    mode: 'VIDEO',
+    locationOrLink: '',
+    notes: '',
+    panel: [] as string[],
+  });
+  const [panelSearch, setPanelSearch] = useState('');
+  const [deciding, setDeciding] = useState<JobCandidate | null>(null);
+  const [decision, setDecision] = useState({ justification: '', comments: '', recommendation: 'NEXT_ROUND' });
+  const [giving, setGiving] = useState<MyInterview | null>(null);
+  const [panelFb, setPanelFb] = useState({ rating: 4, comments: '', recommendation: 'HIRE' });
+
+  // Offers, hire, reject
+  const [offering, setOffering] = useState<JobCandidate | null>(null);
+  const [offerForm, setOfferForm] = useState<OfferInput>({
+    annualCtc: 0,
+    designation: '',
+    joiningDate: dayOffset(30),
+    validTill: dayOffset(7),
+    location: '',
+    reportingTo: '',
+    notes: '',
+    revisionReason: '',
+  });
+  const [approving, setApproving] = useState<{ cand: JobCandidate; decision: 'APPROVED' | 'REJECTED' } | null>(null);
+  const [approveComment, setApproveComment] = useState('');
+  const [converting, setConverting] = useState<JobCandidate | null>(null);
+  const [convertForm, setConvertForm] = useState({ workEmail: '', panNumber: '', aadhaarNumber: '', department: '', joiningDate: '', phone: '' });
+  const [rejecting, setRejecting] = useState<JobCandidate | null>(null);
+  const [rejectForm, setRejectForm] = useState({ reason: '', notifyCandidate: true });
+
+  // Referral
+  const emptyRef = { fullName: '', email: '', phone: '', city: '', experienceYears: '', jobId: '', relationship: '', notes: '' };
+  const [refForm, setRefForm] = useState<typeof emptyRef | null>(null);
+  const [refResume, setRefResume] = useState<File | null>(null);
+
+  const closeAll = () => {
+    setErrors([]);
+    setReqForm(null);
+    setReviewing(null);
+    setPublishing(null);
+    setCandForm(null);
+    setEditing(null);
+    setScheduling(null);
+    setDeciding(null);
+    setGiving(null);
+    setOffering(null);
+    setApproving(null);
+    setConverting(null);
+    setRejecting(null);
+    setRefForm(null);
+  };
+
+  const jobOf = (c: JobCandidate) => jobs.find((j) => j._id === c.jobId);
+  // Maker-checker: nobody approves a requisition they raised or are the hiring manager of
+  const myEmpId = user?.employee?._id || user?.employeeId;
+  const isOwnRequisition = (r: Requisition) =>
+    r.requestedByUserId === user?.id || (!!myEmpId && (r.requestedById === myEmpId || r.hiringManagerId === myEmpId));
+
+  // ---------------------------------------------------------------- actions
+  const submitRequisition = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reqForm) return;
+    run(async () => {
+      const res = await recruitmentService.createRequisition({
+        ...reqForm,
+        positions: Number(reqForm.positions),
+        budgetMin: Number(reqForm.budgetMin),
+        budgetMax: Number(reqForm.budgetMax),
+        hiringManagerId: reqForm.hiringManagerId || undefined,
+      });
+      closeAll();
+      flash(res.message);
+      setTab('requisitions');
+      await loadRequisitions();
+    });
+  };
+
+  const submitReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewing) return;
+    run(async () => {
+      await recruitmentService.reviewRequisition(reviewing.req._id, reviewing.decision, reviewComment.trim() || undefined);
+      closeAll();
+      flash(`Requisition ${reviewing.decision.toLowerCase()}. ${reviewing.req.requestedByName} has been notified.`);
+      await loadRequisitions();
+    });
+  };
+
+  const submitPublish = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!publishing) return;
+    run(async () => {
+      const res = await recruitmentService.publishRequisition(publishing._id, channels);
+      closeAll();
+      flash(`"${res.job.title}" published to ${channels.length} channel(s). It is now open for candidates.`);
+      await Promise.all([loadRequisitions(), loadJobs()]);
+    });
+  };
+
+  const submitCandidate = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!candForm) return;
+    if (candResume && (!/\.(pdf|doc|docx)$/i.test(candResume.name) || candResume.size > MAX_UPLOAD_BYTES)) {
+      setErrors([`Resume must be a PDF, DOC or DOCX file up to ${MAX_UPLOAD_LABEL}.`]);
+      return;
+    }
+    setBusy(true);
+    setErrors([]);
+    recruitmentService
+      .addCandidate(candForm, candResume)
+      .then(async (res) => {
+        closeAll();
+        flash(`${res.candidate.fullName} added to ${res.candidate.jobTitle}.`);
+        await loadCandidates();
+      })
+      .catch((err) => {
+        if (err?.status === 409 && err?.data?.duplicate) setDuplicate({ ...err.data.duplicate, message: err.message });
+        else fail(err);
+      })
+      .finally(() => setBusy(false));
+  };
+
+  const submitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    run(async () => {
+      await recruitmentService.updateCandidate(editing._id, editForm);
+      closeAll();
+      flash('Candidate details updated.');
+      await loadCandidates();
+    }).catch(() => {});
+  };
+
+  const submitSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scheduling) return;
+    run(async () => {
+      const res = await recruitmentService.scheduleInterview(scheduling._id, {
+        ...schedForm,
+        roundNumber: (scheduling.interviewRounds?.length || 0) + 1,
+      });
+      closeAll();
+      flash(`${res.message} Sent from ${res.sentFrom}.`);
+      await Promise.all([loadCandidates(), loadInterviews()]);
+    });
+  };
+
+  const submitDecision = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deciding) return;
+    const rounds = deciding.interviewRounds || [];
+    const last = rounds[rounds.length - 1];
+    run(async () => {
+      await recruitmentService.recordDecision(deciding._id, {
+        ...decision,
+        round: last?.roundName,
+        roundNumber: last?.roundNumber,
+      });
+      closeAll();
+      flash('Round decision recorded.');
+      await loadCandidates();
+    });
+  };
+
+  const submitPanelFeedback = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!giving) return;
+    run(async () => {
+      await recruitmentService.submitPanelFeedback(giving.candidateId, giving.roundNumber, panelFb);
+      closeAll();
+      flash('Feedback submitted. It is now locked and shared with HR.');
+      await Promise.all([loadInterviews(), loadCandidates()]);
+    });
+  };
+
+  const openOffer = (c: JobCandidate) => {
+    const job = jobOf(c);
+    const current = c.offer;
+    setErrors([]);
+    setOfferForm({
+      annualCtc: current?.annualCtc || job?.salaryBandMin || 0,
+      designation: current?.designation || c.jobTitle || job?.title || '',
+      joiningDate: current?.joiningDate || dayOffset(30),
+      validTill: current?.validTill || dayOffset(7),
+      location: current?.location || job?.location || '',
+      reportingTo: current?.reportingTo || job?.hiringManagerName || '',
+      notes: current?.notes || '',
+      revisionReason: '',
+    });
+    setOffering(c);
+  };
+
+  const submitOffer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offering) return;
+    run(async () => {
+      const res = await recruitmentService.extendOffer(offering._id, { ...offerForm, annualCtc: Number(offerForm.annualCtc) });
+      closeAll();
+      flash(res.message, !res.requiresApproval);
+      await loadCandidates();
+    });
+  };
+
+  const submitApproval = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!approving) return;
+    run(async () => {
+      const res = await recruitmentService.approveOffer(approving.cand._id, approving.decision, approveComment.trim() || undefined);
+      closeAll();
+      flash(
+        approving.decision === 'APPROVED'
+          ? `Offer approved and e-mailed from ${res.offer.sentFrom} to ${res.offer.sentTo}.`
+          : 'Offer approval rejected. HR has been notified.'
+      );
+      await loadCandidates();
+    });
+  };
+
+  const respond = async (c: JobCandidate, response: 'ACCEPTED' | 'DECLINED') => {
+    if (!window.confirm(`Record that ${c.fullName} has ${response.toLowerCase()} the offer?`)) return;
+    try {
+      await recruitmentService.recordOfferResponse(c._id, response);
+      flash(`Offer marked as ${response.toLowerCase()}.`);
+      await loadCandidates();
+    } catch (err: any) {
+      flash(err.message, false);
+    }
+  };
+
+  const submitConvert = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!converting) return;
+    run(async () => {
+      const res = await recruitmentService.convertToEmployee(converting._id, convertForm);
+      closeAll();
+      flash(res.message);
+      await loadCandidates();
+    });
+  };
+
+  const submitReject = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejecting) return;
+    run(async () => {
+      const res = await recruitmentService.reject(rejecting._id, rejectForm.reason, rejectForm.notifyCandidate);
+      closeAll();
+      flash(res.message);
+      await loadCandidates();
+    });
+  };
+
+  const submitReferral = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!refForm) return;
+    if (!refResume) return setErrors(["Please attach the candidate's resume."]);
+    if (!/\.(pdf|doc|docx)$/i.test(refResume.name) || refResume.size > MAX_UPLOAD_BYTES) {
+      return setErrors([`Resume must be a PDF, DOC or DOCX file up to ${MAX_UPLOAD_LABEL}.`]);
+    }
+    run(async () => {
+      await modulesService.submitReferral({ ...refForm, resume: refResume });
+      closeAll();
+      setTab('referrals');
+      flash(`Thanks! ${refForm.fullName} has been referred. You can follow the status here.`);
+      await loadReferrals();
+    });
+  };
+
+  const moveReferralToPipeline = async (r: Referral) => {
+    try {
+      await modulesService.convertReferralToCandidate(r._id);
+      flash(`${r.fullName} moved into the candidate pipeline.`);
+      await Promise.all([loadReferrals(), loadCandidates()]);
+    } catch (err: any) {
+      if (err?.data?.duplicate) setDuplicate({ ...err.data.duplicate, message: err.message });
+      else flash(err.message, false);
+    }
+  };
+
+  // ---------------------------------------------------------------- derived
+  const filteredCandidates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return candidates.filter(
+      (c) =>
+        (jobFilter === 'ALL' || c.jobId === jobFilter) &&
+        (stageFilter === 'ALL' || c.stage === stageFilter) &&
+        (!q || [c.fullName, c.email, c.phone, c.jobTitle].some((v) => (v || '').toLowerCase().includes(q)))
+    );
+  }, [candidates, jobFilter, stageFilter, search]);
+
+  const panelOptions = useMemo(() => {
+    const q = panelSearch.trim().toLowerCase();
+    return employees
+      .filter((e) => !q || `${e.firstName} ${e.lastName} ${e.designation} ${e.department}`.toLowerCase().includes(q))
+      .slice(0, 40);
+  }, [employees, panelSearch]);
+
+  const selectedJob = offering ? jobOf(offering) : undefined;
+  const offerAboveBand = !!selectedJob?.salaryBandMax && Number(offerForm.annualCtc) > selectedJob.salaryBandMax;
+
+  // ---------------------------------------------------------------- render pieces
+  const renderOfferHistory = (c: JobCandidate) => {
+    const list: OfferVersion[] = c.offers?.length ? c.offers : c.offer ? [c.offer] : [];
+    if (!list.length) return null;
+    return (
+      <div className="mt-2 bg-white rounded-xl border border-slate-200 p-2.5 space-y-1.5">
+        <p className="text-[10px] font-bold uppercase text-slate-500">Offer history</p>
+        {list
+          .slice()
+          .reverse()
+          .map((o, i) => (
+            <div key={`${o.version}-${i}`} className="text-[11px] flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span className="font-mono font-bold text-slate-700">v{o.version || 1}</span>
+              <span className="font-semibold text-slate-900">{inr(o.annualCtc)}</span>
+              <span className="text-slate-500">{o.designation}</span>
+              <span className={`${chip} ${(OFFER_STATUS[o.status || 'SENT'] || OFFER_STATUS.SENT).style}`}>
+                {(OFFER_STATUS[o.status || 'SENT'] || OFFER_STATUS.SENT).label}
+              </span>
+              {o.aboveBand && <span className="text-amber-700 font-semibold">above band (max {inr(o.salaryBandMax)})</span>}
+              {o.sentTo && (
+                <span className="text-slate-500">
+                  e-mailed {o.sentFrom ? `from ${o.sentFrom} ` : ''}to <b>{o.sentTo}</b>
+                  {o.emailStatus === 'SIMULATED' ? ' (simulated)' : ''}
+                </span>
+              )}
+              {o.revisionReason && <span className="text-slate-500 italic">Reason: {o.revisionReason}</span>}
+              {o.approval && (
+                <span className="text-slate-500">
+                  {o.approval.decision.toLowerCase()} by {o.approval.by}
+                  {o.approval.comment ? `: "${o.approval.comment}"` : ''}
+                </span>
+              )}
+            </div>
+          ))}
+      </div>
+    );
+  };
+
+  const renderRounds = (c: JobCandidate) =>
+    (c.interviewRounds || []).length > 0 && (
+      <div className="mt-2 space-y-1.5">
+        {(c.interviewRounds || []).map((r) => {
+          const fbs = Object.values(r.panelFeedback || {});
+          return (
+            <div key={r.roundNumber} className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-1">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <span className="font-bold text-[#023b77]">
+                  {r.roundName} · {r.date} {r.time} IST · {r.mode.replace('_', ' ').toLowerCase()}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className={`${chip} ${r.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'}`}>
+                    {r.status}
+                  </span>
+                  {r.calendarUid && (
+                    <button
+                      onClick={() => recruitmentService.downloadCalendar(c._id, r.roundNumber).catch((e) => flash(e.message, false))}
+                      className="text-indigo-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Calendar className="w-3 h-3" /> .ics
+                    </button>
+                  )}
+                </span>
+              </div>
+              <p className="text-slate-500">Panel: {(r.panel || []).map((p) => p.name).join(', ') || r.interviewer}</p>
+              {fbs.map((fb) => (
+                <p key={fb.employeeId} className="text-slate-700 flex items-start gap-1.5">
+                  <Lock className="w-3 h-3 mt-0.5 text-slate-400 shrink-0" />
+                  <span>
+                    <b>{fb.submittedBy}</b>: {fb.rating}/5 · {fb.recommendation.replace(/_/g, ' ').toLowerCase()} — {fb.comments}
+                  </span>
+                </p>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+
+  const renderCandidate = (c: JobCandidate) => {
+    const offerStatus = c.offer?.status;
+    const inInterviews = ['SHORTLISTED', 'TECHNICAL_INTERVIEW', 'HR_INTERVIEW'].includes(c.stage);
+    const job = jobOf(c);
+    return (
+      <div key={c._id} className={`p-4 rounded-xl border text-xs ${c.archived ? 'bg-slate-50/60 border-dashed border-slate-300' : 'bg-slate-50 border-slate-200/80'}`}>
+        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className="font-bold text-slate-900 text-sm">{c.fullName}</h4>
+              <span
+                className={`${chip} ${
+                  c.stage === 'REJECTED' ? 'bg-rose-100 text-rose-800' : c.stage === 'HIRED' || c.stage === 'OFFERED' ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'
+                }`}
+              >
+                {STAGE_LABEL[c.stage] || c.stage}
+              </span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white border border-slate-200 text-slate-600">{c.jobTitle}</span>
+              {c.source && <span className="text-[10px] text-slate-400">via {c.source.replace('_', ' ').toLowerCase()}</span>}
+              {c.archived && <span className={`${chip} bg-slate-200 text-slate-700`}>Archived until {c.retainUntil}</span>}
+            </div>
+            <p className="text-slate-500 text-[11px] mt-0.5 flex flex-wrap gap-x-3">
+              <span className="flex items-center gap-1">
+                <Mail className="w-3 h-3" /> {c.email}
+              </span>
+              {c.phone && (
+                <span className="flex items-center gap-1">
+                  <Phone className="w-3 h-3" /> {c.phone}
+                </span>
+              )}
+              <span>{c.experienceYears} yrs exp</span>
+              {c.currentCompany && <span>{c.currentCompany}</span>}
+              {job?.hiringManagerName && <span>Hiring manager: {job.hiringManagerName}</span>}
+            </p>
+            {c.rejectionReason && <p className="text-[11px] text-rose-700 mt-1">Rejected: {c.rejectionReason}{c.rejectedBy ? ` (by ${c.rejectedBy})` : ''}</p>}
+            {c.employeeCode && <p className="text-[11px] text-emerald-700 mt-1 font-semibold">Joined as employee {c.employeeCode}</p>}
+            {renderRounds(c)}
+            {renderOfferHistory(c)}
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap lg:justify-end lg:max-w-[46%]">
+            {c.hasResume && (
+              <button onClick={() => recruitmentService.downloadResume(c._id, c.resumeFileName).catch((e) => flash(e.message, false))} className={actionBtn('bg-white border border-slate-300 text-slate-800 hover:bg-slate-50')}>
+                <Download className="w-3.5 h-3.5" /> Resume
+              </button>
+            )}
+            {isRecruiter && !c.archived && c.stage !== 'HIRED' && (
+              <>
+                {(c.stage === 'APPLIED' || c.stage === 'SCREENING') && (
+                  <button
+                    onClick={() =>
+                      recruitmentService
+                        .shortlist(c._id)
+                        .then(() => {
+                          flash(`${c.fullName} shortlisted. Schedule the interview next.`);
+                          return loadCandidates();
+                        })
+                        .catch((e) => flash(e.message, false))
+                    }
+                    className={actionBtn('bg-indigo-600 hover:bg-indigo-700 text-white')}
+                  >
+                    <Star className="w-3.5 h-3.5" /> Shortlist
+                  </button>
+                )}
+                {inInterviews && (
+                  <button
+                    onClick={() => {
+                      setErrors([]);
+                      const n = (c.interviewRounds?.length || 0) + 1;
+                      setSchedForm({ roundName: `Round ${n}: ${n === 1 ? 'Technical Interview' : 'Interview'}`, date: dayOffset(2), time: '11:00', durationMinutes: 45, mode: 'VIDEO', locationOrLink: '', notes: '', panel: job?.hiringManagerId ? [job.hiringManagerId] : [] });
+                      setPanelSearch('');
+                      setScheduling(c);
+                    }}
+                    className={actionBtn('bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50')}
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Schedule interview
+                  </button>
+                )}
+                {(c.interviewRounds?.length || 0) > 0 && inInterviews && (
+                  <button
+                    onClick={() => {
+                      setErrors([]);
+                      setDecision({ justification: '', comments: '', recommendation: 'NEXT_ROUND' });
+                      setDeciding(c);
+                    }}
+                    className={actionBtn('bg-white border border-slate-300 text-slate-800 hover:bg-slate-50')}
+                  >
+                    <ClipboardCheck className="w-3.5 h-3.5" /> Round decision
+                  </button>
+                )}
+                {(inInterviews || c.stage === 'OFFERED') && offerStatus !== 'ACCEPTED' && offerStatus !== 'PENDING_APPROVAL' && (
+                  <button onClick={() => openOffer(c)} className={actionBtn('bg-emerald-600 hover:bg-emerald-700 text-white')}>
+                    <FileText className="w-3.5 h-3.5" /> {c.offer && ['SENT', 'DECLINED', 'APPROVAL_REJECTED'].includes(offerStatus || '') ? 'Revise offer' : 'Generate offer'}
+                  </button>
+                )}
+                {offerStatus === 'SENT' && (
+                  <>
+                    <button onClick={() => respond(c, 'ACCEPTED')} className={actionBtn('bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100')}>
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Offer accepted
+                    </button>
+                    <button onClick={() => respond(c, 'DECLINED')} className={actionBtn('bg-white border border-slate-300 text-slate-700 hover:bg-slate-50')}>
+                      Declined
+                    </button>
+                  </>
+                )}
+                {offerStatus === 'ACCEPTED' && canHire && (
+                  <button
+                    onClick={() => {
+                      setErrors([]);
+                      setConvertForm({ workEmail: '', panNumber: '', aadhaarNumber: '', department: job?.department || '', joiningDate: c.offer?.joiningDate || '', phone: c.phone || '' });
+                      setConverting(c);
+                    }}
+                    className={actionBtn('bg-[#039583] hover:bg-[#027a6b] text-white')}
+                  >
+                    <UserCheck className="w-3.5 h-3.5" /> Convert to employee
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setErrors([]);
+                    setEditForm({ fullName: c.fullName, email: c.email, phone: c.phone || '', currentCompany: c.currentCompany || '' });
+                    setEditing(c);
+                  }}
+                  className={actionBtn('bg-white border border-slate-300 text-slate-700 hover:bg-slate-50')}
+                  title="Edit name, e-mail or mobile"
+                >
+                  <Pencil className="w-3.5 h-3.5" /> Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setErrors([]);
+                    setRejectForm({ reason: '', notifyCandidate: true });
+                    setRejecting(c);
+                  }}
+                  className={actionBtn('bg-white border border-rose-200 text-rose-700 hover:bg-rose-50')}
+                >
+                  <XCircle className="w-3.5 h-3.5" /> Reject
+                </button>
+              </>
+            )}
+            {isApprover && offerStatus === 'PENDING_APPROVAL' && c.offer?.extendedByUserId === user?.id && (
+              <span className="text-[11px] text-slate-500 italic">You generated this offer: another approver must approve it</span>
+            )}
+            {isApprover && offerStatus === 'PENDING_APPROVAL' && c.offer?.extendedByUserId !== user?.id && (
+              <>
+                <button onClick={() => { setErrors([]); setApproveComment(''); setApproving({ cand: c, decision: 'APPROVED' }); }} className={actionBtn('bg-emerald-600 hover:bg-emerald-700 text-white')}>
+                  Approve offer
+                </button>
+                <button onClick={() => { setErrors([]); setApproveComment(''); setApproving({ cand: c, decision: 'REJECTED' }); }} className={actionBtn('bg-white border border-rose-200 text-rose-700 hover:bg-rose-50')}>
+                  Reject offer
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ---------------------------------------------------------------- page
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            Recruitment, Jobs & Candidate Pipeline
-          </h1>
-          <p className="text-xs text-slate-300 mt-1">Manage employee referrals, interview schedules, offer letters & rejections</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Recruitment & Hiring</h1>
+          <p className="text-xs text-slate-300 mt-1">
+            Requisition → budget approval → publish → interview → offer → hire
+          </p>
         </div>
-        <button
-          onClick={openReferForm}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm transition-all shrink-0 border border-[#039583] cursor-pointer"
-        >
-          <UserPlus className="w-4 h-4" />
-          Refer a Candidate
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {canRaise && (
+            <button
+              onClick={() => {
+                setErrors([]);
+                setReqForm({ ...emptyReq, department: user?.employee?.department || '' });
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold text-xs cursor-pointer"
+            >
+              <Briefcase className="w-4 h-4" /> Raise requisition
+            </button>
+          )}
+          {isRecruiter && (
+            <button
+              onClick={() => {
+                setErrors([]);
+                setCandResume(null);
+                setCandForm({ ...emptyCand, jobId: jobs.find((j) => j.status === 'OPEN')?._id || '' });
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold text-xs cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Add candidate
+            </button>
+          )}
+          <button
+            hidden={isReadOnlyRole(role)}
+            onClick={() => {
+              setErrors([]);
+              setRefResume(null);
+              setRefForm(emptyRef);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#027a6b] text-white font-semibold text-xs cursor-pointer border border-[#039583]"
+          >
+            <UserPlus className="w-4 h-4" /> Refer a candidate
+          </button>
+        </div>
       </div>
 
       {notice && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between">
-          <span>{notice}</span>
-          <button onClick={() => setNotice(null)} className="text-emerald-600 hover:text-emerald-900 cursor-pointer">
+        <div
+          role="status"
+          className={`p-4 rounded-xl border text-sm font-medium flex items-center justify-between gap-3 ${
+            notice.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}
+        >
+          <span>{notice.text}</span>
+          <button onClick={() => setNotice(null)} aria-label="Dismiss" className="cursor-pointer">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {isHr && (
-        <div className="flex items-center gap-2 flex-wrap">
-          {[
-            { id: 'pipeline', label: 'Job Pipeline & Interviews' },
-            { id: 'referrals', label: `Referrals (${referrals.length})` },
-            { id: 'openings', label: `Openings (${jobs.length})` },
-            { id: 'candidates', label: `Candidates (${allCandidates.length})` },
-          ].map((t) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        {tabs
+          .filter((t) => t.show)
+          .map((t) => (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id as 'pipeline' | 'referrals' | 'openings' | 'candidates')}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                activeTab === t.id
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              onClick={() => setTab(t.id)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
+                tab === t.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
               }`}
             >
               {t.label}
             </button>
           ))}
-        </div>
-      )}
-
-      {/* Referrals list */}
-      {activeTab === 'referrals' && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <div className="relative sm:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search name, city, role, referrer..."
-                value={refSearch}
-                onChange={(e) => setRefSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-              />
-            </div>
-            <select
-              value={refStatusFilter}
-              onChange={(e) => setRefStatusFilter(e.target.value as 'ALL' | ReferralStatus)}
-              className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
-            >
-              <option value="ALL">All statuses</option>
-              {(Object.keys(STATUS_LABEL) as ReferralStatus[]).map((k) => (
-                <option key={k} value={k}>
-                  {STATUS_LABEL[k]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {filteredReferrals.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">
-              No referrals yet. Use "Refer a Candidate" to add the first one.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredReferrals.map((r) => (
-                <div
-                  key={r._id}
-                  className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4 text-xs"
-                >
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-bold text-slate-900 text-sm">{r.fullName}</h4>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_STYLE[r.status]}`}>
-                        {STATUS_LABEL[r.status]}
-                      </span>
-                      {r.isMine && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-50 text-indigo-700 border border-indigo-200">
-                          Your referral
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-500 flex items-center gap-3 flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" /> {r.city}
-                      </span>
-                      <span>
-                        {r.experienceYears} {r.experienceYears === 1 ? 'year' : 'years'} experience
-                      </span>
-                      <span>For: {r.jobTitle || 'General referral'}</span>
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Referred by <span className="font-semibold text-slate-600">{r.referredByName}</span> on{' '}
-                      {r.createdAt.split('T')[0]}
-                      {r.relationship ? ` • ${r.relationship}` : ''}
-                    </p>
-                    {r.canViewPrivate && (
-                      <p className="text-[11px] text-slate-500 flex items-center gap-3 flex-wrap pt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3" /> {r.email}
-                        </span>
-                        {r.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3" /> {r.phone}
-                          </span>
-                        )}
-                      </p>
-                    )}
-                    {r.canViewPrivate && r.notes && (
-                      <p className="text-[11px] text-slate-600 italic">"{r.notes}"</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {r.canViewPrivate && r.hasResume && (
-                      <button
-                        onClick={() => handleResumeDownload(r)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-semibold cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Resume
-                      </button>
-                    )}
-                    {isHr && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await modulesService.convertReferralToCandidate(r._id);
-                              setActiveTab('pipeline');
-                              setSelectedJobId(res.candidate.jobId);
-                              const cRes = await modulesService.getJobCandidates(res.candidate.jobId);
-                              setCandidates(cRes.candidates);
-                              await loadAllCandidates();
-                              const targetCand = cRes.candidates.find((c) => c._id === res.candidate._id) || res.candidate;
-                              handleOpenInterview(targetCand);
-                              setNotice(`Converted ${r.fullName} to pipeline! Please schedule the interview below.`);
-                              setTimeout(() => setNotice(null), 5000);
-                            } catch (err: any) {
-                              setNotice(err?.message || 'Failed to convert referral.');
-                              setTimeout(() => setNotice(null), 5000);
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1"
-                        >
-                          <Calendar className="w-3.5 h-3.5" /> Schedule Interview
-                        </button>
-                        <select
-                          value={r.status}
-                          onChange={(e) => handleReferralStatus(r._id, e.target.value as ReferralStatus)}
-                          className="text-xs p-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
-                        >
-                          {(Object.keys(STATUS_LABEL) as ReferralStatus[]).map((k) => (
-                            <option key={k} value={k}>
-                              {STATUS_LABEL[k]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Openings (HR/Admin): job openings grid */}
-      {isHr && activeTab === 'openings' && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {jobs.map((job) => (
-              <div key={job._id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                      {job.department}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">
-                      {job.openingsCount} Open
-                    </span>
-                  </div>
-                  <h3 className="font-bold text-sm text-slate-900">{job.title}</h3>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-3">{job.description}</p>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5" /> {job.location}
-                  </span>
-                  <span className="font-mono text-[11px]">{job.experienceRequired}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Candidates (HR/Admin): all candidates with filters */}
-      {isHr && activeTab === 'candidates' && (
-        <div className="space-y-4">
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-            <div className="relative sm:w-80">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search name, email, role, company..."
-                value={candSearch}
-                onChange={(e) => setCandSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-              />
-            </div>
-            <select
-              value={candStageFilter}
-              onChange={(e) => setCandStageFilter(e.target.value as 'ALL' | JobCandidate['stage'])}
-              className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
-            >
-              <option value="ALL">All stages</option>
-              {CANDIDATE_STAGES.map((st) => (
-                <option key={st} value={st}>
-                  {st.replace('_', ' ').charAt(0) + st.replace('_', ' ').slice(1).toLowerCase()}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stage summary */}
-          <div className="flex items-center gap-2 flex-wrap text-[11px]">
-            {CANDIDATE_STAGES.map((st) => (
-              <span key={st} className={`px-2.5 py-1 rounded-lg font-semibold ${stageStyle(st)}`}>
-                {st.replace('_', ' ')}: {allCandidates.filter((c) => c.stage === st).length}
-              </span>
-            ))}
-          </div>
-
-          {filteredAllCandidates.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">
-              {allCandidates.length === 0
-                ? 'No candidates yet. Convert a referral to add the first one to the pipeline.'
-                : 'No candidates match your search or filter.'}
-            </div>
-          ) : (
-            <div className="space-y-3">{filteredAllCandidates.map((cand) => renderCandidateCard(cand, true))}</div>
-          )}
-        </div>
-      )}
-
-      {/* Main Grid: Jobs list on left, Candidate pipeline on right (HR/Admin) */}
-      {isHr && activeTab === 'pipeline' && (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Requisitions (4 cols) */}
-        <div className="lg:col-span-4 space-y-3">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Active Job Requisitions ({jobs.length})
-          </h2>
-          {jobs.map((job) => {
-            const isSelected = job._id === selectedJobId;
-            return (
-              <div
-                key={job._id}
-                onClick={() => handleSelectJob(job._id)}
-                className={`p-5 rounded-2xl border transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                    : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xs'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
-                    {job.department}
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase">
-                    {job.openingsCount} Open
-                  </span>
-                </div>
-                <h3 className={`font-bold text-sm tracking-tight ${isSelected ? 'text-white' : 'text-slate-900'}`}>
-                  {job.title}
-                </h3>
-                <div className={`mt-2 flex items-center gap-3 text-xs ${isSelected ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {job.location}
-                  </span>
-                  <span>{job.experienceRequired}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Right: Candidate Stage Pipeline (8 cols) */}
-        <div className="lg:col-span-8 space-y-4">
-          {selectedJob && (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{selectedJob.title}</h3>
-                  <p className="text-xs text-slate-500 font-mono">Posted: {selectedJob.postedDate} • {selectedJob.type}</p>
-                </div>
-                <span className="text-xs font-bold text-slate-400 font-mono">
-                  {candidates.length} Applicants
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {candidates.length === 0 ? (
-                  <p className="text-xs text-slate-400 py-8 text-center">No candidates currently in pipeline for this position.</p>
-                ) : (
-                  candidates.map((cand) => renderCandidateCard(cand, false))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
-      )}
 
-      {/* Refer a Candidate modal */}
-      {isReferOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-lg font-bold text-slate-900">Refer a Candidate</h3>
-              <button onClick={() => setIsReferOpen(false)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
+      {loading && <p className="text-xs text-slate-500">Loading recruitment data...</p>}
+
+      {/* ---------------------------------------------------------- requisitions */}
+      {tab === 'requisitions' && seesRequisitions && (
+        <div className="space-y-3">
+          {requisitions.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">
+              No requisitions yet.{canRaise ? ' Use "Raise requisition" to request a new position.' : ''}
             </div>
-
-            <form onSubmit={handleSubmitReferral} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Candidate name *</label>
-                  <input
-                    required
-                    value={form.fullName}
-                    onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
+          ) : (
+            requisitions.map((r) => (
+              <div key={r._id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs text-xs flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-900 text-sm">{r.title}</h4>
+                    <span className={`${chip} ${(REQ_STATUS[r.status] || REQ_STATUS.PENDING_APPROVAL).style}`}>
+                      {(REQ_STATUS[r.status] || REQ_STATUS.PENDING_APPROVAL).label}
+                    </span>
+                    {r.priority && <span className="text-[10px] font-bold text-slate-500">{r.priority}</span>}
+                  </div>
+                  <p className="text-slate-600">
+                    {r.department} · {r.positions} position{r.positions === 1 ? '' : 's'} · Budget{' '}
+                    <b>{r.budgetMin ? `${inr(r.budgetMin)} – ${inr(r.budgetMax)}` : r.budgetRange || '—'}</b> per year
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    Raised by {r.requestedByName}
+                    {r.hiringManagerName && r.hiringManagerName !== r.requestedByName ? ` for ${r.hiringManagerName}` : ''} on {r.createdAt?.split('T')[0]}
+                  </p>
+                  {(r.description || r.justification) && <p className="text-slate-600 line-clamp-3">{r.description || r.justification}</p>}
+                  {r.reviewedBy && (
+                    <p className="text-[11px] text-slate-500">
+                      {r.status === 'REJECTED' ? 'Rejected' : 'Approved'} by {r.reviewedBy}
+                      {r.reviewNote ? `: "${r.reviewNote}"` : ''}
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">City *</label>
-                  <input
-                    required
-                    value={form.city}
-                    onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="e.g. Pune"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Years of experience *</label>
-                  <input
-                    required
-                    type="number"
-                    min={0}
-                    max={60}
-                    step="0.5"
-                    value={form.experienceYears}
-                    onChange={(e) => setForm({ ...form, experienceYears: e.target.value })}
-                    placeholder="0 for freshers"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Email *</label>
-                  <input
-                    required
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Phone</label>
-                  <input
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Your relationship</label>
-                  <input
-                    value={form.relationship}
-                    onChange={(e) => setForm({ ...form, relationship: e.target.value })}
-                    placeholder="Friend, ex-colleague..."
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
+                <div className="flex gap-2 shrink-0">
+                  {isApprover && r.status === 'PENDING_APPROVAL' && isOwnRequisition(r) && (
+                    <span className="text-[11px] text-slate-500 italic self-center">Raised by you: another approver must review it</span>
+                  )}
+                  {isApprover && r.status === 'PENDING_APPROVAL' && !isOwnRequisition(r) && (
+                    <>
+                      <button onClick={() => { setErrors([]); setReviewComment(''); setReviewing({ req: r, decision: 'APPROVED' }); }} className={actionBtn('bg-emerald-600 hover:bg-emerald-700 text-white')}>
+                        Approve
+                      </button>
+                      <button onClick={() => { setErrors([]); setReviewComment(''); setReviewing({ req: r, decision: 'REJECTED' }); }} className={actionBtn('bg-white border border-rose-200 text-rose-700 hover:bg-rose-50')}>
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {isRecruiter && r.status === 'APPROVED' && (
+                    <button onClick={() => { setErrors([]); setChannels(['CAREERS_PAGE']); setPublishing(r); }} className={actionBtn('bg-indigo-600 hover:bg-indigo-700 text-white')}>
+                      <Globe className="w-3.5 h-3.5" /> Publish job
+                    </button>
+                  )}
                 </div>
               </div>
+            ))
+          )}
+        </div>
+      )}
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Referring for (optional)</label>
-                <select
-                  value={form.jobId}
-                  onChange={(e) => setForm({ ...form, jobId: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                >
-                  <option value="">General referral (no specific opening)</option>
-                  {jobs
-                    .filter((j) => j.status === 'OPEN')
-                    .map((j) => (
-                      <option key={j._id} value={j._id}>
-                        {j.title} — {j.department}
+      {/* ---------------------------------------------------------- candidates */}
+      {tab === 'candidates' && seesCandidates && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 md:items-center justify-between">
+            <div className="relative md:w-72">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, e-mail, mobile, job..." aria-label="Search candidates" className={`${inputCls} pl-9`} />
+            </div>
+            <div className="flex flex-wrap gap-2 items-center">
+              <select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)} aria-label="Job" className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <option value="ALL">All jobs</option>
+                {jobs.map((j) => (
+                  <option key={j._id} value={j._id}>
+                    {j.title}
+                  </option>
+                ))}
+              </select>
+              <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value as any)} aria-label="Stage" className="text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                <option value="ALL">All stages</option>
+                {STAGES.map((st) => (
+                  <option key={st} value={st}>
+                    {STAGE_LABEL[st]}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)} />
+                Show archived
+              </label>
+            </div>
+          </div>
+          {isManager && !canSeePipeline && (
+            <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> You see candidates for your own requisitions and interviews you are on.
+            </p>
+          )}
+          {filteredCandidates.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">No candidates match.</div>
+          ) : (
+            <div className="space-y-3">{filteredCandidates.map(renderCandidate)}</div>
+          )}
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------- my interviews */}
+      {tab === 'interviews' && (
+        <div className="space-y-3">
+          {myInterviews.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">
+              You are not on any interview panel yet.
+            </div>
+          ) : (
+            myInterviews.map((i) => (
+              <div key={`${i.candidateId}-${i.roundNumber}`} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900 text-sm">
+                    {i.candidateName} <span className="font-normal text-slate-500">· {i.jobTitle}</span>
+                  </p>
+                  <p className="text-slate-600">
+                    {i.roundName} · {i.date} at {i.time} IST ({i.durationMinutes} min, {i.mode.replace('_', ' ').toLowerCase()})
+                  </p>
+                  <p className="text-slate-500 break-all">{i.locationOrLink}</p>
+                  <p className="text-[11px] text-slate-400">Panel: {i.panel.join(', ')}</p>
+                  {i.myFeedback && (
+                    <p className="text-[11px] text-slate-700 flex items-start gap-1.5">
+                      <Lock className="w-3 h-3 mt-0.5 text-slate-400" /> Your feedback ({i.myFeedback.rating}/5,{' '}
+                      {i.myFeedback.recommendation.replace(/_/g, ' ').toLowerCase()}): {i.myFeedback.comments}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2 shrink-0 flex-wrap">
+                  {i.hasResume && (
+                    <button onClick={() => recruitmentService.downloadResume(i.candidateId).catch((e) => flash(e.message, false))} className={actionBtn('bg-white border border-slate-300 text-slate-800 hover:bg-slate-50')}>
+                      <Download className="w-3.5 h-3.5" /> Resume
+                    </button>
+                  )}
+                  <button onClick={() => recruitmentService.downloadCalendar(i.candidateId, i.roundNumber).catch((e) => flash(e.message, false))} className={actionBtn('bg-white border border-slate-300 text-slate-800 hover:bg-slate-50')}>
+                    <Calendar className="w-3.5 h-3.5" /> Add to calendar
+                  </button>
+                  {i.feedbackLocked ? (
+                    <span className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold flex items-center gap-1">
+                      <Lock className="w-3.5 h-3.5" /> Feedback submitted
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setErrors([]);
+                        setPanelFb({ rating: 4, comments: '', recommendation: 'HIRE' });
+                        setGiving(i);
+                      }}
+                      className={actionBtn('bg-indigo-600 hover:bg-indigo-700 text-white')}
+                    >
+                      <Star className="w-3.5 h-3.5" /> Give feedback
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------- offer approvals */}
+      {tab === 'approvals' && isApprover && (
+        <div className="space-y-3">
+          {pendingOfferApprovals.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">No offers are waiting for approval.</div>
+          ) : (
+            pendingOfferApprovals.map(renderCandidate)
+          )}
+        </div>
+      )}
+
+      {/* ---------------------------------------------------------- referrals */}
+      {tab === 'referrals' && (
+        <div className="space-y-3">
+          {!isRecruiter && (
+            <p className="text-[11px] text-slate-500 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> You see only the people you referred and their status. Interview details stay with HR.
+            </p>
+          )}
+          {referrals.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-xs text-slate-400">No referrals yet.</div>
+          ) : (
+            referrals.map((r) => (
+              <div key={r._id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs text-xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-bold text-slate-900 text-sm">{r.fullName}</h4>
+                    <span className={`${chip} ${REF_STYLE[r.status]}`}>{REF_LABEL[r.status]}</span>
+                  </div>
+                  <p className="text-slate-500 flex flex-wrap gap-x-3">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {r.city}
+                    </span>
+                    <span>{r.experienceYears} yrs experience</span>
+                    <span>For: {r.jobTitle || 'General referral'}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {isRecruiter ? `Referred by ${r.referredByName} on ` : 'Referred on '}
+                    {r.createdAt.split('T')[0]}
+                  </p>
+                  {isRecruiter && (
+                    <p className="text-[11px] text-slate-500">
+                      {r.email}
+                      {r.phone ? ` · ${r.phone}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {r.hasResume && (
+                    <button onClick={() => modulesService.downloadReferralResume(r._id, r.resumeFileName || 'resume').catch((e) => flash(e.message, false))} className={actionBtn('bg-white border border-slate-300 text-slate-800 hover:bg-slate-50')}>
+                      <Download className="w-3.5 h-3.5" /> Resume
+                    </button>
+                  )}
+                  {isRecruiter && (r.status === 'SUBMITTED' || r.status === 'IN_REVIEW') && (
+                    <button onClick={() => moveReferralToPipeline(r)} className={actionBtn('bg-indigo-600 hover:bg-indigo-700 text-white')}>
+                      <Send className="w-3.5 h-3.5" /> Move to pipeline
+                    </button>
+                  )}
+                  {isRecruiter && (
+                    <select
+                      value={r.status}
+                      aria-label="Referral status"
+                      onChange={(e) =>
+                        modulesService
+                          .updateReferralStatus(r._id, e.target.value as ReferralStatus)
+                          .then(loadReferrals)
+                          .catch((err) => flash(err.message, false))
+                      }
+                      className="text-xs p-1.5 bg-slate-50 border border-slate-200 rounded-lg cursor-pointer"
+                    >
+                      {(Object.keys(REF_LABEL) as ReferralStatus[]).map((k) => (
+                        <option key={k} value={k}>
+                          {REF_LABEL[k]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ================================================================ modals */}
+
+      {reqForm && (
+        <Modal title="Raise job requisition" subtitle="Goes to Finance for budget approval, then HR publishes it." onClose={closeAll} wide>
+          <form onSubmit={submitRequisition} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Position / job title *">
+                <input required value={reqForm.title} onChange={(e) => setReqForm({ ...reqForm, title: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Department *">
+                <select required value={reqForm.department} onChange={(e) => setReqForm({ ...reqForm, department: e.target.value })} className={inputCls}>
+                  <option value="">Select...</option>
+                  {departments.map((d) => (
+                    <option key={d._id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Number of positions *">
+                <input required type="number" min={1} max={100} value={reqForm.positions} onChange={(e) => setReqForm({ ...reqForm, positions: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Employment type">
+                <select value={reqForm.employmentType} onChange={(e) => setReqForm({ ...reqForm, employmentType: e.target.value })} className={inputCls}>
+                  <option value="FULL_TIME">Full time</option>
+                  <option value="PART_TIME">Part time</option>
+                  <option value="CONTRACT">Contract</option>
+                </select>
+              </Field>
+              <Field label="Budget: min annual CTC (₹) *">
+                <input required type="number" min={1} value={reqForm.budgetMin} onChange={(e) => setReqForm({ ...reqForm, budgetMin: e.target.value })} className={inputCls} placeholder="1200000" />
+              </Field>
+              <Field label="Budget: max annual CTC (₹) *" hint="Offers above this need Finance approval.">
+                <input required type="number" min={1} value={reqForm.budgetMax} onChange={(e) => setReqForm({ ...reqForm, budgetMax: e.target.value })} className={inputCls} placeholder="1800000" />
+              </Field>
+              <Field label="Experience required">
+                <input value={reqForm.experienceRequired} onChange={(e) => setReqForm({ ...reqForm, experienceRequired: e.target.value })} className={inputCls} placeholder="3-5 years" />
+              </Field>
+              <Field label="Location">
+                <input value={reqForm.location} onChange={(e) => setReqForm({ ...reqForm, location: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Priority">
+                <select value={reqForm.priority} onChange={(e) => setReqForm({ ...reqForm, priority: e.target.value })} className={inputCls}>
+                  {['LOW', 'MEDIUM', 'HIGH', 'URGENT'].map((p) => (
+                    <option key={p} value={p}>
+                      {p[0] + p.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              {isRecruiter ? (
+                <Field label="Hiring manager" hint="Sees this requisition's candidates and joins the interview panel.">
+                  <select value={reqForm.hiringManagerId} onChange={(e) => setReqForm({ ...reqForm, hiringManagerId: e.target.value })} className={inputCls}>
+                    <option value="">Me</option>
+                    {employees.map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.firstName} {m.lastName} ({m.designation})
                       </option>
                     ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Resume * (PDF, DOC or DOCX, max {MAX_UPLOAD_LABEL})</label>
-                <label className="flex items-center gap-2 p-3 bg-slate-50 border border-dashed border-slate-300 rounded-xl cursor-pointer hover:bg-slate-100">
-                  <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-                  <span className="truncate text-slate-600">{resumeFile ? resumeFile.name : 'Choose a file...'}</span>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={(e) => handleResumePick(e.target.files?.[0] || null)}
-                  />
-                </label>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Why are they a good fit?</label>
-                <textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
-                />
-              </div>
-
-              {formError && (
-                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700">{formError}</div>
+                  </select>
+                </Field>
+              ) : (
+                <Field label="Expected joining date">
+                  <input type="date" value={reqForm.expectedJoiningDate} onChange={(e) => setReqForm({ ...reqForm, expectedJoiningDate: e.target.value })} className={inputCls} />
+                </Field>
               )}
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setIsReferOpen(false)}
-                  className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Referral'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <Field label="Key skills (comma separated)">
+              <input value={reqForm.skillsRequired} onChange={(e) => setReqForm({ ...reqForm, skillsRequired: e.target.value })} className={inputCls} placeholder="Python, FastAPI, SQL" />
+            </Field>
+            <Field label="Job description (JD) *">
+              <textarea required rows={4} value={reqForm.description} onChange={(e) => setReqForm({ ...reqForm, description: e.target.value })} className={inputCls} placeholder="Responsibilities, must-haves, nice-to-haves..." />
+            </Field>
+            <Field label="Business justification">
+              <textarea rows={2} value={reqForm.justification} onChange={(e) => setReqForm({ ...reqForm, justification: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Submit for approval" />
+          </form>
+        </Modal>
       )}
 
-      {/* Schedule Interview Modal */}
-      {interviewCand && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Schedule Interview</h3>
-                <p className="text-xs text-slate-500">Candidate: {interviewCand.fullName} ({interviewCand.jobTitle})</p>
-              </div>
-              <button onClick={() => setInterviewCand(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {reviewing && (
+        <Modal title={`${reviewing.decision === 'APPROVED' ? 'Approve' : 'Reject'} requisition`} subtitle={`${reviewing.req.title} · ${reviewing.req.budgetRange || ''}`} onClose={closeAll}>
+          <form onSubmit={submitReview} className="space-y-3">
+            <Field label={reviewing.decision === 'REJECTED' ? 'Comment (required) *' : 'Comment'}>
+              <textarea rows={3} required={reviewing.decision === 'REJECTED'} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className={inputCls} />
+            </Field>
+            <p className="text-[11px] text-slate-500">The requester is notified of your decision and comment.</p>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label={reviewing.decision === 'APPROVED' ? 'Approve budget' : 'Reject'} danger={reviewing.decision === 'REJECTED'} />
+          </form>
+        </Modal>
+      )}
 
-            <form onSubmit={handleSubmitInterview} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Interview Round *</label>
-                  <select
-                    value={interviewForm.roundNumber}
-                    onChange={(e) => {
-                      const num = Number(e.target.value);
-                      const defaultNames: Record<number, string> = {
-                        1: 'Round 1: Initial Technical Screening',
-                        2: 'Round 2: Deep Dive & System Architecture',
-                        3: 'Round 3: Live Coding & Problem Solving',
-                        4: 'Round 4: Managerial Fit & Behavioral',
-                        5: 'Round 5: Executive Bar Raiser',
-                      };
-                      setInterviewForm({
-                        ...interviewForm,
-                        roundNumber: num,
-                        roundName: defaultNames[num] || `Round ${num}: Technical Interview`,
-                      });
-                    }}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium"
-                  >
-                    <option value={1}>Round 1 (Technical Screening)</option>
-                    <option value={2}>Round 2 (Deep Dive / Systems)</option>
-                    <option value={3}>Round 3 (Live Coding / Practical)</option>
-                    <option value={4}>Round 4 (Managerial & Cultural Fit)</option>
-                    <option value={5}>Round 5 (Leadership & Executive)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Round Title / Stage Name *</label>
-                  <input
-                    required
-                    value={interviewForm.roundName}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, roundName: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                    placeholder="e.g. Round 2: Deep Dive & Architecture"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Interview Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={interviewForm.date}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Time (HH:MM) *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="10:00"
-                    value={interviewForm.time}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, time: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
-                  <select
-                    value={interviewForm.durationMinutes}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, durationMinutes: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value={30}>30 mins</option>
-                    <option value={45}>45 mins</option>
-                    <option value={60}>60 mins</option>
-                    <option value={90}>90 mins</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Interview Mode *</label>
-                  <select
-                    value={interviewForm.mode}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, mode: e.target.value as any })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="VIDEO">Video Call</option>
-                    <option value="IN_PERSON">In Person</option>
-                    <option value="PHONE">Phone Call</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Meeting Link / Venue / Phone *</label>
+      {publishing && (
+        <Modal title="Publish job" subtitle={publishing.title} onClose={closeAll}>
+          <form onSubmit={submitPublish} className="space-y-3 text-xs">
+            <p className="text-slate-600">Choose where to publish this approved requisition:</p>
+            {CHANNELS.map((ch) => (
+              <label key={ch.value} className="flex items-center gap-2 cursor-pointer">
                 <input
-                  required
-                  value={interviewForm.locationOrLink}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, locationOrLink: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                  type="checkbox"
+                  checked={channels.includes(ch.value)}
+                  onChange={(e) => setChannels(e.target.checked ? [...channels, ch.value] : channels.filter((x) => x !== ch.value))}
                 />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Interviewer Name *</label>
-                  <input
-                    required
-                    value={interviewForm.interviewer}
-                    onChange={(e) => setInterviewForm({ ...interviewForm, interviewer: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Interview Instructions / Notes</label>
-                <textarea
-                  rows={2}
-                  value={interviewForm.notes}
-                  onChange={(e) => setInterviewForm({ ...interviewForm, notes: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setInterviewCand(null)}
-                  className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <Mail className="w-4 h-4" /> Send Interview Invite
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                {ch.label}
+              </label>
+            ))}
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Publish" />
+          </form>
+        </Modal>
       )}
 
-      {/* Extend Offer Modal */}
-      {offerCand && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Extend Formal Offer Letter</h3>
-                <p className="text-xs text-slate-500">Candidate: {offerCand.fullName}</p>
-              </div>
-              <button onClick={() => setOfferCand(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
-              </button>
+      {candForm && (
+        <Modal title="Add candidate" subtitle="Enter details manually, optionally with the resume." onClose={closeAll} wide>
+          <form onSubmit={submitCandidate} className="space-y-3 text-xs">
+            <Field label="Job *">
+              <select required value={candForm.jobId} onChange={(e) => setCandForm({ ...candForm, jobId: e.target.value })} className={inputCls}>
+                <option value="">Select a job...</option>
+                {jobs
+                  .filter((j) => j.status === 'OPEN')
+                  .map((j) => (
+                    <option key={j._id} value={j._id}>
+                      {j.title} — {j.department}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Full name *">
+                <input required value={candForm.fullName} onChange={(e) => setCandForm({ ...candForm, fullName: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="E-mail *">
+                <input required type="email" value={candForm.email} onChange={(e) => setCandForm({ ...candForm, email: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Mobile *">
+                <input required value={candForm.phone} onChange={(e) => setCandForm({ ...candForm, phone: e.target.value })} className={inputCls} placeholder="98765 43210" />
+              </Field>
+              <Field label="Years of experience">
+                <input type="number" min={0} max={60} step="0.5" value={candForm.experienceYears} onChange={(e) => setCandForm({ ...candForm, experienceYears: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Current company">
+                <input value={candForm.currentCompany} onChange={(e) => setCandForm({ ...candForm, currentCompany: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label={`Resume (PDF, DOC, DOCX · max ${MAX_UPLOAD_LABEL})`}>
+                <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setCandResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:cursor-pointer" />
+              </Field>
             </div>
-
-            <form onSubmit={handleSubmitOffer} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Annual CTC (INR) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={100000}
-                    max={100000000}
-                    step={50000}
-                    value={offerForm.annualCtc}
-                    onChange={(e) => setOfferForm({ ...offerForm, annualCtc: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Designation *</label>
-                  <input
-                    required
-                    value={offerForm.designation}
-                    onChange={(e) => setOfferForm({ ...offerForm, designation: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Work Location *</label>
-                  <input
-                    required
-                    value={offerForm.location}
-                    onChange={(e) => setOfferForm({ ...offerForm, location: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Reporting To</label>
-                  <input
-                    value={offerForm.reportingTo}
-                    onChange={(e) => setOfferForm({ ...offerForm, reportingTo: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Date of Joining *</label>
-                  <input
-                    type="date"
-                    required
-                    value={offerForm.joiningDate}
-                    onChange={(e) => setOfferForm({ ...offerForm, joiningDate: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Offer Valid Till *</label>
-                  <input
-                    type="date"
-                    required
-                    value={offerForm.validTill}
-                    onChange={(e) => setOfferForm({ ...offerForm, validTill: e.target.value })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Additional Offer Terms / Notes</label>
-                <textarea
-                  rows={2}
-                  value={offerForm.notes}
-                  onChange={(e) => setOfferForm({ ...offerForm, notes: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setOfferCand(null)}
-                  className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <FileText className="w-4 h-4" /> Send Offer Letter
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            <Field label="Notes">
+              <textarea rows={2} value={candForm.notes} onChange={(e) => setCandForm({ ...candForm, notes: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Add candidate" />
+          </form>
+        </Modal>
       )}
 
-      {/* Interview Feedback Modal */}
-      {feedbackCand && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  {feedbackRound || 'Interview Evaluation & Feedback'}
-                </h3>
-                <p className="text-xs text-slate-500">Candidate: {feedbackCand.fullName}</p>
-              </div>
-              <button onClick={() => setFeedbackCand(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
+      {duplicate && (
+        <Modal title="Duplicate candidate" onClose={() => setDuplicate(null)}>
+          <div className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>A candidate with the same {(duplicate.matchedOn || []).join(' and ')} already exists. The new record was not created.</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+              <p className="font-bold text-slate-900">{duplicate.fullName}</p>
+              <p className="text-slate-600">
+                {duplicate.email}
+                {duplicate.phone ? ` · ${duplicate.phone}` : ''}
+              </p>
+              <p className="text-slate-500">
+                {duplicate.jobTitle} · {STAGE_LABEL[duplicate.stage] || duplicate.stage}
+                {duplicate.archived ? ' · archived' : ''}
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={() => setDuplicate(null)} className={btnPrimary}>
+                OK
               </button>
             </div>
-
-            <form onSubmit={handleSubmitFeedback} className="space-y-3.5 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Candidate Rating (1 - 5) *</label>
-                <select
-                  value={feedbackForm.rating}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, rating: Number(e.target.value) })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                >
-                  <option value={5}>5.0 — Outstanding / Exceptional Fit</option>
-                  <option value={4}>4.0 — Strong / Above Average</option>
-                  <option value={3}>3.0 — Competent / Meets Bar</option>
-                  <option value={2}>2.0 — Below Expectations</option>
-                  <option value={1}>1.0 — Poor Fit</option>
-                </select>
-              </div>
-
-              {/* Justification: Visible to Everyone */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-slate-700">
-                    Decision Justification *
-                  </label>
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Visible to Everyone
-                  </span>
-                </div>
-                <textarea
-                  required
-                  rows={2}
-                  value={feedbackForm.justification}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, justification: e.target.value })}
-                  placeholder="Explain why the candidate is or is not recommended (visible to all interviewers and team members)..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900"
-                />
-              </div>
-
-              {/* Confidential Evaluation Comments: HR & Admin Only */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-slate-700">
-                    Confidential Evaluation Comments *
-                  </label>
-                  <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-indigo-600" />
-                    Visible ONLY to HR & Admin
-                  </span>
-                </div>
-                <textarea
-                  required
-                  rows={2}
-                  value={feedbackForm.comments}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, comments: e.target.value })}
-                  placeholder="Private interviewer feedback, rating rationale, specific technical strengths & gaps..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900"
-                />
-              </div>
-
-              {/* Private Recruiter Notes: HR & Admin Only */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block font-semibold text-slate-700">
-                    Private Recruiter Notes (Optional)
-                  </label>
-                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded flex items-center gap-1">
-                    <Lock className="w-3 h-3 text-slate-400" />
-                    Visible ONLY to HR & Admin
-                  </span>
-                </div>
-                <textarea
-                  rows={2}
-                  value={feedbackForm.notes}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, notes: e.target.value })}
-                  placeholder="Salary expectations, notice period details, sensitive interviewer remarks..."
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Recommendation & Next Action *</label>
-                <select
-                  value={feedbackForm.recommendation}
-                  onChange={(e) => setFeedbackForm({ ...feedbackForm, recommendation: e.target.value as any })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900"
-                >
-                  <option value="NEXT_ROUND">✅ Pass & Advance to Next Interview Round</option>
-                  <option value="READY_FOR_OFFER">🎉 Final Round Cleared — Extend Formal Offer</option>
-                  <option value="REJECT">❌ Reject Candidate (Sends Rejection Email)</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setFeedbackCand(null)}
-                  className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> Submit Feedback
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {editing && (
+        <Modal title="Edit candidate" subtitle="Changes are recorded in the audit log." onClose={closeAll}>
+          <form onSubmit={submitEdit} className="space-y-3 text-xs">
+            <Field label="Full name">
+              <input required value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label="E-mail" hint="Offer and interview e-mails go to this address.">
+              <input required type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label="Mobile">
+              <input required value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label="Current company">
+              <input value={editForm.currentCompany} onChange={(e) => setEditForm({ ...editForm, currentCompany: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Save" />
+          </form>
+        </Modal>
+      )}
+
+      {scheduling && (
+        <Modal title="Schedule interview" subtitle={`${scheduling.fullName} · ${scheduling.jobTitle}`} onClose={closeAll} wide>
+          <form onSubmit={submitSchedule} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Round name *">
+                <input required value={schedForm.roundName} onChange={(e) => setSchedForm({ ...schedForm, roundName: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Mode *">
+                <select value={schedForm.mode} onChange={(e) => setSchedForm({ ...schedForm, mode: e.target.value })} className={inputCls}>
+                  <option value="VIDEO">Video call</option>
+                  <option value="IN_PERSON">In person</option>
+                  <option value="PHONE">Phone</option>
+                </select>
+              </Field>
+              <Field label="Date *">
+                <input required type="date" min={dayOffset(0)} value={schedForm.date} onChange={(e) => setSchedForm({ ...schedForm, date: e.target.value })} className={inputCls} />
+              </Field>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Time (IST) *">
+                  <input required type="time" value={schedForm.time} onChange={(e) => setSchedForm({ ...schedForm, time: e.target.value })} className={inputCls} />
+                </Field>
+                <Field label="Duration">
+                  <select value={schedForm.durationMinutes} onChange={(e) => setSchedForm({ ...schedForm, durationMinutes: Number(e.target.value) })} className={inputCls}>
+                    {[30, 45, 60, 90].map((m) => (
+                      <option key={m} value={m}>
+                        {m} min
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            </div>
+            <Field label={schedForm.mode === 'IN_PERSON' ? 'Venue *' : schedForm.mode === 'VIDEO' ? 'Meeting link *' : 'Phone number *'}>
+              <input required value={schedForm.locationOrLink} onChange={(e) => setSchedForm({ ...schedForm, locationOrLink: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label={`Interview panel * (${schedForm.panel.length} selected)`} hint="Each panel member gets the invite with a calendar entry and can give feedback.">
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {schedForm.panel.map((id) => {
+                  const e = employees.find((x) => x._id === id);
+                  return (
+                    <span key={id} className="px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800 font-semibold flex items-center gap-1">
+                      {e ? `${e.firstName} ${e.lastName}` : id}
+                      <button type="button" aria-label="Remove" onClick={() => setSchedForm({ ...schedForm, panel: schedForm.panel.filter((x) => x !== id) })} className="cursor-pointer">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+              <input value={panelSearch} onChange={(e) => setPanelSearch(e.target.value)} placeholder="Search employees to add..." className={inputCls} />
+              <div className="mt-1 max-h-36 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
+                {panelOptions
+                  .filter((e) => !schedForm.panel.includes(e._id))
+                  .map((e) => (
+                    <button
+                      type="button"
+                      key={e._id}
+                      onClick={() => setSchedForm({ ...schedForm, panel: [...schedForm.panel, e._id] })}
+                      className="w-full text-left px-3 py-1.5 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <b>
+                        {e.firstName} {e.lastName}
+                      </b>{' '}
+                      <span className="text-slate-500">
+                        · {e.designation} · {e.department}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </Field>
+            <Field label="Notes for candidate">
+              <textarea rows={2} value={schedForm.notes} onChange={(e) => setSchedForm({ ...schedForm, notes: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Send invites" />
+          </form>
+        </Modal>
+      )}
+
+      {deciding && (
+        <Modal title="Round decision" subtitle={`${deciding.fullName} · ${deciding.interviewRounds?.[deciding.interviewRounds.length - 1]?.roundName || ''}`} onClose={closeAll}>
+          <form onSubmit={submitDecision} className="space-y-3 text-xs">
+            <Field label="Decision *">
+              <select value={decision.recommendation} onChange={(e) => setDecision({ ...decision, recommendation: e.target.value })} className={inputCls}>
+                <option value="NEXT_ROUND">Move to next round</option>
+                <option value="READY_FOR_OFFER">Cleared — ready for offer</option>
+                <option value="REJECT">Reject (archives the candidate and e-mails them)</option>
+              </select>
+            </Field>
+            <Field label="Justification *">
+              <textarea required rows={2} value={decision.justification} onChange={(e) => setDecision({ ...decision, justification: e.target.value })} className={inputCls} />
+            </Field>
+            <Field label="Confidential HR comments">
+              <textarea rows={2} value={decision.comments} onChange={(e) => setDecision({ ...decision, comments: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Save decision" danger={decision.recommendation === 'REJECT'} />
+          </form>
+        </Modal>
+      )}
+
+      {giving && (
+        <Modal title="Interview feedback" subtitle={`${giving.candidateName} · ${giving.roundName}`} onClose={closeAll}>
+          <form onSubmit={submitPanelFeedback} className="space-y-3 text-xs">
+            <Field label="Rating *">
+              <div className="flex gap-1.5" role="radiogroup" aria-label="Rating">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    type="button"
+                    key={n}
+                    role="radio"
+                    aria-checked={panelFb.rating === n}
+                    onClick={() => setPanelFb({ ...panelFb, rating: n })}
+                    className={`w-10 h-10 rounded-xl border font-bold cursor-pointer ${panelFb.rating >= n ? 'bg-amber-400 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-400'}`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Recommendation *">
+              <select value={panelFb.recommendation} onChange={(e) => setPanelFb({ ...panelFb, recommendation: e.target.value })} className={inputCls}>
+                {RECOMMENDATIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Comments *">
+              <textarea required minLength={10} rows={4} value={panelFb.comments} onChange={(e) => setPanelFb({ ...panelFb, comments: e.target.value })} className={inputCls} placeholder="Strengths, gaps, evidence..." />
+            </Field>
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> Feedback is locked once submitted and cannot be edited.
+            </p>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Submit & lock" />
+          </form>
+        </Modal>
+      )}
+
+      {offering && (
+        <Modal title={offering.offer && offering.offer.status !== 'APPROVAL_REJECTED' ? 'Revise offer' : 'Generate offer letter'} subtitle={`${offering.fullName} · sent to ${offering.email}`} onClose={closeAll} wide>
+          <form onSubmit={submitOffer} className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-600">
+              Approved salary band:{' '}
+              <b>{selectedJob?.salaryBandMax ? `${inr(selectedJob.salaryBandMin)} – ${inr(selectedJob.salaryBandMax)}` : 'not set for this job'}</b>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Annual CTC (₹) *">
+                <input required type="number" min={100000} value={offerForm.annualCtc || ''} onChange={(e) => setOfferForm({ ...offerForm, annualCtc: Number(e.target.value) })} className={inputCls} />
+              </Field>
+              <Field label="Designation *">
+                <input required value={offerForm.designation} onChange={(e) => setOfferForm({ ...offerForm, designation: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Date of joining *">
+                <input required type="date" value={offerForm.joiningDate} onChange={(e) => setOfferForm({ ...offerForm, joiningDate: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Offer valid till *">
+                <input required type="date" value={offerForm.validTill} onChange={(e) => setOfferForm({ ...offerForm, validTill: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Work location *">
+                <input required value={offerForm.location} onChange={(e) => setOfferForm({ ...offerForm, location: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Reporting to">
+                <input value={offerForm.reportingTo} onChange={(e) => setOfferForm({ ...offerForm, reportingTo: e.target.value })} className={inputCls} />
+              </Field>
+            </div>
+            {offering.offer && ['SENT', 'DECLINED'].includes(offering.offer.status || '') && (
+              <Field label="Reason for revision *" hint="The earlier offer is kept in the offer history as superseded.">
+                <input required value={offerForm.revisionReason} onChange={(e) => setOfferForm({ ...offerForm, revisionReason: e.target.value })} className={inputCls} />
+              </Field>
+            )}
+            <Field label="Additional terms">
+              <textarea rows={2} value={offerForm.notes} onChange={(e) => setOfferForm({ ...offerForm, notes: e.target.value })} className={inputCls} />
+            </Field>
+            {offerAboveBand && (
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                Above the band maximum. The offer will go to Finance / Super Admin for approval and is e-mailed only after approval.
+              </div>
+            )}
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label={offerAboveBand ? 'Send for approval' : 'Generate & e-mail offer'} />
+          </form>
+        </Modal>
+      )}
+
+      {approving && (
+        <Modal
+          title={approving.decision === 'APPROVED' ? 'Approve above-band offer' : 'Reject above-band offer'}
+          subtitle={`${approving.cand.fullName}: ${inr(approving.cand.offer?.annualCtc)} vs band max ${inr(approving.cand.offer?.salaryBandMax)}`}
+          onClose={closeAll}
+        >
+          <form onSubmit={submitApproval} className="space-y-3 text-xs">
+            <Field label={approving.decision === 'REJECTED' ? 'Comment (required) *' : 'Comment'}>
+              <textarea rows={3} required={approving.decision === 'REJECTED'} value={approveComment} onChange={(e) => setApproveComment(e.target.value)} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label={approving.decision === 'APPROVED' ? 'Approve & send offer' : 'Reject'} danger={approving.decision === 'REJECTED'} />
+          </form>
+        </Modal>
+      )}
+
+      {converting && (
+        <Modal title="Convert to employee" subtitle="Creates the Core HR record from the candidate and offer details." onClose={closeAll} wide>
+          <form onSubmit={submitConvert} className="space-y-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600">
+              <span>Name: <b>{converting.fullName}</b></span>
+              <span>Personal e-mail: <b>{converting.email}</b></span>
+              <span>Designation: <b>{converting.offer?.designation}</b></span>
+              <span>CTC: <b>{inr(converting.offer?.annualCtc)}</b></span>
+              <span>Reporting to: <b>{jobOf(converting)?.hiringManagerName || converting.offer?.reportingTo || '—'}</b></span>
+              <span>Offer: <b>v{converting.offer?.version || 1} accepted</b></span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Work e-mail (login) *">
+                <input required type="email" value={convertForm.workEmail} onChange={(e) => setConvertForm({ ...convertForm, workEmail: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Date of joining *">
+                <input required type="date" value={convertForm.joiningDate} onChange={(e) => setConvertForm({ ...convertForm, joiningDate: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Department *">
+                <select required value={convertForm.department} onChange={(e) => setConvertForm({ ...convertForm, department: e.target.value })} className={inputCls}>
+                  <option value="">Select...</option>
+                  {departments.map((d) => (
+                    <option key={d._id} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Mobile *">
+                <input required value={convertForm.phone} onChange={(e) => setConvertForm({ ...convertForm, phone: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="PAN *">
+                <input required maxLength={10} value={convertForm.panNumber} onChange={(e) => setConvertForm({ ...convertForm, panNumber: e.target.value.toUpperCase() })} className={`${inputCls} font-mono uppercase`} placeholder="ABCDE1234F" />
+              </Field>
+              <Field label="Aadhaar *">
+                <input required inputMode="numeric" maxLength={14} value={convertForm.aadhaarNumber} onChange={(e) => setConvertForm({ ...convertForm, aadhaarNumber: e.target.value })} className={`${inputCls} font-mono`} />
+              </Field>
+            </div>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Create employee" />
+          </form>
+        </Modal>
+      )}
+
+      {rejecting && (
+        <Modal title="Reject candidate" subtitle={`${rejecting.fullName} · ${rejecting.jobTitle}`} onClose={closeAll}>
+          <form onSubmit={submitReject} className="space-y-3 text-xs">
+            <Field label="Reason for rejection *" hint="Kept on the candidate record and in the audit log (not sent to the candidate).">
+              <textarea required minLength={5} rows={3} value={rejectForm.reason} onChange={(e) => setRejectForm({ ...rejectForm, reason: e.target.value })} className={inputCls} />
+            </Field>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={rejectForm.notifyCandidate} onChange={(e) => setRejectForm({ ...rejectForm, notifyCandidate: e.target.checked })} />
+              E-mail the candidate a polite rejection
+            </label>
+            <p className="text-[11px] text-slate-500">
+              The candidate is archived (hidden from the active pipeline) and kept for 180 days under the data-retention policy.
+            </p>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Reject & archive" danger />
+          </form>
+        </Modal>
+      )}
+
+      {refForm && (
+        <Modal title="Refer a candidate" onClose={closeAll}>
+          <form onSubmit={submitReferral} className="space-y-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Candidate name *">
+                <input required value={refForm.fullName} onChange={(e) => setRefForm({ ...refForm, fullName: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="City *">
+                <input required value={refForm.city} onChange={(e) => setRefForm({ ...refForm, city: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="E-mail *">
+                <input required type="email" value={refForm.email} onChange={(e) => setRefForm({ ...refForm, email: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Mobile">
+                <input value={refForm.phone} onChange={(e) => setRefForm({ ...refForm, phone: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Years of experience *">
+                <input required type="number" min={0} max={60} step="0.5" value={refForm.experienceYears} onChange={(e) => setRefForm({ ...refForm, experienceYears: e.target.value })} className={inputCls} />
+              </Field>
+              <Field label="Your relationship">
+                <input value={refForm.relationship} onChange={(e) => setRefForm({ ...refForm, relationship: e.target.value })} className={inputCls} placeholder="Ex-colleague, friend..." />
+              </Field>
+            </div>
+            <Field label="Referring for">
+              <select value={refForm.jobId} onChange={(e) => setRefForm({ ...refForm, jobId: e.target.value })} className={inputCls}>
+                <option value="">General referral</option>
+                {jobs
+                  .filter((j) => j.status === 'OPEN')
+                  .map((j) => (
+                    <option key={j._id} value={j._id}>
+                      {j.title} — {j.department}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <Field label={`Resume * (PDF, DOC, DOCX · max ${MAX_UPLOAD_LABEL})`}>
+              <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setRefResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:cursor-pointer" />
+            </Field>
+            <Field label="Why are they a good fit?">
+              <textarea rows={2} value={refForm.notes} onChange={(e) => setRefForm({ ...refForm, notes: e.target.value })} className={inputCls} />
+            </Field>
+            <Errors errors={errors} />
+            <Footer onCancel={closeAll} busy={busy} label="Submit referral" />
+          </form>
+        </Modal>
       )}
     </div>
   );

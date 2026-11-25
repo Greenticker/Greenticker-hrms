@@ -38,7 +38,7 @@ const BASE = '/performance';
 const send = <T>(path: string, method: string, body?: unknown) =>
   request<T>(`${BASE}${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 
-export type CycleInput = Pick<PmsCycle, 'name' | 'year' | 'startDate' | 'endDate' | 'phases'>;
+export type CycleInput = Pick<PmsCycle, 'name' | 'year' | 'startDate' | 'endDate' | 'phases' | 'eligibility'>;
 export type TemplateInput = Omit<PmsTemplate, '_id' | 'createdBy' | 'createdOn' | 'updatedBy' | 'updatedOn'>;
 export type KpiInput = Omit<KpiLibraryItem, '_id' | 'createdBy' | 'createdOn' | 'updatedBy' | 'updatedOn'>;
 export type CompetencyInput = Pick<Competency, 'name' | 'description' | 'appliesTo'>;
@@ -53,6 +53,11 @@ export const pmsService = {
   updateCycle: (id: string, data: CycleInput) => send<{ cycle: PmsCycle }>(`/cycles/${id}`, 'PUT', data),
   activateCycle: (id: string) => send<{ cycle: PmsCycle }>(`/cycles/${id}/activate`, 'POST', {}),
   closeCycle: (id: string, reason: string) => send<{ cycle: PmsCycle }>(`/cycles/${id}/close`, 'POST', { reason }),
+  reopenCycle: (id: string, reason: string) => send<{ cycle: PmsCycle }>(`/cycles/${id}/reopen`, 'POST', { reason }),
+  reopenSheet: (id: string, data: { reason: string; extendUntil?: string }) =>
+    send<{ sheet: GoalSheet }>(`/goal-sheets/${id}/reopen`, 'POST', data),
+  reopenAppraisal: (id: string, data: { reason: string; stage?: string; extendUntil?: string }) =>
+    send<{ appraisal: Appraisal }>(`/appraisals/${id}/reopen`, 'POST', data),
   setRevisionWindow: (id: string, data: { open: boolean; closesOn?: string; reason?: string }) =>
     send<{ cycle: PmsCycle }>(`/cycles/${id}/revision-window`, 'POST', data),
 
@@ -160,7 +165,9 @@ export const pmsService = {
   saveIncrementTable: (rows: IncrementRow[]) => send<{ rows: IncrementRow[] }>('/appraisals/increment-table', 'PUT', { rows }),
   getPayrollExport: () =>
     request<{ cycle: { _id: string; name: string }; rows: PayrollRow[]; notReady: number }>(`${BASE}/appraisals/payroll-export`),
-  markPayrollSent: () => send<{ sent: number }>('/appraisals/payroll-sent', 'POST', {}),
+  /** HR proposes increments from final ratings, effective from a date; payroll approves them */
+  markPayrollSent: (effectiveFrom: string) =>
+    send<{ sent: number; effectiveFrom: string }>('/appraisals/payroll-sent', 'POST', { effectiveFrom }),
 
   // Improvement plans
   getPips: (employeeId?: string) =>

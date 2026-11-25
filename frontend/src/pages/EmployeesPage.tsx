@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Employee, Department, Designation, Location, Subdepartment } from '../types/employee';
+import { Employee, Department, Designation, Location, Subdepartment, DirectoryEntry, Grade, ImportResponse } from '../types/employee';
+import { canWriteMaster, canViewAllEmployees, apiErrorMessages } from '../utils/access';
 import { Shift } from '../types/attendance';
 import { employeeService } from '../services/employeeService';
 import { attendanceService } from '../services/attendanceService';
@@ -25,6 +26,9 @@ import {
   Clock,
   Briefcase,
   Layers,
+  Upload,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 interface EmployeesPageProps {
@@ -33,6 +37,25 @@ interface EmployeesPageProps {
 
 export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }) => {
   const { user } = useAuth();
+  const role = user?.role;
+  // HR / admin roles manage the master; other view-all roles (e.g. auditors) read it; managers see
+  // their team; everyone else gets the public company directory.
+  const isMasterWriter = canWriteMaster(role);
+  const seesAll = canViewAllEmployees(role);
+  const isManager = role === 'MANAGER';
+  const [view, setView] = useState<'master' | 'team' | 'directory'>(
+    seesAll ? 'master' : isManager ? 'team' : 'directory'
+  );
+  const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [formErrors, setFormErrors] = useState<string[]>([]);
+
+  // Bulk import
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResponse | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subdepartments, setSubdepartments] = useState<Subdepartment[]>([]);
@@ -79,8 +102,12 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
     workEmail: '',
     personalEmail: '',
     phone: '',
+    panNumber: '',
+    aadhaarNumber: '',
+    grade: '',
+    extension: '',
     department: 'Engineering & Technology',
-    subdepartment: 'Frontend Core',
+    subdepartment: '',
     designation: 'Senior Frontend Engineer',
     reportingManagerId: '',
     joiningDate: new Date().toISOString().split('T')[0],
@@ -219,6 +246,19 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
   const fetchEmployees = async () => {
     setLoading(true);
     try {
+      if (view === 'directory') {
+        const [dirRes, deptRes] = await Promise.all([
+          employeeService.getDirectory({ search, department: selectedDept }),
+          employeeService.getDepartments(),
+        ]);
+        setDirectory(dirRes.employees);
+        setDepartments(deptRes.departments);
+        return;
+      }
+      employeeService
+        .getGrades()
+        .then((r) => setGrades(r.grades))
+        .catch(() => setGrades([]));
       const [empRes, deptRes, subdeptRes, desigRes, locRes, shiftRes] = await Promise.all([
         employeeService.getEmployees({
           search,
@@ -246,17 +286,31 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
 
   useEffect(() => {
     fetchEmployees();
-  }, [search, selectedDept, selectedStatus]);
+  }, [search, selectedDept, selectedStatus, view]);
 
   const handleCreateEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    setIsSubmitting(true);
+    setFormErrors([]);
 
+    // Same rules as the server, so mistakes show up before submitting
+    const pan = formData.panNumber.replace(/\s+/g, '').toUpperCase();
+    const aadhaar = formData.aadhaarNumber.replace(/[\s-]/g, '');
+    const problems: string[] = [];
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(pan)) problems.push('PAN must be 10 characters in the format ABCDE1234F.');
+    if (!/^[2-9][0-9]{11}$/.test(aadhaar)) problems.push('Aadhaar must be a 12-digit number (cannot start with 0 or 1).');
+    const phoneDigits = formData.phone.replace(/[\s\-()+]/g, '');
+    if (!/^\d{10,13}$/.test(phoneDigits)) problems.push('Mobile number must have 10 to 13 digits.');
+    if (problems.length > 0) {
+      setFormErrors(problems);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       const email = formData.workEmail.trim().toLowerCase();
       const name = `${formData.firstName} ${formData.lastName}`;
-      await employeeService.createEmployee(formData);
+      await employeeService.createEmployee({ ...formData, panNumber: pan, aadhaarNumber: aadhaar });
       setIsAddModalOpen(false);
       setNewHireNotice({
         name,
@@ -269,8 +323,12 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
         workEmail: '',
         personalEmail: '',
         phone: '',
+        panNumber: '',
+        aadhaarNumber: '',
+        grade: '',
+        extension: '',
         department: departments[0]?.name || 'Engineering & Technology',
-        subdepartment: 'Frontend Core',
+        subdepartment: '',
         designation: designations[0]?.title || 'Associate',
         reportingManagerId: '',
         joiningDate: new Date().toISOString().split('T')[0],
@@ -283,10 +341,38 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
       });
       await fetchEmployees();
     } catch (err: any) {
-      setFormError(err.message || 'Failed to create employee record');
+      const messages = apiErrorMessages(err, 'Failed to create employee record');
+      if (messages.length > 1) setFormErrors(messages);
+      else setFormError(messages[0]);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleImport = async (dryRun: boolean) => {
+    if (!importFile) {
+      setImportError('Please choose a CSV file first.');
+      return;
+    }
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const res = await employeeService.bulkImport(importFile, { dryRun });
+      setImportResult(res);
+      if (!dryRun && res.summary.imported > 0) await fetchEmployees();
+    } catch (err: any) {
+      setImportResult(null);
+      setImportError(err.message || 'Import failed.');
+    } finally {
+      setImportBusy(false);
+    }
+  };
+
+  const closeImport = () => {
+    setIsImportOpen(false);
+    setImportFile(null);
+    setImportResult(null);
+    setImportError(null);
   };
 
   const handleDeactivate = async (empId: string, currentStatus: string) => {
@@ -423,14 +509,50 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
       <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
-            Employees Management
+            {view === 'directory' ? 'Employee Directory' : view === 'team' ? 'My Team' : 'Employees Management'}
           </h1>
+          {view === 'directory' && (
+            <p className="text-xs text-slate-200 mt-1">Public contact details of your colleagues.</p>
+          )}
+          {view === 'master' && !isMasterWriter && (
+            <p className="text-xs text-slate-200 mt-1 flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5" /> Read-only access. Bank and identity numbers are masked.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
-          {user?.role === 'ADMIN' && (
+          {isManager && (
+            <div className="flex items-center bg-white/10 rounded-xl p-1 border border-white/20">
+              {(['team', 'directory'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
+                    view === v ? 'bg-white text-[#023b77]' : 'text-white hover:bg-white/10'
+                  }`}
+                >
+                  {v === 'team' ? 'My Team' : 'Company Directory'}
+                </button>
+              ))}
+            </div>
+          )}
+          {isMasterWriter && (
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => setIsImportOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs whitespace-nowrap border border-white/30"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Bulk Import</span>
+            </button>
+          )}
+          {isMasterWriter && (
+            <button
+              onClick={() => {
+                setFormError(null);
+                setFormErrors([]);
+                setIsAddModalOpen(true);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs whitespace-nowrap border border-[#039583]"
             >
               <Plus className="w-4 h-4" />
@@ -502,7 +624,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
       )}
 
       {/* Probation Review Expiration Alert Banner for HR & Admin */}
-      {(user?.role === 'ADMIN' || user?.role === 'HR') && probationAlerts.length > 0 && (
+      {isMasterWriter && probationAlerts.length > 0 && (
         <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-5 shadow-xs space-y-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-2.5">
@@ -602,7 +724,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 </option>
               ))}
             </select>
-            {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+            {isMasterWriter && (
               <button
                 type="button"
                 onClick={() => setIsDeptModalOpen(true)}
@@ -615,6 +737,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
             )}
           </div>
 
+          {view !== 'directory' && (<>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <span className="font-semibold">Status:</span>
             <select
@@ -644,14 +767,91 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
               <option value="CONTRACT">Contract</option>
             </select>
           </div>
+          </>)}
 
           <span className="text-xs text-slate-400 font-mono tabular-nums ml-auto md:ml-2">
-            {displayedEmployees.length} {displayedEmployees.length === 1 ? 'employee' : 'employees'}
+            {view === 'directory' ? directory.length : displayedEmployees.length}{' '}
+            {(view === 'directory' ? directory.length : displayedEmployees.length) === 1 ? 'employee' : 'employees'}
           </span>
         </div>
       </div>
 
+      {/* Company directory: public details only (name, department, e-mail, extension) */}
+      {view === 'directory' && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+          {loading ? (
+            <div className="py-16 text-center text-xs text-slate-500">
+              <div className="w-6 h-6 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              Loading directory...
+            </div>
+          ) : directory.length === 0 ? (
+            <div className="py-16 text-center">
+              <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <h3 className="text-sm font-bold text-slate-800">No colleagues found</h3>
+              <p className="text-xs text-slate-500 mt-1">Try a different name or department.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <th className="py-3 px-4">Name</th>
+                    <th className="py-3 px-4">Department</th>
+                    <th className="py-3 px-4">Email</th>
+                    <th className="py-3 px-4">Extension</th>
+                    <th className="py-3 px-4">Location</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {directory.map((d) => (
+                    <tr key={d._id} className="hover:bg-slate-50/80">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0">
+                            {d.firstName?.[0]}
+                            {d.lastName?.[0]}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">
+                              {d.firstName} {d.lastName}
+                            </div>
+                            <div className="text-[11px] text-slate-500">{d.designation}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700">{d.department || '—'}</td>
+                      <td className="py-3 px-4">
+                        {d.workEmail ? (
+                          <a href={`mailto:${d.workEmail}`} className="text-indigo-700 hover:underline flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5" />
+                            {d.workEmail}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-700">
+                        {d.extension ? (
+                          <span className="flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" />
+                            {d.extension}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">{d.location || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* High-Density Data Grid */}
+      {view !== 'directory' && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         {loading ? (
           <div className="py-16 text-center text-xs text-slate-500">
@@ -723,6 +923,17 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                       <span className="text-slate-700 font-medium">
                         {emp.reportingManagerName || 'Executive Committee'}
                       </span>
+                      {emp.teamRelation && (
+                        <span
+                          className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded border ${
+                            emp.teamRelation === 'DIRECT'
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-slate-50 text-slate-600 border-slate-200'
+                          }`}
+                        >
+                          {emp.teamRelation === 'DIRECT' ? 'Direct' : 'Indirect'}
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -736,7 +947,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
 
                     <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1.5">
-                        {emp.status === 'PROBATION' && (user?.role === 'ADMIN' || user?.role === 'HR') && (
+                        {emp.status === 'PROBATION' && isMasterWriter && (
                           <div className="flex items-center gap-1 bg-amber-50/80 p-1 rounded-lg border border-amber-200">
                             <button
                               onClick={() => handleConfirmPermanent(emp)}
@@ -769,7 +980,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                           View Profile
                         </button>
 
-                        {(user?.role === 'ADMIN' || user?.role === 'HR') && (
+                        {isMasterWriter && (
                           <select
                             value={emp.status === 'ACTIVE' ? 'PERMANENT' : emp.status}
                             onChange={(e) => handleStatusChange(emp._id, e.target.value)}
@@ -790,8 +1001,9 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
           </div>
         )}
       </div>
+      )}
 
-      {/* Modal: Add New Employee (ADMIN ONLY) */}
+      {/* Modal: Add New Employee (HR / admin roles) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
@@ -809,9 +1021,16 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
             </div>
 
             <form onSubmit={handleCreateEmployee} className="p-6 space-y-4">
-              {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-xs text-rose-700 rounded-lg">
-                  {formError}
+              {(formError || formErrors.length > 0) && (
+                <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-xs text-rose-700 rounded-lg space-y-1">
+                  {formError && <p className="font-semibold">{formError}</p>}
+                  {formErrors.length > 0 && (
+                    <ul className="list-disc pl-4 space-y-0.5">
+                      {formErrors.map((m) => (
+                        <li key={m}>{m}</li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
@@ -867,9 +1086,10 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700">Personal Phone</label>
+                  <label className="block text-xs font-semibold text-slate-700">Mobile Number *</label>
                   <input
                     type="tel"
+                    required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
@@ -884,6 +1104,44 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     value={formData.joiningDate}
                     onChange={(e) => setFormData({ ...formData, joiningDate: e.target.value })}
                     className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">PAN *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={10}
+                    value={formData.panNumber}
+                    onChange={(e) => setFormData({ ...formData, panNumber: e.target.value.toUpperCase() })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase"
+                    placeholder="ABCDE1234F"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">Aadhaar *</label>
+                  <input
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    maxLength={14}
+                    value={formData.aadhaarNumber}
+                    onChange={(e) => setFormData({ ...formData, aadhaarNumber: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+                    placeholder="1234 5678 9012"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">Desk Extension</label>
+                  <input
+                    type="text"
+                    value={formData.extension}
+                    onChange={(e) => setFormData({ ...formData, extension: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+                    placeholder="e.g. 4102"
                   />
                 </div>
               </div>
@@ -1079,6 +1337,21 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
               </div>
 
               <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700">Grade</label>
+                  <select
+                    value={formData.grade}
+                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white"
+                  >
+                    <option value="">Not assigned</option>
+                    {grades.map((g) => (
+                      <option key={g._id} value={g.code}>
+                        {g.code} · {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 {formData.status === 'PROBATION' && (
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">Probation Duration (Months) *</label>
@@ -1125,6 +1398,132 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Bulk Import Employees (HR / admin roles) */}
+      {isImportOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-bold text-slate-900">Bulk Import Employees</h3>
+              </div>
+              <button onClick={closeImport} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              <ol className="list-decimal pl-4 space-y-1 text-slate-600">
+                <li>Download the template and fill one employee per row (PAN, Aadhaar, mobile and joining date are required).</li>
+                <li>Save it as CSV and upload it below. Use <strong>Validate only</strong> to check the file without saving anything.</li>
+                <li>Valid rows are imported; rows with errors are skipped and listed with the reason, so you can fix and re-upload just those.</li>
+              </ol>
+
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => employeeService.downloadImportTemplate().catch((err) => setImportError(err.message))}
+                  className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  Download template
+                </button>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  aria-label="CSV file to import"
+                  onChange={(e) => {
+                    setImportFile(e.target.files?.[0] || null);
+                    setImportResult(null);
+                    setImportError(null);
+                  }}
+                  className="text-xs file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:font-semibold file:cursor-pointer"
+                />
+              </div>
+
+              {importError && (
+                <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg">
+                  {importError}
+                </div>
+              )}
+
+              {importResult && (
+                <div className="space-y-3">
+                  <div
+                    className={`p-3 rounded-lg border font-semibold ${
+                      importResult.summary.failed === 0
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                        : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}
+                  >
+                    {importResult.summary.dryRun
+                      ? `Validation: ${importResult.summary.valid} of ${importResult.summary.totalRows} rows are valid, ${importResult.summary.failed} have errors. Nothing was saved.`
+                      : `Imported ${importResult.summary.imported} of ${importResult.summary.totalRows} rows. ${importResult.summary.failed} row(s) were skipped because of errors.`}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-lg">
+                    <table className="w-full text-left">
+                      <thead className="bg-slate-50 sticky top-0">
+                        <tr className="text-[11px] font-bold text-slate-500 uppercase">
+                          <th className="py-2 px-3">Row</th>
+                          <th className="py-2 px-3">Employee</th>
+                          <th className="py-2 px-3">Result</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {importResult.results.map((r) => (
+                          <tr key={r.row} className={r.status === 'FAILED' ? 'bg-rose-50/40' : ''}>
+                            <td className="py-2 px-3 font-mono">{r.row}</td>
+                            <td className="py-2 px-3">
+                              <div className="font-semibold text-slate-900">{r.name || '—'}</div>
+                              <div className="text-[11px] text-slate-500">{r.workEmail}</div>
+                            </td>
+                            <td className="py-2 px-3">
+                              {r.status === 'FAILED' ? (
+                                <ul className="list-disc pl-4 text-rose-700 space-y-0.5">
+                                  {(r.errors || []).map((m) => (
+                                    <li key={m}>{m}</li>
+                                  ))}
+                                </ul>
+                              ) : r.status === 'IMPORTED' ? (
+                                <span className="text-emerald-700 font-semibold">Imported as {r.employeeCode}</span>
+                              ) : (
+                                <span className="text-emerald-700 font-semibold">Valid</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button type="button" onClick={closeImport} className="px-4 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer">
+                  Close
+                </button>
+                <button
+                  type="button"
+                  disabled={importBusy || !importFile}
+                  onClick={() => handleImport(true)}
+                  className="px-4 py-2 font-semibold text-slate-800 border border-slate-300 hover:bg-slate-50 disabled:opacity-50 rounded-lg cursor-pointer"
+                >
+                  Validate only
+                </button>
+                <button
+                  type="button"
+                  disabled={importBusy || !importFile}
+                  onClick={() => handleImport(false)}
+                  className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg cursor-pointer"
+                >
+                  {importBusy ? 'Working...' : 'Import'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

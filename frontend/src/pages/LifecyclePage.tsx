@@ -25,10 +25,18 @@ import {
   Users,
   CheckSquare,
   Square,
+  LogOut,
 } from 'lucide-react';
+import { canRead, canWrite } from '../utils/access';
 
-export const LifecyclePage: React.FC = () => {
+interface LifecyclePageProps {
+  onNavigateTab?: (tabId: string) => void;
+}
+
+export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) => {
   const { user } = useAuth();
+  const canManage = !!user && canWrite(user.role, 'core_hr');
+  const canSeeExits = !!user && canRead(user.role, 'exit_mgmt');
   const [events, setEvents] = useState<LifecycleEvent[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -67,6 +75,7 @@ export const LifecyclePage: React.FC = () => {
   const [bulkFilterDept, setBulkFilterDept] = useState('ALL');
 
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -214,7 +223,15 @@ export const LifecyclePage: React.FC = () => {
 
   const handleInitiateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.employeeId || !formData.newValue.trim() || !formData.reason.trim()) return;
+    setSubmitError(null);
+    if (!formData.employeeId) {
+      setSubmitError('Please select the employee.');
+      return;
+    }
+    if (!formData.newValue.trim() || !formData.reason.trim()) {
+      setSubmitError('Please fill in the new value and the reason.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -243,8 +260,8 @@ export const LifecyclePage: React.FC = () => {
         await fetchData();
         setTimeout(() => setFeedbackMsg(null), 4000);
       }
-    } catch (err) {
-      console.error('Failed to initiate lifecycle event:', err);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Could not record the milestone. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -271,8 +288,27 @@ export const LifecyclePage: React.FC = () => {
           </h1>
         </div>
 
-        {(user?.role === 'ADMIN' || user?.role === 'HR') && (
-          <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
+          {onNavigateTab && user?.employeeId && (
+            <button
+              onClick={() => onNavigateTab('resignation')}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>My Resignation</span>
+            </button>
+          )}
+          {onNavigateTab && canSeeExits && (
+            <button
+              onClick={() => onNavigateTab('exit_management')}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Exit Management</span>
+            </button>
+          )}
+        {canManage && (
+          <>
             <button
               onClick={() => {
                 setIsBulkModalOpen(true);
@@ -292,8 +328,9 @@ export const LifecyclePage: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>Single Action</span>
             </button>
-          </div>
+          </>
         )}
+        </div>
       </div>
 
       {feedbackMsg && (
@@ -359,6 +396,7 @@ export const LifecyclePage: React.FC = () => {
             { id: 'DESIGNATION_CHANGE', label: 'Designations' },
             { id: 'SALARY_REVISION', label: 'Salary Band' },
             { id: 'CONFIRMATION', label: 'Confirmations' },
+            { id: 'SEPARATION', label: 'Resignations & Exits' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -414,6 +452,8 @@ export const LifecyclePage: React.FC = () => {
                           ? 'bg-blue-50 text-blue-700 border-blue-200'
                           : ev.eventType === 'CONFIRMATION'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : ev.eventType === 'SEPARATION'
+                          ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
@@ -438,7 +478,7 @@ export const LifecyclePage: React.FC = () => {
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                        Previous Baseline
+                        {ev.eventType === 'SEPARATION' ? 'Before' : 'Previous Baseline'}
                       </span>
                       <span className="font-medium text-slate-700">{ev.previousValue}</span>
                     </div>
@@ -447,7 +487,7 @@ export const LifecyclePage: React.FC = () => {
 
                     <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-900/20 text-slate-900 font-semibold shadow-2xs">
                       <span className="text-[10px] uppercase font-bold text-blue-600 block">
-                        New Approved Value
+                        {ev.eventType === 'SEPARATION' ? 'Now' : 'New Approved Value'}
                       </span>
                       <span className="font-bold">{ev.newValue}</span>
                     </div>
@@ -461,7 +501,7 @@ export const LifecyclePage: React.FC = () => {
 
                 {/* Justification */}
                 <p className="text-xs text-slate-600 pl-1">
-                  <span className="font-semibold text-slate-800">Business Justification: </span>
+                  <span className="font-semibold text-slate-800">{ev.eventType === 'SEPARATION' ? 'Reason' : 'Business Justification'}: </span>
                   {ev.reason}
                 </p>
 
@@ -496,6 +536,11 @@ export const LifecyclePage: React.FC = () => {
             </div>
 
             <form onSubmit={handleInitiateSubmit} className="space-y-4 text-xs">
+              {submitError && (
+                <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg font-semibold">
+                  {submitError}
+                </div>
+              )}
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Target Employee *</label>
                 <select

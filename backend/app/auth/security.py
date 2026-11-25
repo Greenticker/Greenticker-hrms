@@ -11,7 +11,13 @@ from app.errors import ApiError
 from app.stores.db_store import db_store
 
 
-def generate_token(user: dict) -> str:
+READ_ONLY_ROLES = ("AUDITORS",)
+READ_ONLY_ALLOWED_WRITES = ("/auth/", "/notifications", "/ai/chat", "/audit/reviews")
+
+
+def generate_token(user: dict, idle_minutes: Optional[int] = None, session_start: Optional[int] = None) -> str:
+    """Tokens expire after the idle timeout; the app refreshes them while the user is active
+    (/auth/refresh), never beyond the maximum session length counted from `sst`."""
     now = int(time.time())
     payload = {
         "userId": user["_id"],
@@ -19,7 +25,8 @@ def generate_token(user: dict) -> str:
         "role": user.get("role"),
         "organizationId": user.get("organizationId"),
         "iat": now,
-        "exp": now + JWT_EXPIRES_SECONDS,
+        "sst": session_start or now,
+        "exp": now + (idle_minutes * 60 if idle_minutes else JWT_EXPIRES_SECONDS),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
@@ -57,6 +64,19 @@ def require_auth(request: Request) -> dict:
     user = db_store.find_user_by_id(decoded.get("userId"))
     if not user or not user.get("isActive"):
         raise ApiError(401, "User not found or account deactivated.")
+    emp = db_store.employees.get(user.get("employeeId") or "") or {}
+    if emp.get("status") in ("EXITED", "TERMINATED"):
+        raise ApiError(401, "Your access ended on your last working day.")
+    if user.get("mustChangePassword") and "/auth/" not in request.url.path:
+        raise ApiError(403, "Your password has expired. Change it to continue.", code="PASSWORD_EXPIRED")
+
+    # Auditors are read-only everywhere: any change through the API is refused, whatever the
+    # endpoint's own role checks say. Only signing in/out, marking notifications read and the
+    # AI assistant (questions only) are allowed.
+    if user.get("role") in READ_ONLY_ROLES and request.method not in ("GET", "HEAD", "OPTIONS"):
+        path = request.url.path
+        if not any(marker in path for marker in READ_ONLY_ALLOWED_WRITES):
+            raise ApiError(403, "Auditors have read-only access. This action is not permitted.")
 
     request.state.user = user
     request.state.jwt_payload = decoded

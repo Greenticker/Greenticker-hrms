@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
 @layer base {
+  html {
+    font-size: 112.5%;
+  }
+
   body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Poppins', sans-serif;
     color: #0f172a;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Poppins', sans-serif;
     letter-spacing: normal;
   }
 }

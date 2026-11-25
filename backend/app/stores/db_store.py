@@ -68,6 +68,7 @@ class DbStore:
         self.departments: dict = seed_container("db", "departments")
         self.designations: dict = seed_container("db", "designations")
         self.locations: dict = seed_container("db", "locations")
+        self.grades: dict = {}  # grade / band master (L1, L2, ...), created by admins
         self.onboardingSubmissions: dict = seed_container("db", "onboardingSubmissions")
         self.documents: dict = seed_container("db", "documents")
         self.lifecycleEvents: list = seed_container("db", "lifecycleEvents")
@@ -154,8 +155,14 @@ class DbStore:
         return self.employees.get(emp_id) if emp_id else None
 
     def get_employees_for_user(self, user: dict, search: Optional[str] = None, department: Optional[str] = None, status: Optional[str] = None) -> list:
-        if user.get("role") == "ADMIN":
+        from app.auth.employee_access import can_view_all, own_employee_id, reportee_ids  # local: auth imports this store
+
+        if can_view_all(user):
             items = list(self.employees.values())
+        elif user.get("role") == "MANAGER":
+            # A manager's team: direct and indirect reportees, never the manager themself
+            team = reportee_ids(own_employee_id(user))
+            items = [e for e in self.employees.values() if e["_id"] in team]
         else:
             # Everyone else sees only themself
             items = [e for e in self.employees.values() if e.get("userId") == user["_id"]]
@@ -210,8 +217,10 @@ class DbStore:
         return updated
 
     def log_audit(self, entry: dict) -> None:
+        from app.request_context import current_client_ip  # local: keeps the store free of web imports
+
         doc = merge({}, entry)
-        doc["ipAddress"] = entry.get("ipAddress") or "103.21.124.89"
+        doc["ipAddress"] = entry.get("ipAddress") or current_client_ip() or "system"
         doc["_id"] = f"aud_{now_ms()}_{rand_int(1000)}"
         doc["timestamp"] = now_iso()
         self.auditLogs.insert(0, doc)
@@ -226,7 +235,10 @@ class DbStore:
         elif not include_deleted:
             docs = [d for d in docs if not d.get("isDeleted")]
 
-        if user.get("role") in ("ADMIN", "HR"):
+        from app.auth.employee_access import MASTER_WRITE_ROLES  # local: auth imports this store
+
+        # Employee documents: visible to HR / admins and to the employee they belong to only
+        if user.get("role") in MASTER_WRITE_ROLES:
             if employee_id:
                 docs = [d for d in docs if d.get("employeeId") == employee_id]
         else:
@@ -265,7 +277,8 @@ class DbStore:
 
     def get_lifecycle_events_for_user(self, user: dict, event_type: Optional[str] = None, employee_id: Optional[str] = None) -> list:
         events = list(self.lifecycleEvents)
-        if user.get("role") == "ADMIN":
+        from app.auth.module_access import can_read  # local: auth imports this store
+        if can_read(user, "core_hr"):
             if employee_id:
                 events = [e for e in events if e.get("employeeId") == employee_id]
         else:

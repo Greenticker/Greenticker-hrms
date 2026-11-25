@@ -445,12 +445,12 @@ export const modulesService = {
   // HOLIDAYS & ANNOUNCEMENTS
   // =============================================================
 
-  getHolidays: async (): Promise<{
+  getHolidays: async (allLocations = false): Promise<{
     holidays: HolidayItem[];
   }> => {
     return request<{
       holidays: HolidayItem[];
-    }>('/holidays');
+    }>(`/holidays${allLocations ? '?all=true' : ''}`);
   },
 
   createHoliday: async (data: HolidayInput): Promise<{ success: boolean; holiday: HolidayItem }> => {
@@ -787,6 +787,15 @@ export const modulesService = {
   approveExit: async (exitId: string, comment: string): Promise<{ settlement: FullFinalSettlement; emails: { email: string }[] }> => {
     return request(`/full-final/${exitId}/approve`, { method: 'POST', body: JSON.stringify({ comment }) });
   },
+
+  getSettlementSuggestion: async (exitId: string): Promise<{ components: FullFinalSettlement['settlementComponents'] | null; basis: string[] }> =>
+    request(`/full-final/${exitId}/settlement-suggestion`),
+
+  saveSettlement: async (exitId: string, components: Partial<FullFinalSettlement['settlementComponents']>): Promise<{ settlement: FullFinalSettlement }> =>
+    request(`/full-final/${exitId}/settlement`, { method: 'PUT', body: JSON.stringify(components) }),
+
+  disburseSettlement: async (exitId: string, paymentReference: string, paidOn: string): Promise<{ settlement: FullFinalSettlement; emails: { email: string }[] }> =>
+    request(`/full-final/${exitId}/disburse`, { method: 'POST', body: JSON.stringify({ paymentReference, paidOn }) }),
 
   // Resignations
   getMyResignation: async (): Promise<MyResignationView> => request<MyResignationView>('/resignations/me'),

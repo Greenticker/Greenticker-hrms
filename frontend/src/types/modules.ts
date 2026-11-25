@@ -102,7 +102,7 @@ export interface Payslip {
   otherDeductions: number;
   totalDeductions: number;
   netSalary: number;
-  status: 'PAID' | 'PROCESSED' | 'PENDING';
+  status: 'PAID' | 'PROCESSED' | 'PENDING' | 'PENDING_APPROVAL';
   paymentMode: 'DIRECT_DEPOSIT' | 'BANK_TRANSFER';
   transactionId: string;
 }
@@ -218,10 +218,12 @@ export interface HolidayItem {
   dayOfWeek: string;
   type: 'MANDATORY' | 'RESTRICTED';
   description: string;
+  /** Office locations this holiday applies to; empty = every location */
+  locations?: string[];
 }
 
 /** Fields HR sends when adding or editing a holiday; the server derives dayOfWeek. */
-export type HolidayInput = Pick<HolidayItem, 'name' | 'date' | 'type' | 'description'>;
+export type HolidayInput = Pick<HolidayItem, 'name' | 'date' | 'type' | 'description' | 'locations'>;
 
 export interface PollOption {
   id: string;
@@ -290,6 +292,15 @@ export interface JobOpening {
   postedDate: string;
   description: string;
   skillsRequired: string[];
+  requisitionId?: string;
+  hiringManagerId?: string;
+  hiringManagerName?: string;
+  /** Approved salary band (annual CTC); offers above the maximum need extra approval */
+  salaryBandMin?: number;
+  salaryBandMax?: number;
+  published?: boolean;
+  publishedChannels?: string[];
+  publishedAt?: string;
 }
 
 export interface InterviewRoundItem {
@@ -305,6 +316,11 @@ export interface InterviewRoundItem {
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
   scheduledBy: string;
   scheduledAt: string;
+  /** Interview panel (employees) and their locked feedback, keyed by employee id */
+  panel?: { employeeId: string; name: string; email?: string }[];
+  panelFeedback?: Record<string, PanelFeedback>;
+  calendarUid?: string;
+  candidateEmailStatus?: 'SENT' | 'SIMULATED' | 'FAILED';
   feedback?: {
     rating: number;
     justification?: string; // Visible to everyone
@@ -314,6 +330,51 @@ export interface InterviewRoundItem {
     submittedAt: string;
     submittedBy: string;
   };
+}
+
+export interface PanelFeedback {
+  rating: number;
+  comments: string;
+  recommendation: 'STRONG_HIRE' | 'HIRE' | 'NO_HIRE' | 'STRONG_NO_HIRE';
+  submittedAt: string;
+  submittedBy: string;
+  employeeId: string;
+  locked: boolean;
+}
+
+export type OfferStatus =
+  | 'PENDING_APPROVAL'
+  | 'SENT'
+  | 'ACCEPTED'
+  | 'DECLINED'
+  | 'SUPERSEDED'
+  | 'APPROVAL_REJECTED'
+  | 'WITHDRAWN'
+  | 'JOINED';
+
+export interface OfferVersion {
+  version?: number;
+  annualCtc: number;
+  designation: string;
+  joiningDate: string;
+  validTill: string;
+  location: string;
+  reportingTo?: string;
+  notes?: string;
+  status?: OfferStatus;
+  salaryBandMin?: number;
+  salaryBandMax?: number;
+  aboveBand?: boolean;
+  revisionReason?: string;
+  createdAt?: string;
+  extendedBy: string;
+  extendedByUserId?: string;
+  sentAt?: string;
+  sentTo?: string;
+  sentFrom?: string;
+  emailSentAt?: string;
+  emailStatus?: 'SENT' | 'SIMULATED' | 'FAILED';
+  approval?: { decision: 'APPROVED' | 'REJECTED'; by: string; role: string; at: string; comment?: string };
 }
 
 export interface CandidateInterviewFeedback {
@@ -335,7 +396,7 @@ export interface JobCandidate {
   fullName: string;
   email: string;
   phone: string;
-  stage: 'APPLIED' | 'SCREENING' | 'TECHNICAL_INTERVIEW' | 'HR_INTERVIEW' | 'OFFERED' | 'HIRED' | 'REJECTED';
+  stage: 'APPLIED' | 'SCREENING' | 'SHORTLISTED' | 'TECHNICAL_INTERVIEW' | 'HR_INTERVIEW' | 'OFFERED' | 'HIRED' | 'REJECTED';
   experienceYears: number;
   currentCompany?: string;
   appliedDate: string;
@@ -357,18 +418,70 @@ export interface JobCandidate {
     emailStatus: 'SENT' | 'SIMULATED' | 'FAILED';
     scheduledBy: string;
   };
-  offer?: {
-    annualCtc: number;
-    designation: string;
-    joiningDate: string;
-    validTill: string;
-    location: string;
-    reportingTo?: string;
-    notes?: string;
-    emailSentAt?: string;
-    emailStatus: 'SENT' | 'SIMULATED' | 'FAILED';
-    extendedBy: string;
-  };
+  offer?: OfferVersion;
+  /** Every offer version, oldest first (revisions keep the earlier ones as SUPERSEDED) */
+  offers?: OfferVersion[];
+  source?: 'MANUAL' | 'RESUME_UPLOAD' | 'REFERRAL';
+  hasResume?: boolean;
+  resumeFileName?: string;
+  archived?: boolean;
+  archivedAt?: string;
+  retainUntil?: string;
+  rejectionReason?: string;
+  rejectedBy?: string;
+  candidateNotified?: boolean;
+  employeeId?: string;
+  employeeCode?: string;
+}
+
+export type RequisitionStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED' | 'PUBLISHED';
+
+export interface Requisition {
+  _id: string;
+  title: string;
+  department: string;
+  positions: number;
+  employmentType: string;
+  experienceRequired?: string;
+  skillsRequired?: string[];
+  priority?: string;
+  expectedJoiningDate?: string;
+  budgetMin?: number;
+  budgetMax?: number;
+  budgetRange?: string;
+  location?: string;
+  description?: string;
+  justification?: string;
+  status: RequisitionStatus;
+  requestedByName: string;
+  requestedByUserId?: string;
+  requestedById?: string;
+  hiringManagerId?: string;
+  hiringManagerName?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+  jobId?: string;
+  createdAt: string;
+  history?: { action: string; by: string; role?: string; at: string; comment?: string }[];
+}
+
+export interface MyInterview {
+  candidateId: string;
+  candidateName: string;
+  jobTitle: string;
+  candidateStage: string;
+  hasResume: boolean;
+  roundNumber: number;
+  roundName: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  mode: string;
+  locationOrLink: string;
+  panel: string[];
+  myFeedback?: PanelFeedback;
+  feedbackLocked: boolean;
 }
 
 export interface EmailResult {
@@ -602,8 +715,18 @@ export interface FullFinalSettlement {
   exitApprovedBy?: string;
   exitApprovedOn?: string;
   exitApprovalComment?: string;
-  fnf?: { status: 'INITIATED'; initiatedOn: string; initiatedBy: string };
-  permissions?: { canClear: ClearanceKey[]; canApprove: boolean };
+  fnf?: {
+    status: 'INITIATED' | 'SETTLEMENT_PREPARED' | 'PAID';
+    initiatedOn: string;
+    initiatedBy: string;
+    preparedBy?: string;
+    preparedOn?: string;
+    paidOn?: string;
+    paymentReference?: string;
+    paidBy?: string;
+  };
+  employeeDeactivatedOn?: string;
+  permissions?: { canClear: ClearanceKey[]; canApprove: boolean; canSettle?: boolean; canDisburse?: boolean };
   clearances: {
     department: ClearanceItem;
     itAssets: ClearanceItem;
@@ -617,6 +740,8 @@ export interface FullFinalSettlement {
     gratuity: number;
     noticePayShortfallDeduction: number;
     bonusOrIncentive: number;
+    otherDeductions?: number;
+    otherDeductionsNote?: string;
     totalPayable: number;
   };
   notes?: string;

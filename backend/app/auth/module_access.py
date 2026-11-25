@@ -27,7 +27,8 @@ MATRIX = {
     "leave": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("FINANCE", "AUDITORS")),
     "attendance": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("FINANCE", "AUDITORS")),
     "self_onboarding": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("AUDITORS",)),
-    "payroll": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "FINANCE"), ("HR", "ACCOUNTS", "AUDITORS")),
+    # HR prepares (maker), Finance approves / releases (checker); admins get no salary data
+    "payroll": (("HR", "FINANCE"), ("ACCOUNTS", "AUDITORS")),
     "recruitment": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("FINANCE", "AUDITORS")),
     "performance": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("AUDITORS",)),
     "learning": (("SUPER_ADMIN", "ADMIN_1", "ADMIN_2", "HR"), ("FINANCE", "AUDITORS")),
@@ -39,12 +40,29 @@ MATRIX = {
 }
 
 
+# Modules even the legacy full-access ADMIN does not get (salary data stays with HR / Finance)
+NO_ADMIN_MODULES = ("payroll",)
+
+
+def _overrides(module: str) -> dict:
+    """Role permissions configured by the Super Admin (Admin > Roles), logged when changed."""
+    try:
+        from app.stores.modules_store import modules_store
+        return ((modules_store.systemSettings.get("settings") or {}).get("rolePermissions") or {}).get(module) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def write_roles(module: str) -> tuple:
-    return FULL_ACCESS + MATRIX[module][0]
+    base = (() if module in NO_ADMIN_MODULES else FULL_ACCESS) + MATRIX[module][0]
+    o = _overrides(module)
+    return tuple(r for r in base if o.get(r, "READ_WRITE") == "READ_WRITE") + tuple(r for r, a in o.items() if a == "READ_WRITE" and r not in base)
 
 
 def read_roles(module: str) -> tuple:
-    return write_roles(module) + MATRIX[module][1]
+    o = _overrides(module)
+    base = write_roles(module) + tuple(r for r in MATRIX[module][1] if o.get(r, "READ_ONLY") != "NO_ACCESS")
+    return base + tuple(r for r, a in o.items() if a == "READ_ONLY" and r not in base)
 
 
 def can_write(user: dict, module: str) -> bool:

@@ -3,6 +3,8 @@ import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
 import { ChatbotDrawer } from './ChatbotDrawer';
 import { NotificationDrawer } from './NotificationDrawer';
+import { useAuth } from '../../context/AuthContext';
+import { Lock } from 'lucide-react';
 
 interface BaseLayoutProps {
   children: React.ReactNode;
@@ -20,6 +22,9 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { user } = useAuth();
+  // Auditors are read-only everywhere (the API refuses any change they attempt)
+  const isReadOnly = user?.role === 'AUDITORS';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -34,7 +39,15 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
         <Sidebar activeTab={activeTab} onSelectTab={onSelectTab} isOpen={isSidebarOpen} />
 
         <main className="flex-1 p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">{children}</div>
+          <div className="max-w-7xl mx-auto">
+            {isReadOnly && (
+              <div role="note" className="mb-4 p-3 rounded-xl bg-slate-100 border border-slate-300 text-xs text-slate-700 flex items-center gap-2">
+                <Lock className="w-4 h-4 shrink-0" />
+                Auditor access is read-only. You can view records but not create, change, approve or delete anything.
+              </div>
+            )}
+            {children}
+          </div>
         </main>
       </div>
 

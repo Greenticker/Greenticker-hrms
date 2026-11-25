@@ -74,6 +74,45 @@ class ModulesStore:
             setattr(self, name, seed_container("modules", name))
         # Employee-submitted resignations (no seed data)
         self.resignations: dict = {}
+        # Leave rules and payroll inputs (filled with defaults on first use)
+        self.leaveTypes: dict = {}
+        self.leaveSettings: dict = {}
+        self.leaveAdjustments: dict = {}
+        self.payrollInputs: dict = {}
+        self.payrollLocks: dict = {}
+        # Attendance workflow
+        self.attendanceSettings: dict = {}
+        self.attendanceRequests: dict = {}
+        self.attendanceLocks: dict = {}
+        self.attendanceDevices: dict = {}
+        self.attendanceSummaries: dict = {}
+        # Payroll process
+        self.payrollSettings: dict = {}
+        self.salaryStructures: dict = {}
+        self.payrollRuns: dict = {}
+        self.investmentDeclarations: dict = {}
+        # Finance, benefits, assets, help desk, reports, admin
+        self.glMappings: dict = {}
+        self.glMappingChanges: dict = {}
+        self.journals: dict = {}
+        self.accountingPeriods: dict = {}
+        self.bankRecons: dict = {}
+        self.loans: dict = {}
+        self.paymentBatches: dict = {}
+        self.financeSettings: dict = {}
+        self.benefitPolicies: dict = {}
+        self.benefitEnrollments: dict = {}
+        self.benefitClaims: dict = {}
+        self.benefitSettings: dict = {}
+        self.benefitPremiumPayments: dict = {}
+        self.assetRequests: dict = {}
+        self.tickets: dict = {}
+        self.helpdeskSettings: dict = {}
+        self.reportSchedules: dict = {}
+        self.systemSettings: dict = {}
+        self.loginHistory: dict = {}
+        self.otpChallenges: dict = {}
+        self.roleConflictWaivers: dict = {}
 
     # ------------------------------------------------------------------ leave
 
@@ -243,13 +282,18 @@ class ModulesStore:
         return payslip
 
     def run_monthly_payroll(self, month_str: str, month_name: str, processed_by: str) -> list:
+        from app.utils.salary_revisions import apply_due_revisions, salary_for_month  # local: avoids an import cycle
+
+        apply_due_revisions()
         generated = []
         active = [e for e in db_store.employees.values() if e.get("status") in ("ACTIVE", "PROBATION")]
         for emp in active:
             existing_key = f"pay_{emp['_id']}_{month_str.replace('-', '_', 1)}"
             if existing_key in self.payslips:
                 continue
-            payslip = self.build_payslip(emp, month_str, month_name, {"_id": existing_key, "payDate": today_str()})
+            # Approved salary revisions (e.g. appraisal increments) apply from their effective month only
+            month_emp = {**emp, "annualSalary": salary_for_month(emp, month_str)}
+            payslip = self.build_payslip(month_emp, month_str, month_name, {"_id": existing_key, "payDate": today_str()})
             if not payslip:
                 continue
             self.payslips[existing_key] = payslip

@@ -18,7 +18,12 @@ from fastapi import APIRouter, Depends, Request
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import audit, read_body
-from app.routes.performance import HR_ROLE, MODULE, VIEW_ALL_ROLES, _actor_name, _can_view_all, _kpi_section, _num, _text, _weights_for
+from app.auth.module_access import can_read, can_write
+from app.routes.performance import (
+    HR_ROLE, MODULE, VIEW_ALL_ROLES, _actor_name, _can_view_all, _iso_date, _kpi_section, _num, _text, _weights_for,
+    check_deadline, ineligible_reason, notify_employee, notify_hr,
+)
+from app.utils.salary_revisions import apply_due_revisions
 from app.routes.performance_feedback import compute_report_360
 from app.stores.db_store import db_store
 from app.stores.pms_store import pms_store, stamp
@@ -130,11 +135,13 @@ def _permissions(ap: dict, user: dict) -> dict:
     return {
         "canEditSelf": active and s == "SELF" and rel["owner"],
         "canEditManager": active and s == "MANAGER" and rel["manager"] and not rel["owner"],
-        "canReview": active and s == "REVIEWER" and rel["reviewer"],
+        "canReview": active and s == "REVIEWER" and rel["reviewer"] and not rel["owner"],
         "canSendBack": active and ((s == "MANAGER" and rel["manager"] and not rel["owner"]) or (s == "REVIEWER" and rel["reviewer"])),
         "canCalibrate": active and s == "CALIBRATION" and rel["hr"] and not rel["owner"],
         "canAccept": active and s == "PUBLISHED" and rel["owner"],
         "canResolveAppeal": active and s == "APPEAL" and rel["hr"] and not rel["owner"],
+        "canReopen": active and rel["hr"] and not rel["owner"]
+        and (ap.get("increment") or {}).get("status") != "APPROVED",
     }
 
 
@@ -150,7 +157,7 @@ def _view(ap: dict, user: dict) -> dict:
         "designation": emp.get("designation"), "department": emp.get("department"),
         "managerName": pms_store.employee_name(ap.get("managerId")) or "HR",
         "reviewerName": pms_store.employee_name(ap.get("reviewerId")),
-        "status": ap["status"], "self": ap.get("self") or {}, "trail": ap.get("trail") or [],
+        "status": ap["status"], "self": ap.get("self") or {}, "trail": ap.get("trail") or [], "deadlineExtension": ap.get("deadlineExtension"),
         "competencies": [{"_id": c["_id"], "name": c["name"], "appliesTo": c.get("appliesTo")} for c in pms_store.competencies_for(ap["employeeId"])],
         "permissions": _permissions(ap, user),
         "publishedOn": ap.get("publishedOn"), "acceptance": ap.get("acceptance"),
@@ -210,7 +217,7 @@ async def calibration_list(user: dict = Depends(require_auth)):
     started = {r["employeeId"] for r in rows}
     not_started = [
         {"employeeId": e["_id"], "employeeName": pms_store.employee_name(e["_id"]), "department": e.get("department")}
-        for e in db_store.employees.values() if e["_id"] not in started and e.get("status") not in INACTIVE
+        for e in db_store.employees.values() if e["_id"] not in started and not ineligible_reason(e["_id"], cycle)
     ]
     rated = [r["finalRating"] for r in rows if r["status"] not in ("SELF", "MANAGER", "REVIEWER") and r["finalRating"]]
     distribution = {str(k): {"count": rated.count(k), "pct": round(rated.count(k) / len(rated) * 100, 1) if rated else 0} for k in (5, 4, 3, 2, 1)}
@@ -241,6 +248,8 @@ async def publish(user: dict = Depends(require_role(HR_ROLE))):
         _trail(ap, user, "PUBLISHED", "PUBLISHED")
         ap["publishedOn"] = now_iso()
         stamp(ap, user)
+        notify_employee(ap["employeeId"], "Your appraisal rating is published",
+                        f"Open Performance to see your final rating and accept it or raise a disagreement within {AUTO_ACCEPT_DAYS} days.")
     audit(user, "PMS_RATINGS_PUBLISHED", MODULE, "pms_cycle", cycle["_id"], {"field": "status", "old": "FINAL", "new": "PUBLISHED", "count": len(final)})
     return {"published": len(final)}
 
@@ -291,6 +300,7 @@ def _payroll_rows(cycle: dict) -> list:
             "currentAnnualSalary": salary,
             "newAnnualSalary": round(salary * (1 + (inc.get("incrementPct") or 0) / 100)) if salary is not None else None,
             "payrollSentOn": ap.get("payrollSentOn"),
+            "increment": ap.get("increment"),
         })
     return sorted(rows, key=lambda r: r["employeeName"])
 
@@ -304,20 +314,115 @@ async def payroll_export(user: dict = Depends(require_role(HR_ROLE))):
 
 
 @router.post("/appraisals/payroll-sent")
-async def mark_payroll_sent(user: dict = Depends(require_role(HR_ROLE))):
+async def mark_payroll_sent(request: Request, user: dict = Depends(require_role(HR_ROLE))):
+    """HR proposes the increments from final ratings with an effective date. Nothing changes in
+    payroll until a payroll approver (Finance / Admin) approves them."""
     cycle = _active_cycle()
+    body = await read_body(request)
+    effective = _iso_date(body.get("effectiveFrom"), "Effective date") if body.get("effectiveFrom") else None
+    if not effective:
+        raise ApiError(400, "Choose the date from which the revised salaries take effect.")
     sent = 0
     for row in _payroll_rows(cycle):
         ap = pms_store.pmsAppraisals[row["appraisalId"]]
-        if not ap.get("payrollSentOn"):
-            ap["payrollSentOn"] = now_iso()
-            ap["payrollSnapshot"] = {k: row[k] for k in ("rating", "incrementPct", "bonusMultiplier")}
-            stamp(ap, user)
-            sent += 1
+        if ap.get("increment") and ap["increment"].get("status") in ("PENDING_APPROVAL", "APPROVED"):
+            continue
+        if row["currentAnnualSalary"] is None or ap["employeeId"] == user.get("employeeId"):
+            continue  # nobody proposes their own increment
+        ap["payrollSentOn"] = now_iso()
+        ap["payrollSnapshot"] = {k: row[k] for k in ("rating", "incrementPct", "bonusMultiplier")}
+        ap["increment"] = {
+            "status": "PENDING_APPROVAL", "effectiveFrom": effective, "rating": row["rating"],
+            "incrementPct": row["incrementPct"], "oldSalary": row["currentAnnualSalary"], "newSalary": row["newAnnualSalary"],
+            "proposedBy": _actor_name(user), "proposedByUserId": user["_id"], "proposedOn": now_iso(),
+        }
+        stamp(ap, user)
+        sent += 1
     if not sent:
-        raise ApiError(400, "Nothing new to send. Only accepted (closed) ratings go to payroll.")
-    audit(user, "PMS_SENT_TO_PAYROLL", MODULE, "pms_cycle", cycle["_id"], {"count": sent})
-    return {"sent": sent}
+        raise ApiError(400, "Nothing new to send. Only accepted (closed) ratings that have no increment pending go to payroll.")
+    for u in db_store.users.values():
+        if u.get("role") == "FINANCE" and u.get("isActive", True) and u["_id"] != user["_id"]:
+            db_store.notifications.insert(0, {
+                "_id": f"notif_{now_ms()}_{rand_base36(5)}", "recipientUserId": u["_id"], "title": "Salary increments awaiting approval",
+                "message": f"{sent} appraisal increment(s) effective {effective} need payroll approval.",
+                "type": "PAYROLL", "isRead": False, "createdAt": now_iso(),
+            })
+    audit(user, "PMS_SENT_TO_PAYROLL", MODULE, "pms_cycle", cycle["_id"], {"count": sent, "effectiveFrom": effective})
+    return {"sent": sent, "effectiveFrom": effective}
+
+
+def _increment_rows(status: Optional[str] = None) -> list:
+    rows = []
+    for ap in pms_store.pmsAppraisals.values():
+        inc = ap.get("increment")
+        if not inc or (status and inc.get("status") != status):
+            continue
+        emp = pms_store.employee(ap["employeeId"]) or {}
+        rows.append({"appraisalId": ap["_id"], "employeeId": ap["employeeId"], "employeeName": pms_store.employee_name(ap["employeeId"]),
+                     "employeeCode": emp.get("employeeCode"), "department": emp.get("department"), **inc})
+    return sorted(rows, key=lambda r: (r.get("effectiveFrom") or "", r["employeeName"]))
+
+
+@router.get("/appraisals/increments")
+async def list_increments(status: Optional[str] = None, user: dict = Depends(require_auth)):
+    if not (can_read(user, "payroll") or _can_view_all(user)):
+        raise ApiError(403, "Access denied.")
+    rows = _increment_rows(status)
+    for r in rows:
+        r["canApprove"] = (r["status"] == "PENDING_APPROVAL" and user.get("role") == "FINANCE"
+                           and r.get("proposedByUserId") != user["_id"] and r["employeeId"] != user.get("employeeId"))
+    return {"increments": rows}
+
+
+@router.post("/appraisals/increments/approve")
+async def approve_increments(request: Request, user: dict = Depends(require_auth)):
+    """Payroll approver (Finance / Admin, never the HR user who proposed it) approves or rejects
+    appraisal increments. Approved ones become salary revisions that payroll applies from the
+    effective date."""
+    if user.get("role") != "FINANCE":
+        raise ApiError(403, "Only the payroll checker (Finance) can approve salary increments.")
+    body = await read_body(request)
+    decision = body.get("decision") or "APPROVED"
+    comment = _text(body.get("comment"))
+    if decision not in ("APPROVED", "REJECTED"):
+        raise ApiError(400, "Decision must be APPROVED or REJECTED.")
+    if decision == "REJECTED" and not comment:
+        raise ApiError(400, "Give a reason for rejecting the increments.")
+    ids = body.get("appraisalIds") or [r["appraisalId"] for r in _increment_rows("PENDING_APPROVAL")]
+    done, skipped = [], []
+    for ap_id in ids:
+        ap = pms_store.pmsAppraisals.get(ap_id)
+        inc = (ap or {}).get("increment") or {}
+        if inc.get("status") != "PENDING_APPROVAL":
+            continue
+        if inc.get("proposedByUserId") == user["_id"] or ap["employeeId"] == user.get("employeeId"):
+            skipped.append(pms_store.employee_name(ap["employeeId"]))
+            continue
+        inc.update({"status": decision, "decidedBy": _actor_name(user), "decidedByUserId": user["_id"], "decidedOn": now_iso(),
+                    "comment": comment or None})
+        if decision == "APPROVED":
+            emp = db_store.employees.get(ap["employeeId"])
+            if emp is not None:
+                emp.setdefault("salaryRevisions", []).append({
+                    "effectiveFrom": inc["effectiveFrom"], "oldSalary": inc["oldSalary"], "newSalary": inc["newSalary"],
+                    "status": "APPROVED", "source": "APPRAISAL", "appraisalId": ap_id, "approvedBy": _actor_name(user),
+                    "approvedOn": now_iso(),
+                })
+        notify_employee(ap["employeeId"], f"Salary increment {decision.lower()}",
+                        f"Your appraisal increment ({inc.get('incrementPct')}%) effective {inc['effectiveFrom']} was {decision.lower()}."
+                        if decision == "APPROVED" else "Your appraisal increment was not approved; HR will be in touch.")
+        audit(user, f"PMS_INCREMENT_{decision}", MODULE, "pms_appraisal", ap_id, {
+            "employeeId": ap["employeeId"], "field": "annualSalary", "old": inc["oldSalary"], "new": inc["newSalary"],
+            "effectiveFrom": inc["effectiveFrom"], "comment": comment,
+        })
+        done.append(ap_id)
+    if not done and skipped:
+        raise ApiError(403, "Maker-checker: you proposed these increments (or they are your own), so another approver must decide: "
+                       + ", ".join(skipped))
+    if not done:
+        raise ApiError(400, "There are no increments waiting for approval.")
+    apply_due_revisions()
+    return {"decided": len(done), "decision": decision, "skipped": skipped}
 
 
 # ---------------------------------------------------------------- appraisals
@@ -341,10 +446,20 @@ async def get_or_start(employee_id: str, create: bool = False, user: dict = Depe
         return {"appraisal": None, "goalsLocked": ready}
     if not ready:
         raise ApiError(400, "The year-end appraisal starts once your goals are approved and locked.")
+    reason = ineligible_reason(employee_id, cycle)
+    if reason:
+        raise ApiError(403, f"Not eligible for {cycle.get('name')}: {reason}")
+    # Nobody rates or reviews themselves: a top-level employee (no manager, or recorded as their
+    # own manager) goes to HR / management, and a reviewer who is the employee is skipped.
     manager = pms_store.manager_id(employee_id)
+    if manager == employee_id:
+        manager = None
+    reviewer = pms_store.manager_id(manager) if manager else None
+    if reviewer in (employee_id, manager):
+        reviewer = None
     aid = f"appr_{now_ms()}_{rand_base36(5)}"
     ap = stamp({"_id": aid, "cycleId": cycle["_id"], "employeeId": employee_id, "sheetId": sheet["_id"],
-                "managerId": manager, "reviewerId": pms_store.manager_id(manager), "status": "SELF",
+                "managerId": manager, "reviewerId": reviewer, "status": "SELF",
                 "self": {}, "manager": {}, "reviewer": {}, "calibration": {}, "appeal": {}, "trail": []}, user, created=True)
     pms_store.pmsAppraisals[aid] = ap
     audit(user, "PMS_APPRAISAL_STARTED", MODULE, "pms_appraisal", aid, {"employeeId": employee_id})
@@ -372,9 +487,14 @@ async def submit_self(ap_id: str, user: dict = Depends(require_auth)):
     _ratings((ap.get("self") or {}).get("competencyRatings"), comps, "Self appraisal", True)
     if not (ap.get("self") or {}).get("comments"):
         raise ApiError(400, "Add your comments before submitting.")
+    check_deadline(ap, pms_store.pmsCycles.get(ap["cycleId"]), "self_appraisal", "self appraisal")
     _trail(ap, user, "SELF_SUBMITTED", "MANAGER")
     stamp(ap, user)
     audit(user, "PMS_SELF_APPRAISAL_SUBMITTED", MODULE, "pms_appraisal", ap_id, {"field": "status", "old": "SELF", "new": "MANAGER"})
+    if ap.get("managerId"):
+        notify_employee(ap["managerId"], "Appraisal waiting for your rating", f"{pms_store.employee_name(ap['employeeId'])} submitted their self appraisal.")
+    else:
+        notify_hr("Appraisal waiting for rating", f"{pms_store.employee_name(ap['employeeId'])} submitted their self appraisal (no manager on record).")
     return {"appraisal": _view(ap, user)}
 
 
@@ -417,7 +537,13 @@ async def submit_manager(ap_id: str, user: dict = Depends(require_auth)):
         raise ApiError(400, "Record all KPI actuals on the goal sheet first, so the KPI score can be calculated.")
     if not (ap.get("manager") or {}).get("comments"):
         raise ApiError(400, "Add your comments before submitting.")
+    check_deadline(ap, pms_store.pmsCycles.get(ap["cycleId"]), "manager_appraisal", "manager appraisal")
     new = "REVIEWER" if ap.get("reviewerId") else "CALIBRATION"
+    if new == "REVIEWER":
+        notify_employee(ap["reviewerId"], "Appraisal waiting for your review",
+                        f"{pms_store.employee_name(ap['employeeId'])}'s appraisal was rated by their manager and needs your review.")
+    else:
+        notify_hr("Appraisal ready for calibration", f"{pms_store.employee_name(ap['employeeId'])}'s appraisal is ready for calibration.")
     _trail(ap, user, "MANAGER_SUBMITTED", new)
     stamp(ap, user)
     audit(user, "PMS_MANAGER_APPRAISAL_SUBMITTED", MODULE, "pms_appraisal", ap_id,
@@ -437,6 +563,7 @@ async def send_back(ap_id: str, request: Request, user: dict = Depends(require_a
     _trail(ap, user, "SENT_BACK", new, comment)
     stamp(ap, user)
     audit(user, "PMS_APPRAISAL_SENT_BACK", MODULE, "pms_appraisal", ap_id, {"field": "status", "old": old, "new": new, "reason": comment})
+    notify_employee(ap["employeeId"] if new == "SELF" else ap.get("managerId"), "Appraisal sent back", f"{_actor_name(user)}: {comment}")
     return {"appraisal": _view(ap, user)}
 
 
@@ -444,6 +571,7 @@ async def send_back(ap_id: str, request: Request, user: dict = Depends(require_a
 async def reviewer_approve(ap_id: str, request: Request, user: dict = Depends(require_auth)):
     ap = _get(ap_id)
     _require(ap, user, "canReview", "Only the reviewer can approve this appraisal.")
+    check_deadline(ap, pms_store.pmsCycles.get(ap["cycleId"]), "reviewer_approval", "reviewer approval")
     body = await read_body(request)
     computed = compute(ap)["computedRating"]
     adjusted = _num(body.get("adjustedRating"))
@@ -486,6 +614,57 @@ async def calibrate(ap_id: str, request: Request, user: dict = Depends(require_a
     return {"appraisal": _view(ap, user)}
 
 
+STAGE_ORDER = ["SELF", "MANAGER", "REVIEWER", "CALIBRATION", "FINAL", "PUBLISHED", "APPEAL", "CLOSED"]
+
+
+@router.post("/appraisals/{ap_id}/reopen")
+async def reopen_appraisal(ap_id: str, request: Request, user: dict = Depends(require_role(HR_ROLE))):
+    """HR re-opens a submitted appraisal at an earlier stage (self / manager / reviewer), with a reason
+    and optionally a new deadline. Not allowed on one's own appraisal or once the increment is approved."""
+    ap = _get(ap_id)
+    if ap["employeeId"] == user.get("employeeId"):
+        raise ApiError(403, "You cannot re-open your own appraisal. Another HR user must do it.")
+    if (pms_store.pmsCycles.get(ap["cycleId"]) or {}).get("status") != "ACTIVE":
+        raise ApiError(400, "Re-open the appraisal cycle first.")
+    if (ap.get("increment") or {}).get("status") == "APPROVED":
+        raise ApiError(400, "The increment from this appraisal is already approved for payroll; it can no longer be re-opened.")
+    body = await read_body(request)
+    stage = body.get("stage") or "SELF"
+    reason = _text(body.get("reason"))
+    if stage not in ("SELF", "MANAGER", "REVIEWER"):
+        raise ApiError(400, "Re-open to SELF, MANAGER or REVIEWER.")
+    if stage == "REVIEWER" and not ap.get("reviewerId"):
+        raise ApiError(400, "This appraisal has no reviewer.")
+    if not reason:
+        raise ApiError(400, "Give a reason for re-opening the appraisal.")
+    until = _iso_date(body["extendUntil"], "New deadline") if body.get("extendUntil") else None
+    # Same stage = only extend that stage's deadline (e.g. the manager missed the rating deadline)
+    if STAGE_ORDER.index(ap["status"]) < STAGE_ORDER.index(stage) or (STAGE_ORDER.index(ap["status"]) == STAGE_ORDER.index(stage) and not until):
+        raise ApiError(400, f"The appraisal is at {ap['status'].lower()}, so it is already open at that stage"
+                            + (". Give a new deadline to extend it." if ap["status"] == stage else "."))
+    if until and until < today_str():
+        raise ApiError(400, "The new deadline is in the past.")
+    old = ap["status"]
+    if until:
+        ap["deadlineExtension"] = {"until": until, "reason": reason, "by": _actor_name(user), "on": now_iso()}
+    # Anything after the re-opened stage has to be done again
+    if STAGE_ORDER.index(old) >= STAGE_ORDER.index("PUBLISHED"):
+        ap["publishedOn"] = None
+        ap["acceptance"] = None
+    if stage in ("SELF", "MANAGER"):
+        ap["reviewer"] = {}
+    ap["calibration"] = {}
+    ap["increment"] = None
+    _trail(ap, user, "REOPENED_BY_HR", stage, reason)
+    stamp(ap, user)
+    audit(user, "PMS_APPRAISAL_REOPENED", MODULE, "pms_appraisal", ap_id,
+          {"field": "status", "old": old, "new": stage, "reason": reason, "extendedUntil": until})
+    target = {"SELF": ap["employeeId"], "MANAGER": ap.get("managerId"), "REVIEWER": ap.get("reviewerId")}[stage]
+    notify_employee(target, "Appraisal re-opened", f"HR re-opened the appraisal of {pms_store.employee_name(ap['employeeId'])}: {reason}"
+                    + (f" New deadline {until}." if until else ""))
+    return {"appraisal": _view(ap, user)}
+
+
 @router.post("/appraisals/{ap_id}/accept")
 async def accept(ap_id: str, user: dict = Depends(require_auth)):
     ap = _get(ap_id)
@@ -507,6 +686,7 @@ async def appeal(ap_id: str, request: Request, user: dict = Depends(require_auth
     ap["appeal"] = {"reason": reason, "raisedOn": now_iso()}
     _trail(ap, user, "APPEALED", "APPEAL", reason)
     stamp(ap, user)
+    notify_hr("Rating disagreement raised", f"{pms_store.employee_name(ap['employeeId'])} disagreed with their rating: {reason}")
     audit(user, "PMS_RATING_APPEALED", MODULE, "pms_appraisal", ap_id, {"field": "status", "old": "PUBLISHED", "new": "APPEAL", "reason": reason})
     return {"appraisal": _view(ap, user)}
 

@@ -12,15 +12,22 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.config import FRONTEND_DIST, IS_VERCEL, PORT, is_production
 from app.database import persistence
 from app.errors import ApiError
+from app.request_context import ip_of, reset_client_ip, set_client_ip
 from app.request_path import RequestPathMiddleware
 from app.routes import (
+    admin,
+    assets,
     attendance,
+    attendance_mgmt,
     auth,
+    benefits,
     common,
     documents,
     employees,
     exits,
-    leave_expenses,
+    finance,
+    helpdesk,
+    leave,
     onboarding,
     operations,
     organization,
@@ -33,6 +40,8 @@ from app.routes import (
     policies,
     rbac,
     recruitment,
+    reports,
+    tax_declarations,
 )
 
 
@@ -87,8 +96,12 @@ async def sync_data(request: Request, call_next):
     """Load other instances' changes before each API request and save this one's before replying."""
     if not request.url.path.startswith("/api"):
         return await call_next(request)
-    async with persistence.request_scope(writes=request.method not in ("GET", "HEAD", "OPTIONS")):
-        return await call_next(request)
+    ip_token = set_client_ip(ip_of(request))  # audit entries record the caller's real IP
+    try:
+        async with persistence.request_scope(writes=request.method not in ("GET", "HEAD", "OPTIONS")):
+            return await call_next(request)
+    finally:
+        reset_client_ip(ip_token)
 
 
 # Added last, so it runs first: fixes the request path before routing (see app/request_path.py)
@@ -97,8 +110,8 @@ app.add_middleware(RequestPathMiddleware)
 
 # ------------------------------------------------------------------ routes
 
-for module in (auth, employees, exits, organization, onboarding, documents, attendance, leave_expenses,
-               payroll, payroll_calculators, performance, performance_feedback, performance_appraisal, performance_ops, policies, rbac, recruitment, operations):
+for module in (auth, employees, exits, organization, onboarding, documents, attendance_mgmt, attendance, leave, finance, benefits, assets, helpdesk, reports, admin,
+               payroll, payroll_calculators, performance, performance_feedback, performance_appraisal, performance_ops, policies, rbac, recruitment, operations, tax_declarations):
     app.include_router(module.router, prefix="/api")
 
 

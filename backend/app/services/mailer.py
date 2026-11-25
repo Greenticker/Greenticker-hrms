@@ -7,6 +7,7 @@ the UI that it was only "simulated", so nothing is silently pretended to be deli
 """
 
 import asyncio
+import base64
 import html as html_lib
 import json
 import os
@@ -49,6 +50,18 @@ def _smtp_configured() -> bool:
     )
 
 
+def sender_address() -> str:
+    """The From address outgoing mail actually uses (shown to HR so they know who sent it)."""
+    if _resend_api_key():
+        return DEFAULT_FROM
+    return os.environ.get("MAIL_FROM") or os.environ.get("RESEND_FROM") or DEFAULT_FROM
+
+
+def _attachments(mail: dict) -> list:
+    """mail["attachments"]: [{filename, content (bytes), contentType}]"""
+    return [a for a in (mail.get("attachments") or []) if a.get("filename") and a.get("content") is not None]
+
+
 def _smtp_send(host: str, port: int, secure: bool, user: str, password: str, from_addr: str, mail: dict) -> str:
     msg = EmailMessage()
     msg["From"] = from_addr
@@ -59,6 +72,9 @@ def _smtp_send(host: str, port: int, secure: bool, user: str, password: str, fro
     msg["Message-ID"] = make_msgid()
     msg.set_content(mail.get("text") or "")
     msg.add_alternative(mail.get("html") or "", subtype="html")
+    for a in _attachments(mail):
+        maintype, _, subtype = (a.get("contentType") or "application/octet-stream").partition("/")
+        msg.add_attachment(a["content"], maintype=maintype, subtype=subtype.split(";")[0] or "octet-stream", filename=a["filename"])
 
     context = ssl.create_default_context()
     if secure:
@@ -105,6 +121,10 @@ async def send_mail(mail: dict) -> dict:
         }
         if mail.get("cc"):
             payload["cc"] = [mail["cc"]]
+        if _attachments(mail):
+            payload["attachments"] = [
+                {"filename": a["filename"], "content": base64.b64encode(a["content"]).decode()} for a in _attachments(mail)
+            ]
         try:
             async with httpx.AsyncClient(timeout=20) as client:
                 resp = await client.post(
@@ -161,6 +181,10 @@ async def send_mail(mail: dict) -> dict:
             }
             if mail.get("cc"):
                 body["cc"] = [{"email": mail["cc"]}]
+            if _attachments(mail):
+                body["attachment"] = [
+                    {"name": a["filename"], "content": base64.b64encode(a["content"]).decode()} for a in _attachments(mail)
+                ]
             try:
                 async with httpx.AsyncClient(timeout=20) as client:
                     resp = await client.post(
@@ -210,7 +234,10 @@ async def send_mail(mail: dict) -> dict:
         print("[mailer] Provider delivery failed, falling back to outbox simulation:", summary)
         result = {"delivered": False, "simulated": True, "error": f"Simulated (Provider failed: {summary})"}
 
-    outbox.insert(0, {**mail, "id": mail_id, "sentAt": now_iso(), "result": result})
+    stored = {k: v for k, v in mail.items() if k != "attachments"}
+    if mail.get("attachments"):
+        stored["attachmentNames"] = [a.get("filename") for a in mail["attachments"]]
+    outbox.insert(0, {**stored, "id": mail_id, "from": sender_address(), "sentAt": now_iso(), "result": result})
     del outbox[200:]
     return result
 

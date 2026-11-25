@@ -64,4 +64,9 @@ export interface Shift {
   assignedEmployeeIds?: string[];
   assignedEmployees?: string[];
   createdAt: string;
+  /** FIXED, or ROTATIONAL: cycles through rotationShiftIds every rotateEveryDays days */
+  type?: 'FIXED' | 'ROTATIONAL';
+  rotationShiftIds?: string[];
+  rotateEveryDays?: number;
+  rotationStart?: string;
 }

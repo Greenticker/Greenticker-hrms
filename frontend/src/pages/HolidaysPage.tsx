@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { modulesService } from '../services/modulesService';
+import { employeeService } from '../services/employeeService';
 import { HolidayInput, HolidayItem } from '../types/modules';
 import { Calendar, ChevronLeft, ChevronRight, Edit2, PartyPopper, Plus, Trash2, X } from 'lucide-react';
 
-const EMPTY_FORM: HolidayInput = { name: '', date: '', type: 'MANDATORY', description: '' };
+const EMPTY_FORM: HolidayInput = { name: '', date: '', type: 'MANDATORY', description: '', locations: [] };
 
 type TypeFilter = 'ALL' | HolidayItem['type'];
 
@@ -39,7 +40,12 @@ const TYPE_STYLE: Record<HolidayItem['type'], { badge: string; cell: string; dot
 export const HolidaysPage: React.FC = () => {
   const { user } = useAuth();
   // Only HR maintains the holiday calendar; the backend enforces the same rule
-  const canManage = user?.role === 'HR';
+  const canManage = ['HR', 'ADMIN', 'SUPER_ADMIN', 'ADMIN_1'].includes(user?.role || '');
+  const [locationNames, setLocationNames] = useState<string[]>([]);
+  const [locationFilter, setLocationFilter] = useState<string>('ALL');
+  useEffect(() => {
+    employeeService.getLocations().then((r) => setLocationNames(r.locations.map((l) => l.name))).catch(() => {});
+  }, []);
   const [holidays, setHolidays] = useState<HolidayItem[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<HolidayItem | null>(null);
@@ -61,7 +67,8 @@ export const HolidaysPage: React.FC = () => {
     const fetchHolidays = async () => {
       setLoading(true);
       try {
-        const res = await modulesService.getHolidays();
+        // HR sees every location's holidays; employees get only their own location's from the server
+        const res = await modulesService.getHolidays(canManage);
         setHolidays(res.holidays);
         // Open the calendar on the month of the next upcoming holiday.
         const next = res.holidays.find((h) => h.date >= toKey(new Date()));
@@ -83,8 +90,9 @@ export const HolidaysPage: React.FC = () => {
     () =>
       [...holidays]
         .filter((h) => typeFilter === 'ALL' || h.type === typeFilter)
+        .filter((h) => locationFilter === 'ALL' || !h.locations?.length || h.locations.includes(locationFilter))
         .sort((a, b) => a.date.localeCompare(b.date)),
-    [holidays, typeFilter]
+    [holidays, typeFilter, locationFilter]
   );
 
   const byDate = useMemo(() => {
@@ -160,7 +168,7 @@ export const HolidaysPage: React.FC = () => {
 
   const openEdit = (h: HolidayItem) => {
     setEditing(h);
-    setForm({ name: h.name, date: h.date, type: h.type, description: h.description || '' });
+    setForm({ name: h.name, date: h.date, type: h.type, description: h.description || '', locations: h.locations || [] });
     setFormError(null);
     setFormOpen(true);
   };
@@ -232,7 +240,7 @@ export const HolidaysPage: React.FC = () => {
           </div>
           {!compact && h.description && <p className="text-xs text-slate-500 mt-1 leading-relaxed">{h.description}</p>}
           <p className="text-[11px] text-slate-400 mt-1 font-mono">
-            {h.dayOfWeek}, {prettyDate(h.date)} • All offices
+            {h.dayOfWeek}, {prettyDate(h.date)} • {h.locations?.length ? h.locations.join(', ') : 'All offices'}
           </p>
         </div>
         {canManage && (
@@ -486,6 +494,28 @@ export const HolidaysPage: React.FC = () => {
                     <option value="MANDATORY">Mandatory</option>
                     <option value="RESTRICTED">Restricted (optional)</option>
                   </select>
+                </div>
+              </div>
+
+              <div>
+                <p className="block text-xs font-semibold text-slate-700">Applies to locations</p>
+                <p className="text-[11px] text-slate-400">None ticked = every office.</p>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+                  {locationNames.map((l) => (
+                    <label key={l} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={(form.locations || []).includes(l)}
+                        onChange={() =>
+                          setForm({
+                            ...form,
+                            locations: (form.locations || []).includes(l) ? (form.locations || []).filter((x) => x !== l) : [...(form.locations || []), l],
+                          })
+                        }
+                      />
+                      {l}
+                    </label>
+                  ))}
                 </div>
               </div>
 

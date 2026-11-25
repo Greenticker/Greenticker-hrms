@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Department, Designation, Location, OrgTreeNode, Subdepartment } from '../types/employee';
+import { Department, Designation, Grade, Location, OrgTreeNode, Subdepartment } from '../types/employee';
+import { canWriteMaster } from '../utils/access';
 import { employeeService } from '../services/employeeService';
 import { request } from '../services/api';
 import {
@@ -15,10 +16,17 @@ import {
   X,
   Layers,
   Search,
+  Award,
 } from 'lucide-react';
 
 export const OrganizationPage: React.FC = () => {
   const { user } = useAuth();
+  // Super Admin, Admin 1 (operations & HR), HR and the legacy Admin manage the org masters
+  const canManage = canWriteMaster(user?.role);
+  const [grades, setGrades] = useState<Grade[]>([]);
+  const [isAddGradeOpen, setIsAddGradeOpen] = useState(false);
+  const [gradeForm, setGradeForm] = useState({ code: '', name: '', rank: '', description: '' });
+  const [gradeError, setGradeError] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [subdepartments, setSubdepartments] = useState<Subdepartment[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
@@ -26,7 +34,7 @@ export const OrganizationPage: React.FC = () => {
   const [hierarchy, setHierarchy] = useState<OrgTreeNode | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [subTab, setSubTab] = useState<
-    'hierarchy' | 'departments' | 'subdepartments' | 'designations' | 'locations' | 'managers'
+    'hierarchy' | 'departments' | 'subdepartments' | 'designations' | 'locations' | 'grades' | 'managers'
   >('hierarchy');
 
   // Managers Directory state
@@ -224,7 +232,7 @@ export const OrganizationPage: React.FC = () => {
       });
       await fetchOrgData();
     } catch (err: any) {
-      console.error('Failed to create location', err);
+      alert(err.message || 'Error creating location');
     } finally {
       setIsSubmitting(false);
     }
@@ -249,10 +257,36 @@ export const OrganizationPage: React.FC = () => {
       setDesignations(desigRes.designations);
       setLocations(locRes.locations);
       setHierarchy(hierRes.hierarchy);
+      employeeService
+        .getGrades()
+        .then((r) => setGrades(r.grades))
+        .catch(() => setGrades([]));
     } catch (err: any) {
       console.error('Failed to load org data', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateGrade = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setGradeError(null);
+    setIsSubmitting(true);
+    try {
+      await employeeService.createGrade({
+        code: gradeForm.code.trim().toUpperCase(),
+        name: gradeForm.name.trim(),
+        rank: gradeForm.rank ? Number(gradeForm.rank) : undefined,
+        description: gradeForm.description.trim() || undefined,
+      });
+      setIsAddGradeOpen(false);
+      setGradeForm({ code: '', name: '', rank: '', description: '' });
+      const r = await employeeService.getGrades();
+      setGrades(r.grades);
+    } catch (err: any) {
+      setGradeError(err.message || 'Error creating grade');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -422,7 +456,7 @@ export const OrganizationPage: React.FC = () => {
           </h1>
         </div>
 
-        {user?.role === 'ADMIN' && subTab === 'departments' && (
+        {canManage && subTab === 'departments' && (
           <button
             onClick={() => setIsAddDeptOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
@@ -432,7 +466,7 @@ export const OrganizationPage: React.FC = () => {
           </button>
         )}
 
-        {user?.role === 'ADMIN' && subTab === 'subdepartments' && (
+        {canManage && subTab === 'subdepartments' && (
           <button
             onClick={() => setIsAddSubdeptOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
@@ -442,7 +476,7 @@ export const OrganizationPage: React.FC = () => {
           </button>
         )}
 
-        {user?.role === 'ADMIN' && subTab === 'designations' && (
+        {canManage && subTab === 'designations' && (
           <button
             onClick={() => setIsAddDesignationOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
@@ -452,7 +486,20 @@ export const OrganizationPage: React.FC = () => {
           </button>
         )}
 
-        {user?.role === 'ADMIN' && subTab === 'locations' && (
+        {canManage && subTab === 'grades' && (
+          <button
+            onClick={() => {
+              setGradeError(null);
+              setIsAddGradeOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Grade</span>
+          </button>
+        )}
+
+        {canManage && subTab === 'locations' && (
           <button
             onClick={() => setIsAddLocationOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
@@ -509,6 +556,15 @@ export const OrganizationPage: React.FC = () => {
         >
           <MapPin className="w-3.5 h-3.5" />
           <span>Locations ({locations.length})</span>
+        </button>
+        <button
+          onClick={() => setSubTab('grades')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+            subTab === 'grades' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Award className="w-3.5 h-3.5" />
+          <span>Grades ({grades.length})</span>
         </button>
         <button
           onClick={() => setSubTab('managers')}
@@ -730,7 +786,7 @@ export const OrganizationPage: React.FC = () => {
                     <th className="py-3 px-4">Associated Department</th>
                     <th className="py-3 px-4">Band / Level</th>
                     <th className="py-3 px-4">Active Roles</th>
-                    {user?.role === 'ADMIN' && <th className="py-3 px-4 text-right">Actions</th>}
+                    {canManage && <th className="py-3 px-4 text-right">Actions</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -752,7 +808,7 @@ export const OrganizationPage: React.FC = () => {
                             {desig.memberCount} active
                           </span>
                         </td>
-                        {user?.role === 'ADMIN' && (
+                        {canManage && (
                           <td className="py-3.5 px-4 text-right">
                             <button
                               onClick={() => {
@@ -881,6 +937,112 @@ export const OrganizationPage: React.FC = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Grades */}
+      {subTab === 'grades' && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          {grades.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500">
+              <Award className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              No grades yet.{canManage ? ' Use "Add Grade" to create bands such as L1, L2, M1.' : ''}
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3 px-4">Code</th>
+                  <th className="py-3 px-4">Name</th>
+                  <th className="py-3 px-4">Rank</th>
+                  <th className="py-3 px-4">Employees</th>
+                  <th className="py-3 px-4">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {grades.map((g) => (
+                  <tr key={g._id} className="hover:bg-slate-50/80">
+                    <td className="py-3 px-4 font-mono font-bold text-slate-900">{g.code}</td>
+                    <td className="py-3 px-4 text-slate-800">{g.name}</td>
+                    <td className="py-3 px-4 font-mono">{g.rank ?? '—'}</td>
+                    <td className="py-3 px-4 font-mono">{g.memberCount ?? 0}</td>
+                    <td className="py-3 px-4 text-slate-500">{g.description || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* Add Grade Modal */}
+      {isAddGradeOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="text-sm font-bold text-slate-900">Add Grade</h3>
+              <button onClick={() => setIsAddGradeOpen(false)} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateGrade} className="p-5 space-y-3 text-xs">
+              {gradeError && (
+                <div role="alert" className="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg">
+                  {gradeError}
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700">Code *</label>
+                  <input
+                    required
+                    maxLength={10}
+                    value={gradeForm.code}
+                    onChange={(e) => setGradeForm({ ...gradeForm, code: e.target.value.toUpperCase() })}
+                    placeholder="L3"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700">Rank</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={gradeForm.rank}
+                    onChange={(e) => setGradeForm({ ...gradeForm, rank: e.target.value })}
+                    placeholder="3"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 font-mono"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700">Name *</label>
+                <input
+                  required
+                  value={gradeForm.name}
+                  onChange={(e) => setGradeForm({ ...gradeForm, name: e.target.value })}
+                  placeholder="Senior Associate"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700">Description</label>
+                <input
+                  value={gradeForm.description}
+                  onChange={(e) => setGradeForm({ ...gradeForm, description: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                />
+              </div>
+              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
+                <button type="button" onClick={() => setIsAddGradeOpen(false)} className="px-4 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" disabled={isSubmitting} className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg cursor-pointer">
+                  {isSubmitting ? 'Saving...' : 'Add Grade'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

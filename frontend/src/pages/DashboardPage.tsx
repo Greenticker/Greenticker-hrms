@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { onboardingQueueService } from '../services/onboardingQueueService';
 import { documentService } from '../services/documentService';
 import { modulesService } from '../services/modulesService';
+import { employeeService } from '../services/employeeService';
 
 import { Role } from '../types/auth';
 
@@ -89,11 +90,33 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
     };
   }, []);
 
+  // Live workforce counts: the employees this user can see (whole company, or a manager's team)
+  const [workforce, setWorkforce] = useState({ total: 0, active: 0, probation: 0, direct: 0 });
+  useEffect(() => {
+    let cancelled = false;
+    employeeService
+      .getEmployees()
+      .then((res) => {
+        if (cancelled) return;
+        const current = res.employees.filter((e) => !['TERMINATED', 'EXITED', 'INACTIVE'].includes(e.status as string));
+        setWorkforce({
+          total: current.length,
+          active: current.filter((e) => e.status !== 'PROBATION').length,
+          probation: current.filter((e) => e.status === 'PROBATION').length,
+          direct: current.filter((e) => e.teamRelation === 'DIRECT').length,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Live HR Operational Queue state
   const [operationalQueue, setOperationalQueue] = useState<OperationalQueueItem[]>([]);
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'ONBOARDING' | 'DOCUMENTS' | 'LEAVE' | 'EXPENSES'>('ALL');
   const [hrStats, setHrStats] = useState({
-    headcount: 148,
+    headcount: 0,
     pendingOnboarding: 1,
     pendingDocuments: 2,
     pendingLeaves: 3,
@@ -195,7 +218,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
         if (!cancelled) {
           setOperationalQueue(items);
           setHrStats({
-            headcount: 148,
+            headcount: 0,
             pendingOnboarding:
               onbRes.status === 'fulfilled'
                 ? onbRes.value.stats?.submitted ||
@@ -406,11 +429,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                 <span className="text-xs font-semibold">Total Employees</span>
                 <Users className="w-4 h-4 text-slate-400" />
               </div>
-              <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">148</p>
+              <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">{workforce.total}</p>
               <div className="flex items-center gap-1.5 mt-2 text-[11px] text-emerald-600 font-medium">
-                <span>142 Active</span>
+                <span>{workforce.active} Active</span>
                 <span className="text-slate-300">·</span>
-                <span>6 Probation</span>
+                <span>{workforce.probation} Probation</span>
               </div>
             </div>
 
@@ -445,14 +468,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             </div>
 
             <div
-              onClick={() => onNavigateTab('audit_logs')}
+              onClick={() => onNavigateTab('policies')}
               className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-rose-300 hover:shadow-sm transition"
             >
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-xs font-semibold">RBAC Access Matrix</span>
+                <span className="text-xs font-semibold">Policies</span>
                 <ShieldCheck className="w-4 h-4 text-rose-500" />
               </div>
-              <p className="text-lg font-bold text-slate-900 mt-2">Audit Logs & Matrix</p>
+              <p className="text-lg font-bold text-slate-900 mt-2">Take from payroll</p>
               <div className="flex items-center gap-1.5 mt-2 text-[11px] text-indigo-600 font-semibold">
                 <span>Immutable Logs · Role Scopes</span>
                 <ArrowUpRight className="w-3 h-3" />
@@ -478,7 +501,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                 <span className="text-xs font-semibold">Core HR Directory</span>
                 <Users className="w-4 h-4 text-indigo-500" />
               </div>
-              <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">148</p>
+              <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">{workforce.total}</p>
               <div className="flex items-center gap-1.5 mt-2 text-[11px] text-indigo-600 font-medium">
                 <span>Read & Write Access</span>
               </div>
@@ -611,7 +634,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               </div>
 
               <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">
-                {hrStats.headcount}
+                {workforce.total}
               </p>
 
               <p className="text-[11px] text-slate-500 mt-2">
@@ -642,43 +665,60 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
 
             <div
               onClick={() => onNavigateTab('documents')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-amber-300 hover:shadow-sm transition"
+              className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">
-                  Pending Document Verification
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
+              <div className="absolute -right-7 -top-8 h-24 w-24 rounded-full bg-amber-50 transition-transform duration-300 group-hover:scale-125" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600 ring-1 ring-amber-100">
+                    <FileSpreadsheet className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-700">Documents</span>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-600">Pending Document Verification</p>
+                  </div>
+                </div>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-all group-hover:border-amber-200 group-hover:text-amber-600">
+                  <ArrowUpRight className="h-4 w-4" />
                 </span>
-
-                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
               </div>
 
-              <p className="text-2xl font-black text-amber-600 mt-2 font-mono tabular-nums">
-                {hrStats.pendingDocuments}
-              </p>
-
-              <p className="text-[11px] text-slate-500 mt-2">
-                Requires HR review & stamp
-              </p>
+              <div className="relative mt-5 flex items-end justify-between border-t border-slate-100 pt-4">
+                <p className="text-3xl font-black leading-none text-slate-900 font-mono tabular-nums">
+                  {hrStats.pendingDocuments}
+                </p>
+                <p className="text-[11px] font-medium text-slate-500">Requires HR review &amp; stamp</p>
+              </div>
             </div>
 
             <div
               onClick={() => onNavigateTab('leave')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-blue-300 hover:shadow-sm transition"
+              className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
             >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-500">
-                  Pending Leave Approvals
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#023b77] to-[#039583]" />
+              <div className="absolute -right-7 -top-8 h-24 w-24 rounded-full bg-blue-50 transition-transform duration-300 group-hover:scale-125" />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#176a91] ring-1 ring-blue-100">
+                    <CalendarCheck className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#176a91]">Leave</span>
+                    <p className="mt-0.5 text-xs font-semibold text-slate-600">Pending Leave Approvals</p>
+                  </div>
+                </div>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-all group-hover:border-blue-200 group-hover:text-[#176a91]">
+                  <ArrowUpRight className="h-4 w-4" />
                 </span>
-                <ArrowUpRight className="w-3.5 h-3.5 text-slate-400" />
               </div>
 
-              <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">
-                {hrStats.pendingLeaves}
-              </p>
-
-              <p className="text-[11px] text-slate-500 mt-2">
-                Casual, Sick & Maternity leave
-              </p>
+              <div className="relative mt-5 flex items-end justify-between border-t border-slate-100 pt-4">
+                <p className="text-3xl font-black leading-none text-slate-900 font-mono tabular-nums">
+                  {hrStats.pendingLeaves}
+                </p>
+                <p className="text-[11px] font-medium text-slate-500">Casual, Sick &amp; Maternity leave</p>
+              </div>
             </div>
           </div>
 
@@ -731,11 +771,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               </div>
 
               <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">
-                6
+                {workforce.total}
               </p>
 
               <p className="text-[11px] text-slate-500 mt-2">
-                Platform Engineering Team
+                {workforce.direct} direct · {workforce.total - workforce.direct} indirect reportees
               </p>
             </div>
 
@@ -902,7 +942,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                 ₹34,80,000
               </p>
               <div className="flex items-center gap-1.5 mt-2 text-[11px] text-emerald-600 font-medium">
-                <span>148 Employees</span>
+                <span>{workforce.total} Employees</span>
                 <span className="text-slate-300">·</span>
                 <span>Net Disbursed</span>
               </div>

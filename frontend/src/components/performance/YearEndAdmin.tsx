@@ -128,6 +128,7 @@ const Payroll: React.FC = () => {
   const [data, setData] = useState<{ cycle: { name: string }; rows: PayrollRow[]; notReady: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [effectiveFrom, setEffectiveFrom] = useState('');
   const load = () => {
     pmsService.getIncrementTable().then((r) => setTable(r.rows));
     pmsService.getPayrollExport().then(setData).catch((err) => setError(err?.message || 'Could not load payroll export.'));
@@ -207,22 +208,34 @@ const Payroll: React.FC = () => {
             >
               <Download className="w-3.5 h-3.5" /> Export to Excel
             </button>
+            <label className="flex items-center gap-1.5 text-xs text-slate-600">
+              Effective from
+              <input
+                type="date"
+                value={effectiveFrom}
+                onChange={(e) => setEffectiveFrom(e.target.value)}
+                aria-label="Increment effective date"
+                className="rounded-lg border border-slate-300 px-2 py-1.5"
+              />
+            </label>
             <button
               type="button"
-              disabled={!data?.rows.some((r) => !r.payrollSentOn)}
+              disabled={!effectiveFrom || !data?.rows.some((r) => !r.increment || r.increment.status === 'REJECTED')}
+              title={!effectiveFrom ? 'Choose the date the new salaries take effect' : undefined}
               onClick={async () => {
-                if (!window.confirm('Mark these ratings as sent to payroll? This is recorded in the audit log.')) return;
+                if (!window.confirm(`Send these increments to payroll for approval, effective ${effectiveFrom}? Payroll changes only after Finance / Admin approves.`)) return;
                 setError(null);
                 try {
-                  setMsg(`Marked as sent: ${(await pmsService.markPayrollSent()).sent}`);
+                  const r = await pmsService.markPayrollSent(effectiveFrom);
+                  setMsg(`${r.sent} increment(s) sent to payroll for approval, effective ${r.effectiveFrom}.`);
                   load();
                 } catch (err: any) {
-                  setError(err?.message || 'Could not mark as sent.');
+                  setError(err?.message || 'Could not send to payroll.');
                 }
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white cursor-pointer disabled:opacity-40"
             >
-              <Send className="w-3.5 h-3.5" /> Mark as sent to payroll
+              <Send className="w-3.5 h-3.5" /> Send to payroll for approval
             </button>
           </div>
         </div>
@@ -251,7 +264,17 @@ const Payroll: React.FC = () => {
                 <td className="py-2.5 px-3 text-right font-mono">{r.bonusMultiplier}</td>
                 <td className="py-2.5 px-3 text-right font-mono">{inr(r.currentAnnualSalary)}</td>
                 <td className="py-2.5 px-3 text-right font-mono font-bold">{inr(r.newAnnualSalary)}</td>
-                <td className="py-2.5 px-3 text-[11px]">{r.payrollSentOn ? <span className="text-emerald-700 font-semibold">Sent {new Date(r.payrollSentOn).toLocaleDateString('en-IN')}</span> : <span className="text-slate-400">Not sent</span>}</td>
+                <td className="py-2.5 px-3 text-[11px]">
+                  {!r.increment ? (
+                    <span className="text-slate-400">Not sent</span>
+                  ) : r.increment.status === 'APPROVED' ? (
+                    <span className="text-emerald-700 font-semibold">Approved by {r.increment.decidedBy} · from {r.increment.effectiveFrom}</span>
+                  ) : r.increment.status === 'REJECTED' ? (
+                    <span className="text-rose-700 font-semibold">Rejected{r.increment.comment ? `: ${r.increment.comment}` : ''}</span>
+                  ) : (
+                    <span className="text-amber-700 font-semibold">Awaiting payroll approval · from {r.increment.effectiveFrom}</span>
+                  )}
+                </td>
               </tr>
             ))}
             {!data?.rows.length && <tr><td colSpan={7} className="py-10 text-center text-slate-400">No accepted ratings yet.</td></tr>}

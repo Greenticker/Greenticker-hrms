@@ -36,6 +36,7 @@ export interface EmployeeProfile {
 }
 
 export interface User {
+  mustChangePassword?: boolean;
   id: string;
   email: string;
   firstName: string;

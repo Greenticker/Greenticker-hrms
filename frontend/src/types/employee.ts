@@ -75,6 +75,69 @@ export interface Employee {
   avatarUrl?: string;
   bio?: string;
   annualSalary?: number;
+  grade?: string;
+  extension?: string;
+  /** How much bank / statutory data the viewer gets: FULL, MASKED (e.g. auditors) or NONE (manager viewing a reportee). */
+  sensitiveAccess?: 'FULL' | 'MASKED' | 'NONE';
+  /** For a manager's team list: whether this person reports directly or further down the line. */
+  teamRelation?: 'DIRECT' | 'INDIRECT';
+  /** Salary account change waiting for HR verification (maker-checker); payroll keeps using bankInfo until then. */
+  pendingBankChange?: BankChangeRequest;
+  bankChangeHistory?: BankChangeRequest[];
+  createdByName?: string;
+}
+
+export interface BankChangeRequest {
+  bankName: string;
+  accountHolder: string;
+  accountNumber?: string;
+  accountNumberMasked?: string;
+  ifsc: string;
+  branch?: string;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedByName: string;
+  requestedAt: string;
+  reviewedByName?: string;
+  reviewedAt?: string;
+  reviewComment?: string;
+}
+
+/** Public directory entry: what every employee may see about a colleague. */
+export interface DirectoryEntry {
+  _id: string;
+  employeeCode?: string;
+  firstName: string;
+  lastName: string;
+  department?: string;
+  designation?: string;
+  workEmail?: string;
+  extension?: string;
+  location?: string;
+}
+
+export interface Grade {
+  _id: string;
+  code: string;
+  name: string;
+  rank?: number;
+  description?: string;
+  memberCount?: number;
+}
+
+export interface ImportRowResult {
+  row: number;
+  name: string;
+  workEmail?: string;
+  status: 'IMPORTED' | 'FAILED' | 'VALID';
+  employeeCode?: string;
+  errors?: string[];
+}
+
+export interface ImportResponse {
+  success: boolean;
+  summary: { totalRows: number; imported: number; valid: number; failed: number; dryRun: boolean };
+  results: ImportRowResult[];
 }
 
 export interface Subdepartment {

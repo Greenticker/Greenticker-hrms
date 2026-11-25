@@ -1,308 +1,160 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { modulesService } from '../services/modulesService';
-import { HrRequest } from '../types/modules';
-import { FileQuestion, Plus, CheckCircle2, Clock, Search, AlertCircle, X, MessageSquare } from 'lucide-react';
+import { api } from '../services/api';
+import { isReadOnlyRole } from '../utils/access';
+import {
+  Badge, btn, card, errMsg, fmtDate, GOOD, inputCls, Modal, Msg, MsgState, okMsg, openApiFile, PageHeader, PRIMARY, SECONDARY, Table, Tabs,
+} from '../components/common/ui';
+import { Lock, Plus } from 'lucide-react';
+
+const CATEGORIES: [string, string][] = [
+  ['HR', 'HR general'], ['LEAVE', 'Leave'], ['DOCUMENTS', 'Letters & documents'], ['BENEFITS', 'Benefits'], ['POLICY', 'Policy'],
+  ['PAYROLL', 'Payroll / salary'], ['TAX', 'Tax'], ['REIMBURSEMENT', 'Reimbursement'], ['ACCOUNTS', 'Accounts'],
+  ['IT', 'IT support'], ['ADMIN', 'Admin / facilities'], ['ACCESS', 'Access & logins'],
+  ['POSH', 'POSH complaint (confidential)'], ['GRIEVANCE', 'Grievance (confidential)'],
+];
+
+type Tab = 'mine' | 'queue' | 'all' | 'settings';
 
 export const HrRequestsPage: React.FC = () => {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<HrRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    category: 'GENERAL',
-    subject: '',
-    description: '',
-    priority: 'MEDIUM',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const role = user?.role || '';
+  const tabs = useMemo(() => {
+    const t: { id: Tab; label: string }[] = [{ id: 'mine', label: 'My tickets' }, { id: 'queue', label: 'My team queue' }];
+    if (['SUPER_ADMIN', 'AUDITORS'].includes(role)) t.push({ id: 'all', label: 'All tickets' });
+    if (role === 'SUPER_ADMIN') t.push({ id: 'settings', label: 'SLA & ICC' });
+    return t;
+  }, [role]);
+  const [tab, setTab] = useState<Tab>('mine');
+  const [rows, setRows] = useState<any[]>([]);
+  const [msg, setMsg] = useState<MsgState>(null);
+  const [open, setOpen] = useState<any>(null);
+  const [form, setForm] = useState<any>(null);
 
-  // Resolve Ticket
-  const [resolveItem, setResolveItem] = useState<HrRequest | null>(null);
-  const [resolutionRemarks, setResolutionRemarks] = useState('');
-
-  const fetchTickets = async () => {
-    setLoading(true);
-    try {
-      const res = await modulesService.getHrRequests(statusFilter);
-      setRequests(res.requests);
-    } catch (err) {
-      console.error('Failed to load tickets', err);
-    } finally {
-      setLoading(false);
-    }
+  const load = () => {
+    if (tab === 'settings') return;
+    api.get<any>(`/helpdesk/tickets?scope=${tab === 'all' ? 'auto' : tab}`).then((r) => setRows(r.tickets)).catch((e) => setMsg(errMsg(e)));
   };
+  useEffect(load, [tab]);
+  const refresh = (t: any) => { setOpen(t); load(); };
 
-  useEffect(() => {
-    fetchTickets();
-  }, [statusFilter]);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.subject || !formData.description) return;
-    setIsSubmitting(true);
+  const raise = async () => {
     try {
-      const res = await modulesService.createHrRequest(formData);
-      if (res.success) {
-        setFeedback(`Ticket ${res.request.ticketNumber} logged with HR operations.`);
-        setIsCreateOpen(false);
-        setFormData({ category: 'GENERAL', subject: '', description: '', priority: 'MEDIUM' });
-        fetchTickets();
-      }
-    } catch (err: any) {
-      setFeedback(`Failed: ${err.message || 'Error submitting ticket'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResolve = async () => {
-    if (!resolveItem) return;
-    try {
-      const res = await modulesService.resolveHrRequest(resolveItem._id, resolutionRemarks);
-      if (res.success) {
-        setFeedback(`Ticket ${resolveItem.ticketNumber} resolved.`);
-        setResolveItem(null);
-        setResolutionRemarks('');
-        fetchTickets();
-      }
-    } catch (err: any) {
-      setFeedback(`Failed: ${err.message || 'Error resolving ticket'}`);
-    }
+      const fd = new FormData();
+      ['category', 'subject', 'description', 'priority'].forEach((k) => fd.append(k, form[k]));
+      if (form.file) fd.append('attachment', form.file);
+      const r = await api.upload<any>('/helpdesk/tickets', fd);
+      setForm(null);
+      setMsg(okMsg(r.acknowledgement));
+      load();
+    } catch (e) { setMsg(errMsg(e)); }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">
-            HR Helpdesk & Query Ticketing
-          </h1>
-        </div>
-
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm transition-all shrink-0 border border-[#039583]"
-        >
-          <Plus className="w-4 h-4" />
-          Raise HR Ticket
-        </button>
-      </div>
-
-      {feedback && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-medium flex items-center justify-between">
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback(null)} className="text-emerald-600 hover:text-emerald-900">
-            <X className="w-4 h-4" />
-          </button>
+    <div className="space-y-5">
+      <PageHeader title="Help desk" subtitle="Tickets go to the right team automatically. POSH and grievance tickets are seen only by the Internal Complaints Committee.">
+        {!isReadOnlyRole(role) && <button className={btn(PRIMARY)} onClick={() => setForm({ category: 'HR', subject: '', description: '', priority: 'MEDIUM', file: null })}><Plus className="w-3 h-3 inline" /> Raise ticket</button>}
+      </PageHeader>
+      <Tabs tabs={tabs} value={tab} onChange={(t) => { setTab(t); setMsg(null); }} />
+      <Msg msg={msg} />
+      {tab === 'settings' ? <Settings setMsg={setMsg} /> : (
+        <div className={card}>
+          <Table rows={rows} empty="No tickets." cols={[
+            { key: 'ticketNumber', label: 'Ticket', render: (t) => <button className="underline decoration-dotted" onClick={() => api.get<any>(`/helpdesk/tickets/${t._id}`).then((r) => setOpen(r.ticket)).catch((e) => setMsg(errMsg(e)))}>{t.ticketNumber}</button> },
+            { key: 'subject', label: 'Subject', render: (t) => <>{t.confidential && <Lock className="w-3 h-3 inline mr-1 text-rose-600" />}{t.subject}</> },
+            { key: 'category', label: 'Category' }, { key: 'queue', label: 'Team', render: (t) => t.queue.replace('_', '/') },
+            { key: 'employeeName', label: 'Raised by' }, { key: 'priority', label: 'Priority' },
+            { key: 'dueAt', label: 'Due', render: (t) => <>{fmtDate(t.dueAt)}{t.slaBreached && <div className="text-rose-600 font-semibold">SLA breached · L{t.escalationLevel}</div>}</> },
+            { key: 'status', label: 'Status', render: (t) => <Badge s={t.status} /> },
+          ]} />
         </div>
       )}
-
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        {['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED'].map((st) => (
-          <button
-            key={st}
-            onClick={() => setStatusFilter(st)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              statusFilter === st
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            {st.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
-
-      {/* Tickets List */}
-      <div className="space-y-3">
-        {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Loading service requests...</div>
-        ) : requests.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-400 bg-white rounded-2xl border border-slate-200">
-            No service desk tickets found.
+      {form && (
+        <Modal title="Raise a ticket" onClose={() => setForm(null)}>
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <label>Category<select className={inputCls} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{CATEGORIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+            <label>Priority<select className={inputCls} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>
+            <label className="col-span-2">Subject<input className={inputCls} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></label>
+            <label className="col-span-2">Description<textarea rows={5} className={inputCls} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+            <label className="col-span-2">Attachment<input type="file" onChange={(e) => setForm({ ...form, file: e.target.files?.[0] || null })} /></label>
           </div>
-        ) : (
-          requests.map((ticket) => (
-            <div
-              key={ticket._id}
-              className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                    {ticket.ticketNumber}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-                    {ticket.category}
-                  </span>
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                    ticket.priority === 'HIGH' || ticket.priority === 'URGENT'
-                      ? 'bg-rose-100 text-rose-800'
-                      : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {ticket.priority}
-                  </span>
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                    ticket.status === 'RESOLVED'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    {ticket.status}
-                  </span>
-                </div>
-
-                <h3 className="font-bold text-sm text-slate-900">{ticket.subject}</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">{ticket.description}</p>
-
-                <div className="text-[11px] text-slate-400 font-mono pt-1">
-                  Submitted by {ticket.employeeName} ({ticket.department}) on {new Date(ticket.createdAt).toLocaleDateString()}
-                  {ticket.assignedTo && <span> • Assigned to {ticket.assignedTo}</span>}
-                </div>
-
-                {ticket.resolutionRemarks && (
-                  <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-900 text-xs mt-2 border border-emerald-100">
-                    <span className="font-bold">Resolution Note: </span>
-                    {ticket.resolutionRemarks}
-                  </div>
-                )}
-              </div>
-
-              {(user?.role === 'ADMIN') && ticket.status !== 'RESOLVED' && (
-                <button
-                  onClick={() => setResolveItem(ticket)}
-                  className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shrink-0 shadow-xs"
-                >
-                  Mark Resolved
-                </button>
-              )}
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Raise Ticket Modal */}
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-lg font-bold text-slate-900">Raise HR Service Request</h2>
-              <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="PAYROLL">Payroll & Compensation</option>
-                    <option value="DOCUMENTS">Official Letters & Visas</option>
-                    <option value="BENEFITS">Medical Insurance & Benefits</option>
-                    <option value="IT_ASSETS">Hardware / Laptop Upgrade</option>
-                    <option value="LEAVE_ATTENDANCE">Attendance Correction</option>
-                    <option value="GENERAL">General Policy Inquiry</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Priority</label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                  >
-                    <option value="LOW">Low</option>
-                    <option value="MEDIUM">Medium (Standard SLA: 48h)</option>
-                    <option value="HIGH">High (SLA: 24h)</option>
-                    <option value="URGENT">Urgent (Immediate)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Subject / Summary</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Requesting official letter of employment for home loan mortgage"
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Detailed Description</label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Provide complete background, dates, and documentation specifics..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          {['POSH', 'GRIEVANCE'].includes(form.category) && <p className="text-xs text-rose-700">This ticket will be visible only to the Internal Complaints Committee.</p>}
+          <div className="flex justify-end"><button className={btn(PRIMARY)} onClick={raise}>Submit</button></div>
+        </Modal>
       )}
-
-      {/* Resolve Ticket Remarks Modal */}
-      {resolveItem && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Resolve Ticket {resolveItem.ticketNumber}</h3>
-            <p className="text-xs text-slate-500">Provide resolution remarks communicated to {resolveItem.employeeName}.</p>
-            <textarea
-              rows={3}
-              placeholder="e.g. Letter uploaded to document vault and emailed to employee..."
-              value={resolutionRemarks}
-              onChange={(e) => setResolutionRemarks(e.target.value)}
-              className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setResolveItem(null)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResolve}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs"
-              >
-                Confirm Resolution
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {open && <TicketView t={open} onChange={refresh} onClose={() => setOpen(null)} setMsg={setMsg} />}
     </div>
   );
 };
+
+const TicketView: React.FC<{ t: any; onChange: (t: any) => void; onClose: () => void; setMsg: (m: MsgState) => void }> = ({ t, onChange, onClose, setMsg }) => {
+  const [text, setText] = useState('');
+  const [internal, setInternal] = useState(false);
+  const post = async (path: string, body: any, ok?: string) => {
+    try { const r = await api.post<any>(`/helpdesk/tickets/${t._id}/${path}`, body); onChange(r.ticket); setText(''); if (ok) setMsg(okMsg(ok)); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <Modal title={`${t.ticketNumber} — ${t.subject}`} onClose={onClose} wide>
+      <p className="text-xs text-slate-500">{t.category} → {t.queue.replace('_', '/')} team · {t.priority} · raised {fmtDate(t.createdAt)} by {t.employeeName} · <Badge s={t.status} />
+        {t.assignedTo && ` · assigned to ${t.assignedTo}`}{t.rating ? ` · rated ${t.rating}/5` : ''}</p>
+      <p className="text-xs whitespace-pre-wrap bg-slate-50 p-3 rounded-xl">{t.description}</p>
+      {t.attachment && <button className="text-xs underline text-indigo-700" onClick={() => openApiFile(`/helpdesk/tickets/${t._id}/attachment`).catch((e) => setMsg(errMsg(e)))}>{t.attachment.fileName}</button>}
+      <div className="space-y-2">
+        {t.comments.map((c: any) => (
+          <div key={c._id} className={`text-xs p-2 rounded-lg ${c.internal ? 'bg-amber-50 border border-amber-200' : 'bg-slate-50'}`}>
+            <b>{c.by}</b> · {fmtDate(c.at)} {c.internal && <Badge s="INTERNAL NOTE" tone="amber" />}{c.resolution && <Badge s="RESOLUTION" tone="green" />}
+            <div className="whitespace-pre-wrap">{c.text}</div>
+          </div>
+        ))}
+      </div>
+      {t.status !== 'CLOSED' && (t.isAgent || t.canClose || t.canReopen || !t.isAgent) && (
+        <div className="space-y-2">
+          <textarea className={inputCls} rows={3} placeholder="Write a reply…" value={text} onChange={(e) => setText(e.target.value)} />
+          <div className="flex flex-wrap gap-2 items-center">
+            {t.isAgent && <label className="text-xs flex gap-1 items-center"><input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} /> Internal note (hidden from the employee)</label>}
+            <button className={btn(SECONDARY)} disabled={!text.trim()} onClick={() => post('comments', { text, internal })}>Add comment</button>
+            {t.canResolve && <button className={btn(GOOD)} disabled={!text.trim()} onClick={() => post('resolve', { resolution: text }, 'Resolved.')}>Resolve with this reply</button>}
+            {t.canReopen && <button className={btn(SECONDARY)} disabled={!text.trim()} onClick={() => post('reopen', { reason: text }, 'Reopened.')}>Reopen (reason above)</button>}
+            {t.canClose && [5, 4, 3, 2, 1].map((n) => <button key={n} className={btn(n >= 4 ? GOOD : SECONDARY)} onClick={() => post('close', { rating: n, feedback: text }, 'Closed. Thanks for the rating.')}>Close · {n}★</button>)}
+          </div>
+        </div>
+      )}
+      <details className="text-xs"><summary className="cursor-pointer text-slate-500">History (cannot be edited)</summary>
+        <ul>{t.history.map((h: any, i: number) => <li key={i}>{fmtDate(h.at)} — {h.action.replace(/_/g, ' ').toLowerCase()} by {h.by}{h.reason ? `: ${h.reason}` : ''}</li>)}</ul>
+      </details>
+    </Modal>
+  );
+};
+
+const Settings: React.FC<{ setMsg: (m: MsgState) => void }> = ({ setMsg }) => {
+  const [s, setS] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  useEffect(() => {
+    api.get<any>('/helpdesk/settings').then((r) => setS(r.settings)).catch((e) => setMsg(errMsg(e)));
+    api.get<any>('/admin/users').then((r) => setUsers(r.users)).catch(() => undefined);
+  }, []);
+  if (!s) return null;
+  const save = async () => {
+    try { await api.put('/helpdesk/settings', { slaHours: s.slaHours, iccMemberUserIds: s.iccMemberUserIds }); setMsg(okMsg('Help desk settings saved.')); } catch (e) { setMsg(errMsg(e)); }
+  };
+  return (
+    <div className={card}>
+      <h3 className="font-bold text-sm">SLA (hours to resolve)</h3>
+      <div className="flex gap-3 text-xs">{Object.keys(s.slaHours).map((p) => (
+        <label key={p}>{p}<input type="number" className={inputCls} value={s.slaHours[p]} onChange={(e) => setS({ ...s, slaHours: { ...s.slaHours, [p]: Number(e.target.value) } })} /></label>
+      ))}</div>
+      <h3 className="font-bold text-sm">Internal Complaints Committee members</h3>
+      <div className="max-h-56 overflow-y-auto text-xs grid md:grid-cols-2 gap-1">
+        {users.filter((u) => u.isActive).map((u) => (
+          <label key={u._id} className="flex gap-1 items-center"><input type="checkbox" checked={s.iccMemberUserIds.includes(u._id)} onChange={(e) => setS({ ...s, iccMemberUserIds: e.target.checked ? [...s.iccMemberUserIds, u._id] : s.iccMemberUserIds.filter((x: string) => x !== u._id) })} />{u.name} ({u.role})</label>
+        ))}
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button className={btn(SECONDARY)} onClick={() => api.post<any>('/helpdesk/escalations/run').then((r) => setMsg(okMsg(`SLA check done: ${r.escalated.length} ticket(s) escalated.`))).catch((e) => setMsg(errMsg(e)))}>Run SLA check now</button>
+        <button className={btn(PRIMARY)} onClick={save}>Save</button>
+      </div>
+    </div>
+  );
+};
+
+export default HrRequestsPage;

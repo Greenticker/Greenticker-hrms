@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, ClipboardCheck, Gavel, Save, Send, ThumbsU
 import { pmsService } from '../../services/pmsService';
 import { Appraisal, AppraisalStatus, Pip, PipProgress } from '../../types/pms';
 import { ReasonDialog } from './GoalSheetView';
+import { ReopenDialog } from './ReopenDialog';
 
 export const APPRAISAL_STATUS: Record<AppraisalStatus, { label: string; cls: string }> = {
   SELF: { label: 'Self appraisal', cls: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -255,7 +256,7 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
   const [mgrForm, setMgrForm] = useState<{ competencyRatings: Record<string, number>; kpiOverride: string; kpiOverrideReason: string; comments: string }>({
     competencyRatings: {}, kpiOverride: '', kpiOverrideReason: '', comments: '',
   });
-  const [dialog, setDialog] = useState<null | 'sendBack' | 'review' | 'calibrate' | 'appeal' | 'resolve'>(null);
+  const [dialog, setDialog] = useState<null | 'sendBack' | 'review' | 'calibrate' | 'appeal' | 'resolve' | 'reopen'>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -335,8 +336,43 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
             <h3 className="text-sm font-bold text-slate-900">Year-end appraisal</h3>
             <AppraisalBadge status={ap.status} />
           </div>
-          <p className="text-[11px] text-slate-500">Manager: {ap.managerName} · Reviewer: {ap.reviewerName || 'none'}</p>
+          <p className="text-[11px] text-slate-500">
+            Manager: {ap.managerName} · Reviewer (manager's manager): {ap.reviewerName || 'none'}
+          </p>
         </div>
+        {p.canReopen && (
+          <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+            <span className="text-slate-600">HR: send this appraisal back to an earlier stage (reason required, logged).</span>
+            <button
+              type="button"
+              onClick={() => setDialog('reopen')}
+              className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 font-semibold hover:bg-amber-100 cursor-pointer"
+            >
+              Re-open appraisal
+            </button>
+          </div>
+        )}
+        {ap.deadlineExtension?.until && (
+          <p className="text-[11px] text-amber-800">
+            Re-opened by HR: due {ap.deadlineExtension.until} ({ap.deadlineExtension.reason})
+          </p>
+        )}
+        {dialog === 'reopen' && (
+          <ReopenDialog
+            title="Re-open appraisal"
+            stages={[
+              { value: 'SELF', label: 'Self appraisal (employee)' },
+              { value: 'MANAGER', label: 'Manager rating' },
+              ...(ap.reviewerName ? [{ value: 'REVIEWER', label: 'Reviewer approval' }] : []),
+            ].filter((s) => ['SELF', 'MANAGER', 'REVIEWER', 'CALIBRATION', 'FINAL', 'PUBLISHED', 'APPEAL', 'CLOSED'].indexOf(ap.status) >
+              ['SELF', 'MANAGER', 'REVIEWER'].indexOf(s.value))}
+            onCancel={() => setDialog(null)}
+            onConfirm={async (d) => {
+              apply((await pmsService.reopenAppraisal(ap._id, d)).appraisal);
+              setDialog(null);
+            }}
+          />
+        )}
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           {STEPS.map((s, i) => (
             <React.Fragment key={s}>

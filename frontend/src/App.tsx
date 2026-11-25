@@ -24,6 +24,8 @@ import { ShiftsPage } from './pages/ShiftsPage';
 import { LeavePage } from './pages/LeavePage';
 import { ExpensesPage } from './pages/ExpensesPage';
 import { PayrollPage } from './pages/PayrollPage';
+import { FinancePage } from './pages/FinancePage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { TaxPage } from './pages/TaxPage';
 import { PoliciesPage } from './pages/PoliciesPage';
 import { PoshPage } from './pages/PoshPage';
@@ -72,6 +74,7 @@ const SECTION_TITLES: Record<string, string> = {
   leave: 'Leave Management',
   expenses: 'Expense Claims',
   payroll: 'Payroll Management',
+  finance: 'Finance & Accounting',
   assets: 'Allocated Assets',
   tax: 'Tax & Deductions',
   policies: 'Company Policies',
@@ -107,6 +110,7 @@ const SIMPLE_PAGES: Record<string, React.ComponentType> = {
   leave: LeavePage,
   expenses: ExpensesPage,
   payroll: PayrollPage,
+  finance: FinancePage,
   assets: AssetsPage,
   tax: TaxPage,
   policies: PoliciesPage,
@@ -206,6 +210,10 @@ function MainApp() {
     );
   }
 
+  if (user.mustChangePassword) {
+    return <ChangePasswordPage />;
+  }
+
   if (user.role === 'ADMIN' && user.orgSetupCompleted === false) {
     return (
       <CompanySetupPage
@@ -257,6 +265,9 @@ function MainApp() {
     }
     if (activeTab === 'audit_logs') {
       return <AuditLogsPage onNavigateTab={handleSelectTab} />;
+    }
+    if (activeTab === 'lifecycle') {
+      return <LifecyclePage onNavigateTab={handleSelectTab} />;
     }
     if (activeTab === 'employees') {
       return <EmployeesPage onSelectEmployee={handleSelectEmployee} />;

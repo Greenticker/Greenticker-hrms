@@ -1,8 +1,5 @@
 import React from 'react';
-import emblemImage from '../../assets/image/anusyuti_emblem.png';
-import fullImage from '../../assets/image/anusyuti_full.png';
-import iconImage from '../../assets/image/anusyuti_icon.png';
-import logoImage from '../../assets/image/anusyuti logo.png';
+import logoImage from '../../assets/image/vetanai-logo.jpeg';
 
 export interface VetanLogoProps {
   className?: string;
@@ -41,7 +38,7 @@ export const VetanLogo: React.FC<VetanLogoProps> = ({
         title="vetan.ai"
       >
         <img
-          src={emblemImage || iconImage || logoImage}
+          src={logoImage}
           alt="vetan.ai"
           referrerPolicy="no-referrer"
           className="object-contain w-full h-full drop-shadow-xs"
@@ -55,7 +52,7 @@ export const VetanLogo: React.FC<VetanLogoProps> = ({
     return (
       <div className={`inline-flex items-center justify-center ${className}`}>
         <img
-          src={fullImage || logoImage}
+          src={logoImage}
           alt="vetan.ai"
           referrerPolicy="no-referrer"
           className="object-contain filter drop-shadow-xs transition-transform duration-200 hover:scale-[1.02]"
@@ -65,36 +62,17 @@ export const VetanLogo: React.FC<VetanLogoProps> = ({
     );
   }
 
-  // Horizontal variant: Emblem + crisp bold typography
+  // Horizontal variant: Full supplied logo image
   if (variant === 'horizontal') {
-    const isDark = theme === 'dark';
     return (
-      <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
+      <div className={`inline-flex items-center select-none ${className}`}>
         <img
-          src={emblemImage || iconImage || logoImage}
+          src={logoImage}
           alt="vetan.ai"
           referrerPolicy="no-referrer"
-          className="object-contain shrink-0 filter drop-shadow-xs transition-transform duration-200 hover:scale-105"
-          style={{ height: dim.imgH }}
+          className="object-contain shrink-0 filter drop-shadow-xs transition-transform duration-200 hover:scale-[1.02]"
+          style={{ height: dim.imgH, maxWidth: '100%' }}
         />
-        <div className="flex flex-col leading-tight">
-          <span
-            className={`font-black tracking-tight ${dim.text} ${
-              isDark ? 'text-white' : 'text-[#023b77]'
-            }`}
-          >
-            vetan.ai
-          </span>
-          {showSubtitle && subtitleText && (
-            <span
-              className={`font-semibold tracking-wider uppercase ${dim.sub} ${
-                isDark ? 'text-slate-300' : 'text-slate-500'
-              }`}
-            >
-              {subtitleText}
-            </span>
-          )}
-        </div>
       </div>
     );
   }
@@ -102,15 +80,14 @@ export const VetanLogo: React.FC<VetanLogoProps> = ({
   // Full stacked variant (default)
   return (
     <div className={`inline-flex flex-col items-center justify-center gap-1.5 ${className}`}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center">
         <img
-          src={emblemImage || iconImage || logoImage}
+          src={logoImage}
           alt="vetan.ai"
           referrerPolicy="no-referrer"
           className="object-contain rounded-lg transition-transform duration-200 hover:scale-[1.02] filter drop-shadow-xs shrink-0"
           style={{ height: dim.imgH, maxWidth: '100%' }}
         />
-        <span className={`font-black tracking-tight text-[#023b77] ${dim.text}`}>vetan.ai</span>
       </div>
       {showSubtitle && subtitleText && (
         <span className="text-[11px] font-bold tracking-widest text-[#039583] uppercase mt-0.5">

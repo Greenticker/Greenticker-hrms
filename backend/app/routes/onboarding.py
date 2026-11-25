@@ -17,7 +17,7 @@ from app.routes.common import (
 from app.services.mailer import build_onboarding_revision_email, send_mail
 from app.stores.db_store import db_store, merge
 from app.stores.invite_store import invite_store
-from app.utils.jsutil import date_ms, js_str, now_iso, now_ms, rand_int, s, truthy
+from app.utils.jsutil import date_ms, js_str, now_iso, now_ms, num, rand_int, s, truthy
 
 router = APIRouter()
 
@@ -410,8 +410,13 @@ async def onboarding_create_employee(request: Request, actor: dict = Depends(req
         "joiningDate": joining_date,
         "employmentType": employment_type,
         "status": "PROBATION",
-        "shift": "Standard General (09:00 - 18:00)",
+        "shift": js_str(body.get("shift") or "").strip() or "Standard General (09:00 - 18:00)",
         "location": js_str(location).strip(),
+        "annualSalary": num(body.get("annualSalary")) if truthy(body.get("annualSalary")) else None,
+        # maker-checker: whoever creates an employee may not approve that employee's payroll
+        "createdByUserId": actor["_id"],
+        "createdByName": _reviewer_name(actor),
+        "createdAt": now_iso(),
     })
 
     db_store.update_user(new_user["_id"], {"employeeId": new_emp["_id"]})

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, Clock, LogOut, Mail, Undo2, X } from 'lucide-react';
 import { modulesService } from '../services/modulesService';
+import { useAuth } from '../context/AuthContext';
+import { isReadOnlyRole } from '../utils/access';
 import { ClearanceKey, MyResignationView } from '../types/modules';
 
 const CLEARANCE_LABELS: [ClearanceKey, string][] = [
@@ -74,6 +76,7 @@ const ResignForm: React.FC<{ onClose: () => void; onDone: (emails: string[]) => 
 };
 
 export const ResignationPage: React.FC = () => {
+  const { user } = useAuth();
   const [data, setData] = useState<MyResignationView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(false);
@@ -113,7 +116,7 @@ export const ResignationPage: React.FC = () => {
           )}
         </div>
         {data.canResign && (
-          <button type="button" onClick={() => setForm(true)} className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer">
+          <button type="button" hidden={isReadOnlyRole(user?.role)} onClick={() => setForm(true)} className="flex items-center gap-2 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer">
             <LogOut className="w-4 h-4" /> Resign
           </button>
         )}

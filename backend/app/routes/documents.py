@@ -1,10 +1,14 @@
 import json
 import re
+from datetime import date
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, Response
 
+from app.auth.employee_access import MASTER_WRITE_ROLES
+from app.auth.module_access import require_write
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import (
@@ -18,12 +22,29 @@ from app.routes.common import (
     stored_file_response,
 )
 from app.stores.db_store import db_store
-from app.utils.jsutil import now_iso, now_ms, truthy
+from app.utils.jsutil import js_str, now_iso, now_ms, truthy
 
 router = APIRouter()
 
 MAX_FILE_BYTES = MAX_UPLOAD_BYTES  # 4 MB: Vercel's request size limit
 MAX_BATCH_BYTES = MAX_UPLOAD_BYTES  # a batch arrives in one request, so the same limit applies
+
+# Employee documents: offer letters, ID proofs, certificates, ... (scans, PDFs and Word files)
+ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"}
+ALLOWED_TYPES_LABEL = "PDF, JPG, PNG, DOC or DOCX"
+
+
+def _check_file(upload) -> None:
+    """Rejects files of a type employee documents may not have, or larger than the limit."""
+    name = upload.filename or ""
+    if Path(name).suffix.lower() not in ALLOWED_EXTENSIONS:
+        raise ApiError(400, f'"{name}" is not an allowed file type. Allowed: {ALLOWED_TYPES_LABEL}.')
+    if (upload.size or 0) > MAX_FILE_BYTES:
+        raise ApiError(400, f'"{name}" is too large ({format_bytes(upload.size)}). The maximum size is {format_bytes(MAX_FILE_BYTES)}.')
+
+
+def _can_access_document(user: dict, doc: dict) -> bool:
+    return user.get("role") in MASTER_WRITE_ROLES or doc.get("employeeId") == user.get("employeeId")
 
 
 def _strip_ext(name: str) -> str:
@@ -31,7 +52,7 @@ def _strip_ext(name: str) -> str:
 
 
 def _target_employee(user: dict, requested_employee_id) -> dict:
-    is_privileged = user.get("role") in ("ADMIN", "HR")
+    is_privileged = user.get("role") in MASTER_WRITE_ROLES
     target_id = user.get("employeeId")
     if is_privileged and requested_employee_id:
         target_id = requested_employee_id
@@ -44,7 +65,7 @@ def _target_employee(user: dict, requested_employee_id) -> dict:
 
 
 def _new_document(user: dict, emp: dict, **fields) -> dict:
-    is_privileged = user.get("role") in ("ADMIN", "HR")
+    is_privileged = user.get("role") in MASTER_WRITE_ROLES
     now = now_iso()
     doc = {
         "employeeId": emp["_id"],
@@ -84,6 +105,10 @@ async def upload_document(request: Request, user: dict = Depends(require_auth)):
 
     emp = _target_employee(user, body.get("employeeId"))
 
+    if not upload:
+        raise ApiError(400, "Please attach the document file.")
+    _check_file(upload)
+
     stored = None
     if upload:
         saved = await save_upload(upload, DOCUMENTS, MAX_FILE_BYTES)
@@ -120,6 +145,8 @@ async def upload_multiple(request: Request, user: dict = Depends(require_auth)):
     if not uploads:
         raise ApiError(400, "Please select at least one document to upload.")
 
+    for u in uploads:
+        _check_file(u)
     sizes = [u.size or 0 for u in uploads]
     total_bytes = sum(sizes)
     if any(sz > MAX_FILE_BYTES for sz in sizes):
@@ -178,10 +205,12 @@ async def upload_multiple(request: Request, user: dict = Depends(require_auth)):
 
 
 @router.get("/documents/{doc_id}/download")
-async def download_document(doc_id: str, _: dict = Depends(require_auth)):
+async def download_document(doc_id: str, user: dict = Depends(require_auth)):
     doc = db_store.documents.get(doc_id)
     if not doc:
         raise ApiError(404, "Document record not found.")
+    if not _can_access_document(user, doc):
+        raise ApiError(403, "Access denied: this document belongs to another employee.")
 
     stored = doc.get("storedFileName")
     if stored:
@@ -203,7 +232,7 @@ async def download_document(doc_id: str, _: dict = Depends(require_auth)):
 
 
 @router.post("/documents/{doc_id}/verify")
-async def verify_document(doc_id: str, user: dict = Depends(require_role("ADMIN"))):
+async def verify_document(doc_id: str, user: dict = Depends(require_role(*MASTER_WRITE_ROLES))):
     updated = db_store.update_document(doc_id, {
         "status": "VERIFIED",
         "verifiedBy": f"{user.get('firstName')} {user.get('lastName')} ({user.get('role')})",
@@ -217,7 +246,7 @@ async def verify_document(doc_id: str, user: dict = Depends(require_role("ADMIN"
 
 
 @router.post("/documents/{doc_id}/reject")
-async def reject_document(doc_id: str, request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def reject_document(doc_id: str, request: Request, user: dict = Depends(require_role(*MASTER_WRITE_ROLES))):
     body = await read_body(request)
     reason = body.get("reason")
     if not truthy(reason):
@@ -239,7 +268,7 @@ async def delete_document(doc_id: str, user: dict = Depends(require_auth)):
     doc = db_store.documents.get(doc_id)
     if not doc:
         raise ApiError(404, "Document not found.")
-    if user.get("role") not in ("ADMIN", "HR") and doc.get("employeeId") != user.get("employeeId"):
+    if not _can_access_document(user, doc):
         raise ApiError(403, "Unauthorized to delete this document.")
 
     db_store.update_document(doc_id, {
@@ -252,7 +281,7 @@ async def delete_document(doc_id: str, user: dict = Depends(require_auth)):
 
 
 @router.post("/documents/{doc_id}/restore")
-async def restore_document(doc_id: str, user: dict = Depends(require_role("ADMIN"))):
+async def restore_document(doc_id: str, user: dict = Depends(require_role(*MASTER_WRITE_ROLES))):
     doc = db_store.documents.get(doc_id)
     if not doc:
         raise ApiError(404, "Document not found.")
@@ -270,7 +299,7 @@ async def lifecycle_events(eventType: Optional[str] = None, employeeId: Optional
 
 
 @router.post("/lifecycle/events")
-async def create_lifecycle_event(request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def create_lifecycle_event(request: Request, user: dict = Depends(require_write("core_hr"))):
     body = await read_body(request)
     employee_id = body.get("employeeId")
     event_type = body.get("eventType")
@@ -283,6 +312,38 @@ async def create_lifecycle_event(request: Request, user: dict = Depends(require_
     emp = db_store.get_employee_by_id(employee_id)
     if not emp:
         raise ApiError(404, "Employee not found.")
+    if emp["_id"] == user.get("employeeId") or emp.get("userId") == user["_id"]:
+        raise ApiError(403, "You cannot record a promotion, transfer or other change on your own record. Another HR / admin user has to do it.")
+    try:
+        date.fromisoformat(js_str(effective_date))
+    except ValueError:
+        raise ApiError(400, "Effective date must be a date in YYYY-MM-DD format.")
+
+    # What changes on the employee record, and its value before the change (kept in history)
+    new_value = js_str(new_value).strip()
+    employee_updates: dict = {}
+    previous_value = body.get("previousValue")
+    if event_type in ("PROMOTION", "DESIGNATION_CHANGE"):
+        previous_value = emp.get("designation")
+        employee_updates = {"designation": new_value}
+    elif event_type == "TRANSFER":
+        # "Department" or "Department (Sub-department)"
+        m = re.match(r"^(.*?)\s*\(([^()]*)\)\s*$", new_value)
+        dept_name, sub_name = (m.group(1).strip(), m.group(2).strip()) if m else (new_value, "")
+        dept = next((d for d in db_store.departments.values() if (d.get("name") or "").strip().lower() == dept_name.lower()), None)
+        if db_store.departments and not dept:
+            raise ApiError(400, f'Department "{dept_name}" does not exist.')
+        dept_name = dept["name"] if dept else dept_name
+        previous_value = (emp.get("department") or "") + (f" ({emp['subdepartment']})" if emp.get("subdepartment") else "")
+        if dept_name == emp.get("department") and (sub_name or None) == (emp.get("subdepartment") or None):
+            raise ApiError(400, "The employee is already in this department.")
+        employee_updates = {"department": dept_name, "subdepartment": sub_name or None}
+    elif event_type == "CONFIRMATION":
+        previous_value = emp.get("status")
+        employee_updates = {"status": "ACTIVE"}
+    elif event_type == "STATUS_CHANGE":
+        previous_value = emp.get("status")
+        employee_updates = {"status": new_value}
 
     new_event = db_store.create_lifecycle_event({
         "employeeId": emp["_id"],
@@ -291,7 +352,8 @@ async def create_lifecycle_event(request: Request, user: dict = Depends(require_
         "department": emp.get("department"),
         "eventType": event_type,
         "effectiveDate": effective_date,
-        "previousValue": body.get("previousValue") or "Current",
+        "previousValue": previous_value or "Current",
+        "previousRecord": {k: emp.get(k) for k in employee_updates},
         "newValue": new_value,
         "reason": reason,
         "initiatedBy": f"{user.get('firstName')} {user.get('lastName')} ({user.get('role')})",
@@ -299,14 +361,8 @@ async def create_lifecycle_event(request: Request, user: dict = Depends(require_
         "notes": body.get("notes"),
     })
 
-    if event_type in ("PROMOTION", "DESIGNATION_CHANGE"):
-        db_store.update_employee(emp["_id"], {"designation": new_value})
-    elif event_type == "TRANSFER":
-        db_store.update_employee(emp["_id"], {"department": new_value})
-    elif event_type == "CONFIRMATION":
-        db_store.update_employee(emp["_id"], {"status": "ACTIVE"})
-    elif event_type == "STATUS_CHANGE":
-        db_store.update_employee(emp["_id"], {"status": new_value})
+    if employee_updates:
+        db_store.update_employee(emp["_id"], employee_updates)
 
     if emp.get("userId"):
         db_store.notifications.insert(0, {
@@ -320,7 +376,9 @@ async def create_lifecycle_event(request: Request, user: dict = Depends(require_
         })
 
     details = {k: v for k, v in {
-        "previousValue": body.get("previousValue"), "newValue": new_value, "effectiveDate": effective_date, "reason": reason,
+        "employeeCode": emp.get("employeeCode"),
+        "previousValue": previous_value, "newValue": new_value, "effectiveDate": effective_date, "reason": reason,
+        "changes": [{"field": k, "oldValue": emp.get(k), "newValue": v} for k, v in employee_updates.items() if emp.get(k) != v],
     }.items() if v is not None}
     audit(user, f"LIFECYCLE_{event_type}", "LIFECYCLE", "Employee", emp["_id"], details)
     return JSONResponse(

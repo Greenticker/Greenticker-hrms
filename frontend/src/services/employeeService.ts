@@ -1,11 +1,23 @@
-import { request } from './api';
-import { Employee, Department, Subdepartment, Designation, Location, OrgTreeNode } from '../types/employee';
+import { request, api, getAuthToken, API_BASE, ApiError } from './api';
+import { Employee, Department, Subdepartment, Designation, Location, OrgTreeNode, DirectoryEntry, Grade, ImportResponse } from '../types/employee';
 import { InviteInfo } from '../types/onboardingQueue';
 
 export interface EmployeesResponse {
   total: number;
   employees: Employee[];
   userRole: string;
+  /** ALL (whole master), TEAM (a manager's reportees) or SELF */
+  scope?: 'ALL' | 'TEAM' | 'SELF';
+}
+
+export interface EmployeeDetailResponse {
+  employee: Employee;
+  accessLevel: 'SELF' | 'ALL' | 'TEAM';
+  canEdit?: boolean;
+  canEditMaster?: boolean;
+  canEditSalary?: boolean;
+  canRequestBankChange?: boolean;
+  canReviewBankChange?: boolean;
 }
 
 export const employeeService = {
@@ -19,18 +31,80 @@ export const employeeService = {
     return request<EmployeesResponse>(`/employees${queryString}`);
   },
 
-  async getEmployeeById(id: string): Promise<{ employee: Employee; accessLevel: string }> {
-    return request<{ employee: Employee; accessLevel: string }>(`/employees/${id}`);
+  async getEmployeeById(id: string): Promise<EmployeeDetailResponse> {
+    return request<EmployeeDetailResponse>(`/employees/${id}`);
   },
 
-  async createEmployee(data: Partial<Employee>): Promise<{ success: boolean; employee: Employee; invite: InviteInfo }> {
+  /** Company directory: public contact details of every colleague. */
+  async getDirectory(params?: { search?: string; department?: string }): Promise<{ total: number; employees: DirectoryEntry[] }> {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.department && params.department !== 'ALL') query.append('department', params.department);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return request<{ total: number; employees: DirectoryEntry[] }>(`/employees/directory${qs}`);
+  },
+
+  /** Downloads the CSV template for bulk employee import. */
+  async downloadImportTemplate(): Promise<void> {
+    const token = getAuthToken();
+    const res = await fetch(`${API_BASE}/employees/import-template`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new ApiError(data.error || 'Could not download the template.', res.status, data);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'employee_import_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  async bulkImport(file: File, options?: { dryRun?: boolean; sendInvites?: boolean }): Promise<ImportResponse> {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('dryRun', options?.dryRun ? 'true' : 'false');
+    form.append('sendInvites', options?.sendInvites === false ? 'false' : 'true');
+    return api.upload<ImportResponse>('/employees/bulk-import', form);
+  },
+
+  /** Ask for a new salary bank account; HR must verify it before payroll uses it. */
+  async requestBankChange(
+    id: string,
+    data: { bankName: string; accountHolder: string; accountNumber: string; confirmAccountNumber: string; ifsc: string; branch?: string; reason?: string }
+  ): Promise<{ success: boolean; message: string; employee: Employee }> {
+    return request(`/employees/${id}/bank-change`, { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  async reviewBankChange(id: string, decision: 'APPROVED' | 'REJECTED', comment?: string): Promise<{ success: boolean; employee: Employee }> {
+    return request(`/employees/${id}/bank-change/review`, { method: 'POST', body: JSON.stringify({ decision, comment }) });
+  },
+
+  async getGrades(): Promise<{ grades: Grade[] }> {
+    return request<{ grades: Grade[] }>('/grades');
+  },
+
+  async createGrade(data: { code: string; name: string; rank?: number; description?: string }): Promise<{ success: boolean; grade: Grade }> {
+    return request<{ success: boolean; grade: Grade }>('/grades', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async createEmployee(data: Partial<Employee> & { panNumber?: string; aadhaarNumber?: string }): Promise<{ success: boolean; employee: Employee; invite: InviteInfo }> {
     return request<{ success: boolean; employee: Employee; invite: InviteInfo }>('/employees', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async updateEmployee(id: string, data: Partial<Employee>): Promise<{ success: boolean; employee: Employee }> {
+  async updateEmployee(
+    id: string,
+    data: Partial<Employee> & { panNumber?: string; aadhaarNumber?: string }
+  ): Promise<{ success: boolean; employee: Employee }> {
     return request<{ success: boolean; employee: Employee }>(`/employees/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),

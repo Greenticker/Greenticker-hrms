@@ -36,6 +36,17 @@ export interface PmsCycle extends Stamped {
   status: CycleStatus;
   revisionWindow: RevisionWindow | null;
   feedback360?: Feedback360State;
+  /** Who takes part in this cycle; only eligible employees can start goals / appraisals */
+  eligibility?: CycleEligibility;
+  eligibleCount?: number;
+}
+
+export interface CycleEligibility {
+  joinedOnOrBefore: string | null;
+  employmentTypes: string[];
+  departments: string[];
+  excludeProbation: boolean;
+  excludeNotice: boolean;
 }
 
 export interface PmsTemplate extends Stamped {
@@ -97,6 +108,8 @@ export interface SheetPermissions {
   canSendBack: boolean;
   canRevise: boolean;
   canRecordActuals: boolean;
+  /** HR may re-open this sheet (never their own) */
+  canReopen?: boolean;
 }
 
 export interface GoalSheetSummary {
@@ -146,6 +159,8 @@ export interface PmsContext {
   isHR: boolean;
   canViewAll: boolean;
   employeeId: string | null;
+  eligible?: boolean;
+  ineligibleReason?: string | null;
   hasTeam: boolean;
   hasReviewees: boolean;
   pendingFeedback: number;
@@ -289,7 +304,9 @@ export interface Appraisal {
     canCalibrate: boolean;
     canAccept: boolean;
     canResolveAppeal: boolean;
+    canReopen?: boolean;
   };
+  deadlineExtension?: { until: string; reason: string; by: string };
 }
 
 export interface CalibrationRow extends AppraisalScores {
@@ -312,7 +329,20 @@ export interface IncrementRow {
   bonusMultiplier: number;
 }
 
+export interface IncrementProposal {
+  status: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+  effectiveFrom: string;
+  incrementPct?: number;
+  oldSalary?: number;
+  newSalary?: number;
+  proposedBy?: string;
+  decidedBy?: string;
+  decidedOn?: string;
+  comment?: string;
+}
+
 export interface PayrollRow {
+  increment?: IncrementProposal | null;
   appraisalId: string;
   employeeId: string;
   employeeCode?: string;

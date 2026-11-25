@@ -5,7 +5,9 @@ export type LifecycleEventType =
   | 'MANAGER_CHANGE'
   | 'SALARY_REVISION'
   | 'CONFIRMATION'
-  | 'STATUS_CHANGE';
+  | 'STATUS_CHANGE'
+  /** Written automatically by the resignation / exit flow */
+  | 'SEPARATION';
 
 export interface LifecycleEvent {
   _id: string;
@@ -22,4 +24,6 @@ export interface LifecycleEvent {
   initiatedAt: string;
   approvalStatus: 'APPROVED' | 'PENDING' | 'REJECTED';
   notes?: string;
+  /** Resignation or exit record this event came from */
+  sourceId?: string;
 }

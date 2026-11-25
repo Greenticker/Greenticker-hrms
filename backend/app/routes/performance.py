@@ -62,6 +62,69 @@ def _can_view_all(user: dict) -> bool:
     return user.get("role") in VIEW_ALL_ROLES
 
 
+def notify_employee(employee_id: Optional[str], title: str, message: str) -> None:
+    """In-app notification to the employee's login (if any)."""
+    emp = db_store.employees.get(employee_id or "")
+    if emp and emp.get("userId"):
+        db_store.notifications.insert(0, {
+            "_id": f"notif_{now_ms()}_{rand_base36(5)}", "recipientUserId": emp["userId"], "title": title,
+            "message": message, "type": "PERFORMANCE", "isRead": False, "createdAt": now_iso(),
+        })
+
+
+def notify_hr(title: str, message: str) -> None:
+    for u in db_store.users.values():
+        if u.get("role") == HR_ROLE and u.get("isActive", True):
+            db_store.notifications.insert(0, {
+                "_id": f"notif_{now_ms()}_{rand_base36(5)}", "recipientUserId": u["_id"], "title": title,
+                "message": message, "type": "PERFORMANCE", "isRead": False, "createdAt": now_iso(),
+            })
+
+
+def phase_deadline(cycle: Optional[dict], key: str) -> Optional[str]:
+    phase = next((p for p in (cycle or {}).get("phases") or [] if p.get("key") == key), None)
+    return (phase or {}).get("end")
+
+
+def check_deadline(record: dict, cycle: Optional[dict], key: str, label: str) -> None:
+    """Blocks a submission after the phase deadline unless HR re-opened this form with a later date."""
+    deadline = phase_deadline(cycle, key)
+    extension = ((record.get("deadlineExtension") or {}).get("until")) or ""
+    if deadline and today_str() > deadline and today_str() > extension:
+        raise ApiError(403, f"The {label} deadline ({deadline}) has passed. Ask HR to re-open this form.")
+
+
+EMPLOYMENT_TYPES = ("FULL_TIME", "PART_TIME", "CONTRACT", "INTERN")
+DEFAULT_ELIGIBILITY = {"joinedOnOrBefore": None, "employmentTypes": list(EMPLOYMENT_TYPES), "departments": [],
+                       "excludeProbation": False, "excludeNotice": True}
+
+
+def eligibility_of(cycle: Optional[dict]) -> dict:
+    return {**DEFAULT_ELIGIBILITY, **((cycle or {}).get("eligibility") or {})}
+
+
+def ineligible_reason(employee_id: Optional[str], cycle: Optional[dict]) -> Optional[str]:
+    """None if the employee takes part in this cycle, otherwise why not."""
+    emp = db_store.employees.get(employee_id or "")
+    if not emp:
+        return "No employee record."
+    rules = eligibility_of(cycle)
+    status = emp.get("status")
+    if status in ("INACTIVE", "TERMINATED", "EXITED"):
+        return "Employees who have left are not part of the appraisal cycle."
+    if rules["excludeNotice"] and status == "NOTICE":
+        return "Employees serving notice are not part of this appraisal cycle."
+    if rules["excludeProbation"] and status == "PROBATION":
+        return "Employees on probation are not part of this appraisal cycle."
+    if rules["employmentTypes"] and (emp.get("employmentType") or "FULL_TIME") not in rules["employmentTypes"]:
+        return f"{(emp.get('employmentType') or '').replace('_', ' ').title()} employees are not part of this appraisal cycle."
+    if rules["departments"] and (emp.get("department") or "") not in rules["departments"]:
+        return "Your department is not part of this appraisal cycle."
+    if rules["joinedOnOrBefore"] and (emp.get("joiningDate") or "") > rules["joinedOnOrBefore"]:
+        return f"Only employees who joined on or before {rules['joinedOnOrBefore']} are part of this appraisal cycle."
+    return None
+
+
 def _cycle_or_404(cycle_id: str) -> dict:
     cycle = pms_store.pmsCycles.get(cycle_id)
     if not cycle:
@@ -110,6 +173,9 @@ def _permissions(sheet: dict, user: dict) -> dict:
         "canSendBack": active and ((status == "SUBMITTED" and rel["manager"]) or (status == "APPROVED" and rel["reviewer"])),
         "canRevise": active and status == "LOCKED" and _revision_open(cycle) and (rel["owner"] or rel["manager"]),
         "canRecordActuals": active and status == "LOCKED" and (rel["manager"] or rel["hr"]),
+        # HR re-opens a submitted / approved / locked sheet (never their own) before the appraisal starts
+        "canReopen": active and rel["hr"] and not rel["owner"]
+        and not pms_store.appraisal_for(sheet["employeeId"], sheet.get("cycleId")),
     }
 
 
@@ -217,6 +283,8 @@ async def context(user: dict = Depends(require_auth)):
         "isHR": user.get("role") == HR_ROLE,
         "canViewAll": _can_view_all(user),
         "employeeId": me if pms_store.employee(me) else None,
+        "eligible": bool(cycle) and not ineligible_reason(me, cycle),
+        "ineligibleReason": ineligible_reason(me, cycle) if cycle else None,
         "hasTeam": pms_store.has_reports(me) or (user.get("role") == HR_ROLE),
         "pendingFeedback": sum(
             1 for a in pms_store.pms360Assignments.values()
@@ -235,7 +303,10 @@ async def context(user: dict = Depends(require_auth)):
 
 @router.get("/cycles")
 async def list_cycles(_: dict = Depends(require_auth)):
-    return {"cycles": sorted(pms_store.pmsCycles.values(), key=lambda c: c.get("year") or 0, reverse=True)}
+    people = list(db_store.employees.values())
+    cycles = [{**c, "eligibility": eligibility_of(c), "eligibleCount": sum(1 for e in people if not ineligible_reason(e["_id"], c))}
+              for c in pms_store.pmsCycles.values()]
+    return {"cycles": sorted(cycles, key=lambda c: c.get("year") or 0, reverse=True)}
 
 
 @router.get("/cycles/default-phases")
@@ -263,7 +334,23 @@ def _cycle_fields(body: dict) -> dict:
         if p_end < p_start:
             raise ApiError(400, f"{label}: the deadline is before the start date.")
         phases.append({"key": _text(p.get("key")), "label": label, "start": p_start, "end": p_end})
-    return {"name": name, "year": year, "startDate": start, "endDate": end, "phases": phases}
+    raw = body.get("eligibility") or {}
+    types = [t for t in (raw.get("employmentTypes") or EMPLOYMENT_TYPES) if t in EMPLOYMENT_TYPES]
+    if not types:
+        raise ApiError(400, "Choose at least one employment type that takes part in the cycle.")
+    known_depts = {d.get("name") for d in db_store.departments.values()}
+    depts = [_text(d) for d in raw.get("departments") or [] if _text(d)]
+    unknown = [d for d in depts if known_depts and d not in known_depts]
+    if unknown:
+        raise ApiError(400, f"Unknown department(s): {', '.join(unknown)}.")
+    eligibility = {
+        "joinedOnOrBefore": _iso_date(raw["joinedOnOrBefore"], "Joining cut-off date") if raw.get("joinedOnOrBefore") else None,
+        "employmentTypes": types,
+        "departments": depts,
+        "excludeProbation": bool(raw.get("excludeProbation")),
+        "excludeNotice": raw.get("excludeNotice") is not False,
+    }
+    return {"name": name, "year": year, "startDate": start, "endDate": end, "phases": phases, "eligibility": eligibility}
 
 
 @router.post("/cycles")
@@ -318,6 +405,24 @@ async def close_cycle(cycle_id: str, request: Request, user: dict = Depends(requ
     stamp(cycle, user)
     audit(user, "PMS_CYCLE_CLOSED", MODULE, "pms_cycle", cycle_id,
           {"field": "status", "old": "ACTIVE", "new": "CLOSED", "reason": reason})
+    return {"cycle": cycle}
+
+
+@router.post("/cycles/{cycle_id}/reopen")
+async def reopen_cycle(cycle_id: str, request: Request, user: dict = Depends(require_role(HR_ROLE))):
+    cycle = _cycle_or_404(cycle_id)
+    if cycle.get("status") != "CLOSED":
+        raise ApiError(400, "Only a closed cycle can be re-opened.")
+    current = pms_store.active_cycle()
+    if current:
+        raise ApiError(409, f'"{current.get("name")}" is active. Close it before re-opening another cycle.')
+    reason = _text((await read_body(request)).get("reason"))
+    if not reason:
+        raise ApiError(400, "Give a reason for re-opening the cycle.")
+    cycle["status"] = "ACTIVE"
+    cycle.setdefault("reopenHistory", []).append({"reason": reason, "by": _actor_name(user), "on": now_iso()})
+    stamp(cycle, user)
+    audit(user, "PMS_CYCLE_REOPENED", MODULE, "pms_cycle", cycle_id, {"field": "status", "old": "CLOSED", "new": "ACTIVE", "reason": reason})
     return {"cycle": cycle}
 
 
@@ -544,6 +649,8 @@ async def list_goal_sheets(scope: str = "team", cycleId: Optional[str] = None, u
         if user.get("role") == HR_ROLE:
             # HR acts as manager for people with no manager on record
             people += [e for e in employees if not e.get("reportingManagerId") and e["_id"] != me]
+    # Only people taking part in this cycle (anyone who already has a sheet stays visible)
+    people = [e for e in people if not ineligible_reason(e["_id"], cycle) or pms_store.sheet_for(e["_id"], cycle["_id"])]
     rows = [_summary(e["_id"], pms_store.sheet_for(e["_id"], cycle["_id"])) for e in people]
     return {"cycle": cycle, "rows": sorted(rows, key=lambda r: r["employeeName"])}
 
@@ -567,8 +674,11 @@ async def get_or_start_sheet(employee_id: str, create: bool = False, user: dict 
         if rel["viewAll"]:
             return {"sheet": None}
         raise ApiError(403, "You cannot view this goal sheet.")
+    reason = ineligible_reason(employee_id, cycle)
     if not create:
-        return {"sheet": None}
+        return {"sheet": None, "eligible": not reason, "ineligibleReason": reason}
+    if reason:
+        raise ApiError(403, f"Not eligible for {cycle.get('name')}: {reason}")
     sheet = pms_store.create_sheet(employee_id, cycle, user)
     audit(user, "PMS_GOAL_SHEET_CREATED", MODULE, "pms_goal_sheet", sheet["_id"], {"employeeId": employee_id, "cycleId": cycle["_id"]})
     return {"sheet": _full(sheet, user)}
@@ -621,6 +731,9 @@ async def submit_sheet(sheet_id: str, request: Request, user: dict = Depends(req
     errors = validate_lines(sheet.get("lines") or [])
     if errors:
         raise ApiError(400, "Fix these before submitting: " + " ".join(errors))
+    cycle = pms_store.pmsCycles.get(sheet.get("cycleId"))
+    if not _revision_open(cycle):  # revisions follow the revision window's own closing date
+        check_deadline(sheet, cycle, "goal_setting", "goal setting")
     comment = _text((await read_body(request)).get("comment"))
     # Refresh the approval chain in case reporting lines changed since the sheet was started
     sheet["managerId"] = pms_store.manager_id(sheet["employeeId"])
@@ -628,6 +741,11 @@ async def submit_sheet(sheet_id: str, request: Request, user: dict = Depends(req
     _add_trail(sheet, user, "SUBMITTED", "SUBMITTED", comment)
     stamp(sheet, user)
     audit(user, "PMS_GOALS_SUBMITTED", MODULE, "pms_goal_sheet", sheet_id, {"field": "status", "old": "DRAFT", "new": "SUBMITTED"})
+    name = pms_store.employee_name(sheet["employeeId"])
+    if sheet.get("managerId"):
+        notify_employee(sheet["managerId"], "Goals waiting for your approval", f"{name} submitted their goal sheet.")
+    else:
+        notify_hr("Goals waiting for approval", f"{name} submitted their goal sheet (no reporting manager on record).")
     return {"sheet": _full(sheet, user)}
 
 
@@ -650,6 +768,14 @@ async def approve_sheet(sheet_id: str, request: Request, user: dict = Depends(re
         })
     stamp(sheet, user)
     audit(user, "PMS_GOALS_APPROVED", MODULE, "pms_goal_sheet", sheet_id, {"field": "status", "old": old, "new": sheet["status"], "reason": comment})
+    if sheet["status"] == "APPROVED":
+        notify_employee(sheet["employeeId"], "Goals approved by your manager",
+                        f"Your goals were approved by {_actor_name(user)} and sent to your reviewer, "
+                        f"{pms_store.employee_name(sheet.get('reviewerId'))}, for final approval.")
+        notify_employee(sheet.get("reviewerId"), "Goals waiting for your review",
+                        f"{pms_store.employee_name(sheet['employeeId'])}'s goals were approved by their manager and need your review.")
+    else:
+        notify_employee(sheet["employeeId"], "Goals approved and locked", f"Your goals were approved by {_actor_name(user)} and are now locked.")
     return {"sheet": _full(sheet, user)}
 
 
@@ -666,6 +792,41 @@ async def send_back_sheet(sheet_id: str, request: Request, user: dict = Depends(
     _add_trail(sheet, user, "SENT_BACK", new, comment)
     stamp(sheet, user)
     audit(user, "PMS_GOALS_SENT_BACK", MODULE, "pms_goal_sheet", sheet_id, {"field": "status", "old": old, "new": new, "reason": comment})
+    notify_employee(sheet["employeeId"] if new == "DRAFT" else sheet.get("managerId"), "Goals sent back",
+                    f"{_actor_name(user)} sent the goal sheet back: {comment}")
+    return {"sheet": _full(sheet, user)}
+
+
+@router.post("/goal-sheets/{sheet_id}/reopen")
+async def reopen_sheet(sheet_id: str, request: Request, user: dict = Depends(require_role(HR_ROLE))):
+    """HR re-opens a submitted / approved / locked goal sheet for editing, with a reason and,
+    if the goal-setting deadline has passed, a new date by which it must be resubmitted."""
+    sheet = _sheet_or_404(sheet_id)
+    if sheet.get("employeeId") == user.get("employeeId"):
+        raise ApiError(403, "You cannot re-open your own goal sheet. Another HR user must do it.")
+    cycle = pms_store.pmsCycles.get(sheet.get("cycleId")) or {}
+    if cycle.get("status") != "ACTIVE":
+        raise ApiError(400, "Re-open the appraisal cycle first; this sheet belongs to a closed cycle.")
+    if pms_store.appraisal_for(sheet["employeeId"], sheet["cycleId"]):
+        raise ApiError(400, "The year-end appraisal has started; re-open the appraisal instead.")
+    body = await read_body(request)
+    if sheet.get("status") == "DRAFT" and not body.get("extendUntil"):
+        raise ApiError(400, "This goal sheet is already open for editing. Give a new deadline to extend it.")
+    reason = _text(body.get("reason"))
+    if not reason:
+        raise ApiError(400, "Give a reason for re-opening the goal sheet.")
+    until = _iso_date(body["extendUntil"], "New deadline") if body.get("extendUntil") else None
+    if until and until < today_str():
+        raise ApiError(400, "The new deadline is in the past.")
+    old = sheet["status"]
+    if until:
+        sheet["deadlineExtension"] = {"until": until, "reason": reason, "by": _actor_name(user), "on": now_iso()}
+    _add_trail(sheet, user, "REOPENED_BY_HR", "DRAFT", reason)
+    stamp(sheet, user)
+    audit(user, "PMS_GOALS_REOPENED", MODULE, "pms_goal_sheet", sheet_id,
+          {"field": "status", "old": old, "new": "DRAFT", "reason": reason, "extendedUntil": until})
+    notify_employee(sheet["employeeId"], "Goal sheet re-opened",
+                    f"HR re-opened your goal sheet: {reason}" + (f" Please resubmit by {until}." if until else ""))
     return {"sheet": _full(sheet, user)}
 
 

@@ -30,7 +30,7 @@ import {
 
 export const ShiftsPage: React.FC = () => {
   const { user } = useAuth();
-  const canManageShifts = user?.role === 'ADMIN';
+  const canManageShifts = ['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'ADMIN_2', 'HR'].includes(user?.role || '');
 
   const [activeMainTab, setActiveMainTab] = useState<'ACTIVE' | 'HISTORY' | 'ROSTER'>('ACTIVE');
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -65,6 +65,9 @@ export const ShiftsPage: React.FC = () => {
     breakMinutes: 60,
     gracePeriodMinutes: 15,
     isNightShift: false,
+    type: 'FIXED' as 'FIXED' | 'ROTATIONAL',
+    rotationShiftIds: [] as string[],
+    rotateEveryDays: 7,
     departments: [] as string[],
     assignedEmployeeIds: [] as string[],
     isActive: true,
@@ -114,6 +117,9 @@ export const ShiftsPage: React.FC = () => {
       breakMinutes: shift.breakMinutes ?? 60,
       gracePeriodMinutes: shift.gracePeriodMinutes ?? 15,
       isNightShift: Boolean(shift.isNightShift),
+      type: shift.type || 'FIXED',
+      rotationShiftIds: shift.rotationShiftIds || [],
+      rotateEveryDays: shift.rotateEveryDays || 7,
       departments: shift.departments ? [...shift.departments] : [],
       assignedEmployeeIds: shift.assignedEmployeeIds ? [...shift.assignedEmployeeIds] : [],
       isActive: shift.isActive !== false,
@@ -891,6 +897,54 @@ export const ShiftsPage: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Rotational shifts cycle through other shifts (e.g. day / night weekly) */}
+              {!editingShift && (
+                <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
+                  <label className="flex items-center gap-2 font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.type === 'ROTATIONAL'}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.checked ? 'ROTATIONAL' : 'FIXED' })}
+                    />
+                    Rotational shift (rotates between existing shifts)
+                  </label>
+                  {formData.type === 'ROTATIONAL' && (
+                    <>
+                      <div className="flex flex-wrap gap-3">
+                        {shifts.filter((s) => s.status !== 'ENDED' && s.type !== 'ROTATIONAL').map((s) => (
+                          <label key={s._id} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.rotationShiftIds.includes(s._id)}
+                              onChange={() =>
+                                setFormData({
+                                  ...formData,
+                                  rotationShiftIds: formData.rotationShiftIds.includes(s._id)
+                                    ? formData.rotationShiftIds.filter((x) => x !== s._id)
+                                    : [...formData.rotationShiftIds, s._id],
+                                })
+                              }
+                            />
+                            {s.name} ({s.startTime}–{s.endTime})
+                          </label>
+                        ))}
+                      </div>
+                      <label className="flex items-center gap-2">
+                        Rotate every
+                        <input
+                          type="number"
+                          min={1}
+                          value={formData.rotateEveryDays}
+                          onChange={(e) => setFormData({ ...formData, rotateEveryDays: Number(e.target.value) })}
+                          className="w-16 p-1.5 rounded border border-slate-300"
+                        />
+                        days (in the order ticked)
+                      </label>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Employee-Specific Assignment Section */}
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">

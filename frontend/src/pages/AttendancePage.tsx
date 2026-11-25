@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isReadOnlyRole } from '../utils/access';
 import { useAuth } from '../context/AuthContext';
 import { attendanceService } from '../services/attendanceService';
 import { AttendanceRecord, AttendanceStats } from '../types/attendance';
@@ -15,6 +16,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { GeofenceD3Summary } from '../components/common/GeofenceD3Summary';
+import { AttendanceWorkflow } from '../components/attendance/AttendanceWorkflow';
 
 type GPSLocation = {
   latitude: number;
@@ -24,6 +26,7 @@ type GPSLocation = {
 
 export const AttendancePage: React.FC = () => {
   const { user } = useAuth();
+  const canPunch = !!(user?.employee || user?.employeeId) && !isReadOnlyRole(user?.role);
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
@@ -328,9 +331,11 @@ export const AttendancePage: React.FC = () => {
       )}
 
       {/* Clock-In Widget, 2x2 Metric Cards & Geofence in the Same Row */}
-      <div className={`grid grid-cols-1 ${user?.role === 'EMPLOYEE' ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6 items-stretch`}>
-        {/* Column 1: Clock-In / Check-Out Widget (EMPLOYEE ROLE ONLY) */}
-        {user?.role === 'EMPLOYEE' && (
+      <AttendanceWorkflow />
+
+      <div className={`grid grid-cols-1 ${canPunch ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6 items-stretch`}>
+        {/* Column 1: Clock-In / Check-Out Widget (anyone with an employee record, except read-only roles) */}
+        {canPunch && (
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -416,6 +421,7 @@ export const AttendancePage: React.FC = () => {
 
             {/* Action Button */}
             <button
+              hidden={isReadOnlyRole(user?.role)}
               onClick={handleCheckInToggle}
               disabled={isClocking}
               className={`w-full py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-sm cursor-pointer ${
@@ -595,7 +601,7 @@ export const AttendancePage: React.FC = () => {
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px] tracking-wider font-mono">
                   <th className="py-3.5 px-4">Date & Shift</th>
 
-                  {(user?.role === 'ADMIN') && (
+                  {['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR'].includes(user?.role || '') && (
                     <th className="py-3.5 px-4">Employee</th>
                   )}
 
@@ -634,7 +640,7 @@ export const AttendancePage: React.FC = () => {
                       )}
                     </td>
 
-                    {(user?.role === 'ADMIN') && (
+                    {['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR'].includes(user?.role || '') && (
                       <td className="py-3 px-4">
                         <span className="font-bold text-slate-900 block">
                           {r.employeeName}
@@ -697,7 +703,7 @@ export const AttendancePage: React.FC = () => {
                     </td>
 
                     <td className="py-3 px-4 text-right">
-                      {(user?.role === 'ADMIN') && (
+                      {['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR'].includes(user?.role || '') && (
                         <button
                           onClick={() => {
                             setRegularizeRecord(r);

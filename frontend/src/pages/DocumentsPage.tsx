@@ -8,6 +8,7 @@ import {
 } from '../types/documents';
 import { Employee } from '../types/employee';
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from '../utils/uploadLimits';
+import { canWriteMaster } from '../utils/access';
 
 import {
   FileText,
@@ -113,8 +114,7 @@ const getCategoryLabel = (category: DocumentCategory): string => {
 export const DocumentsPage: React.FC = () => {
   const { user } = useAuth();
 
-  const isAdminOrHr =
-    user?.role === 'ADMIN' || user?.role === 'HR';
+  const isAdminOrHr = canWriteMaster(user?.role);
 
   const currentEmpId =
     user?.employee?._id ||

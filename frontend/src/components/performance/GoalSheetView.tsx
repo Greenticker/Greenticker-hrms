@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { pmsService } from '../../services/pmsService';
+import { ReopenDialog } from './ReopenDialog';
 import { Direction, GoalLine, GoalSheet, GoalSheetStatus, KpiLibraryItem, PmsRules } from '../../types/pms';
 
 // ------------------------------------------------------------------ shared bits
@@ -278,6 +279,7 @@ type Dialog = null | 'sendBack' | 'approve' | 'revise' | 'actuals';
 
 export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange, onBack }) => {
   const perms = sheet.permissions;
+  const [reopening, setReopening] = useState(false);
   const [edit, setEdit] = useState<EditLine[]>(() => sheet.lines.map(toEdit));
   const [dirty, setDirty] = useState(false);
   const [actuals, setActuals] = useState<Record<string, string>>({});
@@ -407,6 +409,36 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
           )}
         </div>
       </div>
+
+      {perms.canReopen && (
+        <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+          <span className="text-slate-600">
+            HR: re-open this {sheet.status.toLowerCase()} goal sheet for editing (a reason is required and logged).
+          </span>
+          <button
+            type="button"
+            onClick={() => setReopening(true)}
+            className="px-3 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 font-semibold hover:bg-amber-100 cursor-pointer"
+          >
+            Re-open goal sheet
+          </button>
+        </div>
+      )}
+      {reopening && (
+        <ReopenDialog
+          title="Re-open goal sheet"
+          onCancel={() => setReopening(false)}
+          onConfirm={async (d) => {
+            onChange((await pmsService.reopenSheet(sheet._id, d)).sheet);
+            setReopening(false);
+          }}
+        />
+      )}
+      {(sheet as any).deadlineExtension?.until && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+          Re-opened by HR: submit by {(sheet as any).deadlineExtension.until} ({(sheet as any).deadlineExtension.reason}).
+        </div>
+      )}
 
       {sheet.status === 'LOCKED' && sheet.cycle.revisionOpen && !perms.canRevise && (
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">HR has opened a revision window for this cycle.</div>

@@ -11,7 +11,9 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSignup, onNavigateToRegisterCompany }) => {
-  const { login } = useAuth();
+  const { login, verifyOtp, sessionMessage } = useAuth();
+  const [otp, setOtp] = useState<{ challengeId: string; message: string; devOtp?: string } | null>(null);
+  const [code, setCode] = useState('');
   const [email, setEmail] = useState('omkar@greenticker.in');
   const [password, setPassword] = useState('Admin@12345');
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +25,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
     setLoading(true);
 
     try {
-      await login(email, password);
+      if (otp) {
+        await verifyOtp(otp.challengeId, code.trim());
+        onSuccess();
+        return;
+      }
+      const result = await login(email, password);
+      if ('mfaRequired' in result) {
+        setOtp(result);
+        setCode('');
+        return;
+      }
       onSuccess();
     } catch (err: any) {
       setError(err.message || 'Login failed. Please verify credentials.');
@@ -104,13 +116,30 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-xl">
         <div className="bg-white py-8 px-6 shadow-sm border border-slate-200 sm:rounded-2xl sm:px-10">
+          {sessionMessage && !error && (
+            <div role="status" className="mb-5 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 font-medium">{sessionMessage}</div>
+          )}
           {error && (
-            <div className="mb-5 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
+            <div role="alert" className="mb-5 p-3 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
               {error}
             </div>
           )}
+          {otp && (
+            <form className="space-y-4 mb-6" onSubmit={handleSubmit}>
+              <p className="text-xs text-slate-700">{otp.message}</p>
+              {otp.devOtp && <p className="text-[11px] text-amber-700">Email is not configured here; your code is {otp.devOtp}.</p>}
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">One-time code
+                <input autoFocus inputMode="numeric" maxLength={6} required value={code} onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-lg tracking-[0.5em] text-center" />
+              </label>
+              <div className="flex gap-2">
+                <button type="submit" disabled={loading || code.length !== 6} className="flex-1 rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold disabled:opacity-50">Verify</button>
+                <button type="button" onClick={() => setOtp(null)} className="rounded-lg border border-slate-300 px-3 text-sm">Back</button>
+              </div>
+            </form>
+          )}
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-4" onSubmit={handleSubmit} hidden={!!otp}>
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
                 Work Email Address

@@ -77,6 +77,8 @@ const getSectionsNeedingCorrection = (item?: OnboardingQueueItem | null) => {
 
 export const OnboardingQueuePage: React.FC = () => {
   const { user } = useAuth();
+  // Auditors and other read-only roles see the queue but cannot add, approve or send revisions
+  const canEditQueue = canWrite(user?.role, 'self_onboarding');
   const [submissions, setSubmissions] = useState<OnboardingQueueItem[]>([]);
   const [stats, setStats] = useState<OnboardingQueueStats>({
     total: 0,
@@ -319,7 +321,7 @@ export const OnboardingQueuePage: React.FC = () => {
     setAddFormError(null);
     setIsSubmitting(true);
     try {
-      await request<any>('/onboarding/queue', {
+      await request<any>('/onboarding/employees', {
         method: 'POST',
         body: JSON.stringify(addFormData),
       });
@@ -376,7 +378,7 @@ export const OnboardingQueuePage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {canWrite(user?.role, 'self_onboarding') && (
+          {canEditQueue && (
             <button
               onClick={() => setIsAddModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer shadow-xs"
@@ -619,7 +621,7 @@ export const OnboardingQueuePage: React.FC = () => {
                     );
                   })()}
 
-                  {getClearedSectionCount(item) === 8 && item.status !== 'VERIFIED' && (
+                  {canEditQueue && getClearedSectionCount(item) === 8 && item.status !== 'VERIFIED' && (
                     <button
                       onClick={() => setConfirmApproveSub(item)}
                       className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
@@ -768,6 +770,7 @@ export const OnboardingQueuePage: React.FC = () => {
                     </div>
                   </div>
                   <button
+                    hidden={!canEditQueue}
                     onClick={() => setConfirmApproveSub(selectedSub)}
                     className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer shrink-0"
                   >
@@ -794,6 +797,7 @@ export const OnboardingQueuePage: React.FC = () => {
                     </div>
                   </div>
                   <button
+                    hidden={!canEditQueue}
                     onClick={() => setIsRevisionModalOpen(true)}
                     className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer shrink-0"
                   >
@@ -803,6 +807,7 @@ export const OnboardingQueuePage: React.FC = () => {
                 </div>
               )}
 
+              <ReadOnlyContext.Provider value={!canEditQueue}>
               <ProfileDossier
                 sub={selectedSub}
                 activeTab={activeDossierTab}
@@ -810,6 +815,7 @@ export const OnboardingQueuePage: React.FC = () => {
                 onRequestRevision={(secKey, remarks, sendNow) => handleRequestSectionRevision(selectedSub._id, secKey, remarks, sendNow)}
                 loadingKey={sectionActionLoading}
               />
+              </ReadOnlyContext.Provider>
             </div>
 
             {/* Drawer Footer: Section Clearance Summary */}
@@ -843,7 +849,7 @@ export const OnboardingQueuePage: React.FC = () => {
               })()}
 
               <div className="flex items-center gap-2 flex-wrap">
-                {getSectionsNeedingCorrection(selectedSub).length > 0 && (
+                {canEditQueue && getSectionsNeedingCorrection(selectedSub).length > 0 && (
                   <button
                     onClick={() => setIsRevisionModalOpen(true)}
                     className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
@@ -853,7 +859,9 @@ export const OnboardingQueuePage: React.FC = () => {
                   </button>
                 )}
 
-                {getClearedSectionCount(selectedSub) === 8 && selectedSub.status !== 'VERIFIED' ? (
+                {!canEditQueue ? (
+                  <span className="text-[11px] font-semibold text-slate-500">Read-only access</span>
+                ) : getClearedSectionCount(selectedSub) === 8 && selectedSub.status !== 'VERIFIED' ? (
                   <button
                     onClick={() => setConfirmApproveSub(selectedSub)}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-xs cursor-pointer"
@@ -1500,6 +1508,9 @@ interface SectionCardProps {
   children: React.ReactNode;
 }
 
+/** True when the viewer may only look (e.g. auditors): section actions are hidden. */
+const ReadOnlyContext = React.createContext(false);
+
 const SectionCard: React.FC<SectionCardProps> = ({
   sectionKey,
   title,
@@ -1510,6 +1521,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
   isLoading,
   children,
 }) => {
+  const readOnly = React.useContext(ReadOnlyContext);
   const [isEditingRemarks, setIsEditingRemarks] = useState(false);
   const [remarksText, setRemarksText] = useState(review?.remarks || '');
 
@@ -1564,7 +1576,7 @@ const SectionCard: React.FC<SectionCardProps> = ({
         </div>
 
         {/* Action Buttons for this Section */}
-        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+        <div className={`flex items-center gap-2 self-end sm:self-auto shrink-0 ${readOnly ? 'hidden' : ''}`}>
           <button
             type="button"
             onClick={() => {

@@ -5,6 +5,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.auth.employee_access import MASTER_WRITE_ROLES
 from app.auth.security import require_auth, require_role
 from app.errors import ApiError
 from app.routes.common import LOGOS, audit, read_body, save_upload
@@ -13,6 +14,9 @@ from app.stores.db_store import db_store
 from app.utils.jsutil import js_str, now_iso, now_ms, truthy
 
 router = APIRouter()
+
+# Org masters (departments, sub-departments, designations, locations, grades)
+require_org_write = require_role(*MASTER_WRITE_ROLES)
 
 
 def _encode_uri_component(value: str) -> str:
@@ -41,12 +45,17 @@ async def list_departments(_: dict = Depends(require_auth)):
 
 
 @router.post("/departments")
-async def create_department(request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def create_department(request: Request, user: dict = Depends(require_org_write)):
     body = await read_body(request)
-    name, code = body.get("name"), body.get("code")
+    name, code = js_str(body.get("name") or "").strip(), js_str(body.get("code") or "").strip().upper()
     head_employee_id = body.get("headEmployeeId")
-    if not truthy(name) or not truthy(code):
+    if not name or not code:
         raise ApiError(400, "Name and code are required.")
+    for d in db_store.departments.values():
+        if (d.get("name") or "").strip().lower() == name.lower():
+            raise ApiError(409, f'Department "{name}" already exists.')
+        if (d.get("code") or "").strip().upper() == code:
+            raise ApiError(409, f'Department code "{code}" is already used by {d.get("name")}.')
 
     head_name = None
     if head_employee_id:
@@ -100,7 +109,7 @@ async def list_subdepartments(_: dict = Depends(require_auth)):
 
 
 @router.post("/subdepartments")
-async def create_subdepartment(request: Request, user: dict = Depends(require_role("ADMIN", "HR"))):
+async def create_subdepartment(request: Request, user: dict = Depends(require_org_write)):
     body = await read_body(request)
     name = body.get("name")
     department_name = body.get("departmentName")
@@ -154,11 +163,14 @@ async def list_designations(_: dict = Depends(require_auth)):
 
 
 @router.post("/designations")
-async def create_designation(request: Request, user: dict = Depends(require_auth)):
+async def create_designation(request: Request, user: dict = Depends(require_org_write)):
     body = await read_body(request)
     title = body.get("title")
     if not truthy(title):
         raise ApiError(400, "Designation title is required.")
+    wanted = js_str(title).strip().lower()
+    if any((d.get("title") or "").strip().lower() == wanted and d.get("status") != "ENDED" for d in db_store.designations.values()):
+        raise ApiError(409, f'Designation "{js_str(title).strip()}" already exists.')
     code, level, department = body.get("code"), body.get("level"), body.get("department")
     subdepartment = body.get("subdepartment")
     clean_title = js_str(title).strip()
@@ -185,7 +197,7 @@ async def create_designation(request: Request, user: dict = Depends(require_auth
 
 
 @router.post("/designations/{desig_id}/end")
-async def end_designation(desig_id: str, request: Request, user: dict = Depends(require_role("ADMIN"))):
+async def end_designation(desig_id: str, request: Request, user: dict = Depends(require_org_write)):
     body = await read_body(request)
     desig = db_store.designations.get(desig_id)
     if not desig:
@@ -218,10 +230,14 @@ async def list_locations(_: dict = Depends(require_auth)):
 
 
 @router.post("/locations")
-async def create_location(request: Request, _: dict = Depends(require_auth)):
+async def create_location(request: Request, user: dict = Depends(require_org_write)):
     body = await read_body(request)
     if not truthy(body.get("name")):
         raise ApiError(400, "Location name is required.")
+    loc_name = js_str(body["name"]).strip()
+    if any((loc.get("name") or "").strip().lower() == loc_name.lower() for loc in db_store.locations.values()):
+        raise ApiError(409, f'Location "{loc_name}" already exists.')
+    body["name"] = loc_name
     loc_id = f"loc_{now_ms()}"
     is_hq = truthy(body.get("isHeadquarters"))
     new_loc = {
@@ -240,7 +256,48 @@ async def create_location(request: Request, _: dict = Depends(require_auth)):
         for loc in db_store.locations.values():
             loc["isHeadquarters"] = False
     db_store.locations[loc_id] = new_loc
+    audit(user, "LOCATION_CREATED", "ORGANIZATION", "Location", loc_id, {"name": new_loc["name"], "city": new_loc["city"]})
     return JSONResponse({"location": new_loc}, status_code=201)
+
+
+# ------------------------------------------------------------------- grades
+
+@router.get("/grades")
+async def list_grades(_: dict = Depends(require_auth)):
+    employees = list(db_store.employees.values())
+    grades = sorted(db_store.grades.values(), key=lambda g: (g.get("rank") or 0, g.get("code") or ""))
+    return {"grades": [{**g, "memberCount": sum(1 for e in employees if (e.get("grade") or "").upper() == g.get("code"))} for g in grades]}
+
+
+@router.post("/grades")
+async def create_grade(request: Request, user: dict = Depends(require_org_write)):
+    body = await read_body(request)
+    code = js_str(body.get("code") or "").strip().upper()
+    name = js_str(body.get("name") or "").strip()
+    if not code or not name:
+        raise ApiError(400, "Grade code and name are required.")
+    if not re.match(r"^[A-Z0-9][A-Z0-9_-]{0,9}$", code):
+        raise ApiError(400, "Grade code may only use letters, digits, - and _ (max 10 characters), e.g. L3 or M1.")
+    if any(g.get("code") == code for g in db_store.grades.values()):
+        raise ApiError(409, f'Grade "{code}" already exists.')
+    rank = body.get("rank")
+    try:
+        rank = int(rank) if rank not in (None, "") else len(db_store.grades) + 1
+    except (TypeError, ValueError):
+        raise ApiError(400, "Rank must be a whole number.")
+    grade_id = f"grade_{now_ms()}"
+    grade = {
+        "_id": grade_id,
+        "code": code,
+        "name": name,
+        "rank": rank,
+        "description": js_str(body.get("description") or "").strip(),
+        "createdAt": now_iso(),
+        "createdBy": f"{user.get('firstName')} {user.get('lastName')} ({user.get('role')})",
+    }
+    db_store.grades[grade_id] = grade
+    audit(user, "GRADE_CREATED", "ORGANIZATION", "Grade", grade_id, {"code": code, "name": name})
+    return JSONResponse({"success": True, "grade": grade}, status_code=201)
 
 
 # -------------------------------------------------------------- org chart

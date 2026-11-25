@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Employee } from '../types/employee';
+import { Employee, Department, Grade, Location } from '../types/employee';
+import { apiErrorMessages } from '../utils/access';
 import { employeeService } from '../services/employeeService';
 import { documentService } from '../services/documentService';
 import { lifecycleService } from '../services/lifecycleService';
@@ -29,6 +30,8 @@ import {
   Save,
   Check,
   TrendingUp,
+  Upload,
+  Download,
 } from 'lucide-react';
 
 interface EmployeeDetailPageProps {
@@ -48,10 +51,45 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
     'personal' | 'employment' | 'bank_statutory' | 'documents'
   >('personal');
 
+  // What the signed-in user may do with this record (decided by the server)
+  const [access, setAccess] = useState<{
+    level: string;
+    canEdit: boolean;
+    canEditMaster: boolean;
+    canEditSalary: boolean;
+    canRequestBankChange: boolean;
+    canReviewBankChange: boolean;
+  }>({ level: 'SELF', canEdit: false, canEditMaster: false, canEditSalary: false, canRequestBankChange: false, canReviewBankChange: false });
+
+  // Bank change (maker-checker)
+  const emptyBank = { bankName: '', accountHolder: '', accountNumber: '', confirmAccountNumber: '', ifsc: '', branch: '', reason: '' };
+  const [bankForm, setBankForm] = useState<typeof emptyBank | null>(null);
+  const [bankErrors, setBankErrors] = useState<string[]>([]);
+  const [bankBusy, setBankBusy] = useState(false);
+  const [bankMessage, setBankMessage] = useState<string | null>(null);
+  const [rejectComment, setRejectComment] = useState('');
+  const [showReject, setShowReject] = useState(false);
+
   // Edit Modal State
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [editFormData, setEditFormData] = useState<Partial<Employee>>({});
+  const [editErrors, setEditErrors] = useState<string[]>([]);
+  const [editFormData, setEditFormData] = useState<Partial<Employee> & { panNumber?: string; aadhaarNumber?: string }>({});
+
+  // Masters for HR edits
+  const [departmentOptions, setDepartmentOptions] = useState<Department[]>([]);
+  const [gradeOptions, setGradeOptions] = useState<Grade[]>([]);
+  const [locationOptions, setLocationOptions] = useState<Location[]>([]);
+  const [managerOptions, setManagerOptions] = useState<Employee[]>([]);
+
+  // Document upload (HR / admin roles)
+  const [docForm, setDocForm] = useState<{ title: string; category: string; file: File | null }>({
+    title: '',
+    category: 'EMPLOYMENT',
+    file: null,
+  });
+  const [docUploading, setDocUploading] = useState(false);
+  const [docMessage, setDocMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     fetchEmployeeDetail();
@@ -71,25 +109,128 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
         attendanceService.getAttendance({ employeeId }),
       ]);
       setEmployee(empRes.employee);
+      setAccess({
+        level: empRes.accessLevel,
+        canEdit: !!empRes.canEdit,
+        canEditMaster: !!empRes.canEditMaster,
+        canEditSalary: !!empRes.canEditSalary,
+        canRequestBankChange: !!empRes.canRequestBankChange,
+        canReviewBankChange: !!empRes.canReviewBankChange,
+      });
       setEmpDocs(docsRes.documents);
       setEmpLifecycle(lcRes.events);
       setEmpAttendance(attRes.records);
-      setEditFormData({
-        personalEmail: empRes.employee.personalEmail,
-        phone: empRes.employee.phone,
-        alternatePhone: empRes.employee.alternatePhone,
-        bio: empRes.employee.bio,
-        currentAddress: empRes.employee.currentAddress,
-        emergencyContact: empRes.employee.emergencyContact,
-        department: empRes.employee.department,
-        designation: empRes.employee.designation,
-        shift: empRes.employee.shift,
-        location: empRes.employee.location,
-      });
+      if (empRes.canEditMaster) {
+        Promise.all([
+          employeeService.getDepartments().catch(() => ({ departments: [] as Department[] })),
+          employeeService.getGrades().catch(() => ({ grades: [] as Grade[] })),
+          employeeService.getLocations().catch(() => ({ locations: [] as Location[] })),
+          employeeService.getEmployees().catch(() => ({ employees: [] as Employee[] })),
+        ]).then(([d, g, l, e]) => {
+          setDepartmentOptions(d.departments);
+          setGradeOptions(g.grades);
+          setLocationOptions(l.locations);
+          setManagerOptions(e.employees.filter((x: Employee) => x._id !== empRes.employee._id));
+        });
+      }
     } catch (err: any) {
       console.error('Failed to load employee details', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openEdit = () => {
+    if (!employee) return;
+    setEditErrors([]);
+    setEditFormData({
+      personalEmail: employee.personalEmail,
+      phone: employee.phone,
+      alternatePhone: employee.alternatePhone,
+      currentAddress: employee.currentAddress,
+      emergencyContact: employee.emergencyContact,
+      department: employee.department,
+      designation: employee.designation,
+      grade: employee.grade || '',
+      reportingManagerId: employee.reportingManagerId || '',
+      shift: employee.shift,
+      location: employee.location,
+      extension: employee.extension || '',
+      annualSalary: employee.annualSalary,
+      panNumber: employee.statutory?.panNumber || '',
+      aadhaarNumber: employee.statutory?.aadhaarNumber || '',
+    });
+    setIsEditOpen(true);
+  };
+
+  const submitBankChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee || !bankForm) return;
+    if (bankForm.accountNumber.replace(/\s+/g, '') !== bankForm.confirmAccountNumber.replace(/\s+/g, '')) {
+      setBankErrors(['The account numbers do not match.']);
+      return;
+    }
+    setBankBusy(true);
+    setBankErrors([]);
+    try {
+      const res = await employeeService.requestBankChange(employee._id, bankForm);
+      setBankForm(null);
+      setBankMessage(res.message);
+      await fetchEmployeeDetail();
+    } catch (err: any) {
+      setBankErrors(apiErrorMessages(err));
+    } finally {
+      setBankBusy(false);
+    }
+  };
+
+  const reviewBank = async (decision: 'APPROVED' | 'REJECTED') => {
+    if (!employee) return;
+    setBankBusy(true);
+    setBankErrors([]);
+    try {
+      await employeeService.reviewBankChange(employee._id, decision, rejectComment.trim() || undefined);
+      setShowReject(false);
+      setRejectComment('');
+      setBankMessage(decision === 'APPROVED' ? 'Bank change verified. Payroll will use the new account.' : 'Bank change rejected.');
+      await fetchEmployeeDetail();
+    } catch (err: any) {
+      setBankErrors(apiErrorMessages(err));
+    } finally {
+      setBankBusy(false);
+    }
+  };
+
+  const handleUploadDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee || !docForm.file) return;
+    const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+    const ext = (docForm.file.name.split('.').pop() || '').toLowerCase();
+    if (!allowed.includes(ext)) {
+      setDocMessage({ ok: false, text: 'Only PDF, JPG, PNG, DOC or DOCX files can be uploaded.' });
+      return;
+    }
+    if (docForm.file.size > 4 * 1024 * 1024) {
+      setDocMessage({ ok: false, text: 'The file is larger than the 4 MB limit.' });
+      return;
+    }
+    setDocUploading(true);
+    setDocMessage(null);
+    try {
+      await documentService.uploadDocument({
+        employeeId: employee._id,
+        category: docForm.category,
+        title: docForm.title.trim() || docForm.file.name.replace(/\.[^/.]+$/, ''),
+        file: docForm.file,
+      });
+      setDocForm({ title: '', category: docForm.category, file: null });
+      setDocMessage({ ok: true, text: 'Document uploaded. It is visible to HR and to this employee only.' });
+      const docsRes = await documentService.getDocuments({ employeeId });
+      setEmpDocs(docsRes.documents);
+    } catch (err: any) {
+      setDocMessage({ ok: false, text: err.message || 'Upload failed.' });
+    } finally {
+      setDocUploading(false);
     }
   };
 
@@ -107,12 +248,29 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
     e.preventDefault();
     if (!employee) return;
     setIsSaving(true);
+    setEditErrors([]);
+    // Send only the fields this user may change: the employee their own contact details,
+    // HR / admins the employment and statutory fields as well.
+    const selfKeys = ['personalEmail', 'phone', 'alternatePhone', 'currentAddress', 'emergencyContact'] as const;
+    const masterKeys = [
+      'department', 'designation', 'grade', 'reportingManagerId', 'shift', 'location', 'extension',
+      'annualSalary', 'panNumber', 'aadhaarNumber',
+    ] as const;
+    const payload: Record<string, any> = {};
+    for (const k of selfKeys) payload[k] = (editFormData as any)[k];
+    if (access.canEditMaster) {
+      for (const k of masterKeys) payload[k] = (editFormData as any)[k];
+      // Unchanged masked / empty identifiers are not sent
+      if (!payload.panNumber || payload.panNumber === employee.statutory?.panNumber) delete payload.panNumber;
+      if (!payload.aadhaarNumber || payload.aadhaarNumber === employee.statutory?.aadhaarNumber) delete payload.aadhaarNumber;
+      if (!access.canEditSalary) delete payload.annualSalary; // salary is changed by payroll roles only
+    }
     try {
-      await employeeService.updateEmployee(employee._id, editFormData);
+      await employeeService.updateEmployee(employee._id, payload);
       setIsEditOpen(false);
       await fetchEmployeeDetail();
     } catch (err: any) {
-      alert(err.message || 'Error updating employee record');
+      setEditErrors(apiErrorMessages(err, 'Error updating employee record'));
     } finally {
       setIsSaving(false);
     }
@@ -141,13 +299,21 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
     );
   }
 
-  const isSelf = employee.userId === user?.id;
-  const canEdit = user?.role === 'ADMIN' || isSelf;
+  const isSelf = access.level === 'SELF';
+  const canEdit = access.canEdit;
+  const isMaster = access.canEditMaster;
+  const sensitive = employee.sensitiveAccess || (isSelf ? 'FULL' : 'NONE');
+  const notProvided = 'Not provided';
+  const bank = employee.bankInfo;
+  const st = employee.statutory;
+  const shown = (full?: string, masked?: string) =>
+    (sensitive === 'FULL' && full) || masked || full || notProvided;
 
   const tabs = [
     { id: 'personal', label: 'Personal Information', icon: User },
     { id: 'employment', label: 'Employment & Org', icon: Briefcase },
-    { id: 'bank_statutory', label: 'Bank & Statutory', icon: CreditCard },
+    // Managers looking at a reportee get no bank / statutory data at all
+    ...(sensitive !== 'NONE' ? [{ id: 'bank_statutory', label: 'Bank & Statutory', icon: CreditCard }] : []),
     { id: 'documents', label: 'Documents & Lifecycle', icon: FileCheck },
   ];
 
@@ -203,11 +369,11 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
 
           {canEdit && (
             <button
-              onClick={() => setIsEditOpen(true)}
+              onClick={openEdit}
               className="flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer self-start md:self-auto"
             >
               <Edit3 className="w-3.5 h-3.5" />
-              <span>{isSelf && user?.role === 'EMPLOYEE' ? 'Edit Personal Info' : 'Edit Employee Record'}</span>
+              <span>{isMaster ? 'Edit Employee Record' : 'Edit Personal Info'}</span>
             </button>
           )}
         </div>
@@ -245,7 +411,7 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Date of Birth</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono">{employee.dob}</p>
+                <p className="text-xs font-bold text-slate-900 mt-1 font-mono">{employee.dob || notProvided}</p>
               </div>
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Gender</span>
@@ -280,20 +446,29 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Current Residential Address</span>
                 <p className="text-xs font-medium text-slate-800 mt-1 leading-relaxed">
-                  {employee.currentAddress?.line || '205, Prestige Tech Park, Marathahalli-Sarjapur Outer Ring Road'}<br />
-                  {employee.currentAddress?.city || 'Bengaluru'}, {employee.currentAddress?.state || 'Karnataka'}{' '}
-                  {employee.currentAddress?.postalCode || '560103'}<br />
-                  {employee.currentAddress?.country || 'India'}
+                  {employee.currentAddress?.line ? (
+                    <>
+                      {employee.currentAddress.line}<br />
+                      {[employee.currentAddress.city, employee.currentAddress.state, employee.currentAddress.postalCode].filter(Boolean).join(', ')}<br />
+                      {employee.currentAddress.country}
+                    </>
+                  ) : (
+                    notProvided
+                  )}
                 </p>
               </div>
               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Permanent Legal Address</span>
                 <p className="text-xs font-medium text-slate-800 mt-1 leading-relaxed">
-                  {employee.permanentAddress?.line || employee.currentAddress?.line || '205, Prestige Tech Park, Marathahalli-Sarjapur Outer Ring Road'}<br />
-                  {employee.permanentAddress?.city || employee.currentAddress?.city || 'Bengaluru'},{' '}
-                  {employee.permanentAddress?.state || employee.currentAddress?.state || 'Karnataka'}{' '}
-                  {employee.permanentAddress?.postalCode || employee.currentAddress?.postalCode || '560103'}<br />
-                  {employee.permanentAddress?.country || employee.currentAddress?.country || 'India'}
+                  {employee.permanentAddress?.line ? (
+                    <>
+                      {employee.permanentAddress.line}<br />
+                      {[employee.permanentAddress.city, employee.permanentAddress.state, employee.permanentAddress.postalCode].filter(Boolean).join(', ')}<br />
+                      {employee.permanentAddress.country}
+                    </>
+                  ) : (
+                    notProvided
+                  )}
                 </p>
               </div>
             </div>
@@ -307,19 +482,19 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">Contact Person</span>
                 <p className="text-xs font-bold text-slate-900 mt-0.5">
-                  {employee.emergencyContact?.name || 'Vikram Verma'}
+                  {employee.emergencyContact?.name || notProvided}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">Relationship</span>
                 <p className="text-xs font-bold text-slate-900 mt-0.5">
-                  {employee.emergencyContact?.relationship || 'Spouse / Family'}
+                  {employee.emergencyContact?.relationship || notProvided}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-semibold">Emergency Phone</span>
                 <p className="text-xs font-bold text-slate-900 mt-0.5 font-mono">
-                  {employee.emergencyContact?.phone || '+91 98452 99999'}
+                  {employee.emergencyContact?.phone || notProvided}
                 </p>
               </div>
             </div>
@@ -370,8 +545,12 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               <p className="text-xs font-bold text-slate-900 mt-1">{employee.location}</p>
             </div>
             <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Organization Code</span>
-              <p className="text-xs font-bold text-slate-900 mt-1 font-mono">ZEN-HQ</p>
+              <span className="text-[10px] uppercase font-bold text-slate-400">Grade</span>
+              <p className="text-xs font-bold text-slate-900 mt-1 font-mono">{employee.grade || 'Not assigned'}</p>
+            </div>
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[10px] uppercase font-bold text-slate-400">Desk Extension</span>
+              <p className="text-xs font-bold text-slate-900 mt-1 font-mono">{employee.extension || '—'}</p>
             </div>
           </div>
         </div>
@@ -385,36 +564,144 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Bank & Direct Deposit Information
               </h3>
-              <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-mono font-bold">
-                Unmasked HR Access
-              </span>
+              {sensitive === 'FULL' ? (
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded font-mono font-bold">
+                  {isSelf ? 'Your details' : 'Full access'}
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-mono font-bold">
+                  Masked · read-only
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Depository Institution</span>
                 <p className="text-xs font-bold text-slate-900 mt-1">
-                  {employee.bankInfo?.bankName || 'HDFC Bank'}
+                  {bank?.bankName || notProvided}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Account Holder Name</span>
                 <p className="text-xs font-bold text-slate-900 mt-1">
-                  {employee.bankInfo?.accountHolder || `${employee.firstName} ${employee.lastName}`}
+                  {bank?.accountHolder || notProvided}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Account Number</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono select-all">
-                  {employee.bankInfo?.accountNumber || (employee.bankInfo?.accountNumberMasked && !employee.bankInfo.accountNumberMasked.includes('•') ? employee.bankInfo.accountNumberMasked : '50100238494819')}
+                <p className={`text-xs font-bold text-slate-900 mt-1 font-mono ${sensitive === 'FULL' ? 'select-all' : 'select-none'}`}>
+                  {shown(bank?.accountNumber, bank?.accountNumberMasked)}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">IFSC / Routing Code</span>
                 <p className="text-xs font-bold text-slate-900 mt-1 font-mono">
-                  {employee.bankInfo?.ifsc || 'HDFC0000184'}
+                  {bank?.ifsc || notProvided}
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Bank account change: requested by the employee (or HR), verified by another HR user */}
+          <div className="space-y-3">
+            {bankMessage && (
+              <p role="status" className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-semibold">
+                {bankMessage}
+              </p>
+            )}
+            {bankErrors.length > 0 && !bankForm && (
+              <div role="alert" className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700">
+                {bankErrors.join(' ')}
+              </div>
+            )}
+            {employee.pendingBankChange?.status === 'PENDING' ? (
+              <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-xs space-y-2">
+                <p className="font-bold text-amber-950">Bank change awaiting HR verification</p>
+                <p className="text-amber-900">
+                  New account: <b>{employee.pendingBankChange.bankName}</b> · {employee.pendingBankChange.accountHolder} ·{' '}
+                  <span className="font-mono">
+                    {employee.pendingBankChange.accountNumber || employee.pendingBankChange.accountNumberMasked}
+                  </span>{' '}
+                  · IFSC <span className="font-mono">{employee.pendingBankChange.ifsc}</span>
+                </p>
+                <p className="text-amber-800">
+                  Requested by {employee.pendingBankChange.requestedByName} on{' '}
+                  {new Date(employee.pendingBankChange.requestedAt).toLocaleString()}
+                  {employee.pendingBankChange.reason ? ` · Reason: ${employee.pendingBankChange.reason}` : ''}
+                </p>
+                <p className="text-amber-800">Payroll keeps paying into the current account until this is verified.</p>
+                {access.canReviewBankChange ? (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      onClick={() => reviewBank('APPROVED')}
+                      disabled={bankBusy}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50 cursor-pointer"
+                    >
+                      Verify & apply
+                    </button>
+                    {showReject ? (
+                      <>
+                        <input
+                          value={rejectComment}
+                          onChange={(e) => setRejectComment(e.target.value)}
+                          placeholder="Reason for rejection"
+                          aria-label="Reason for rejection"
+                          className="rounded-lg border border-slate-300 px-2.5 py-1.5 bg-white"
+                        />
+                        <button
+                          onClick={() => reviewBank('REJECTED')}
+                          disabled={bankBusy || !rejectComment.trim()}
+                          className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold disabled:opacity-50 cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setShowReject(true)}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 font-semibold cursor-pointer"
+                      >
+                        Reject...
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-amber-700 italic">
+                    Maker-checker: it must be verified by an HR user other than the employee and the requester.
+                  </p>
+                )}
+              </div>
+            ) : (
+              access.canRequestBankChange && (
+                <button
+                  onClick={() => {
+                    setBankErrors([]);
+                    setBankMessage(null);
+                    setBankForm({ ...emptyBank, accountHolder: `${employee.firstName} ${employee.lastName}` });
+                  }}
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                >
+                  Request bank account change
+                </button>
+              )
+            )}
+            {(employee.bankChangeHistory || []).length > 0 && (
+              <details className="text-xs text-slate-600">
+                <summary className="cursor-pointer font-semibold">Bank change history ({employee.bankChangeHistory!.length})</summary>
+                <ul className="mt-2 space-y-1">
+                  {employee.bankChangeHistory!
+                    .slice()
+                    .reverse()
+                    .map((h, i) => (
+                      <li key={i}>
+                        {h.status === 'APPROVED' ? 'Verified' : 'Rejected'}: {h.bankName} {h.accountNumberMasked} · requested by{' '}
+                        {h.requestedByName}, {h.status === 'APPROVED' ? 'verified' : 'rejected'} by {h.reviewedByName}
+                        {h.reviewComment ? ` ("${h.reviewComment}")` : ''}
+                      </li>
+                    ))}
+                </ul>
+              </details>
+            )}
           </div>
 
           <div className="border-t border-slate-100 pt-6">
@@ -424,26 +711,26 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Aadhaar Card Number</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono select-all">
-                  {employee.statutory?.aadhaarNumber || (employee.statutory?.aadhaarMasked && !employee.statutory.aadhaarMasked.includes('•') ? employee.statutory.aadhaarMasked : '739284019284')}
+                <p className={`text-xs font-bold text-slate-900 mt-1 font-mono ${sensitive === 'FULL' ? 'select-all' : 'select-none'}`}>
+                  {shown(st?.aadhaarNumber, st?.aadhaarMasked)}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Permanent Account Number (PAN)</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono select-all">
-                  {employee.statutory?.panNumber || (employee.statutory?.panMasked && !employee.statutory.panMasked.includes('•') ? employee.statutory.panMasked : 'ABCPD4819F')}
+                <p className={`text-xs font-bold text-slate-900 mt-1 font-mono ${sensitive === 'FULL' ? 'select-all' : 'select-none'}`}>
+                  {shown(st?.panNumber, st?.panMasked)}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">Universal Account Number (UAN)</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono select-all">
-                  {employee.statutory?.uanNumber || (employee.statutory?.uanMasked && !employee.statutory.uanMasked.includes('•') ? employee.statutory.uanMasked : '100984728192')}
+                <p className={`text-xs font-bold text-slate-900 mt-1 font-mono ${sensitive === 'FULL' ? 'select-all' : 'select-none'}`}>
+                  {shown(st?.uanNumber, st?.uanMasked)}
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400">ESI Insurance Number</span>
-                <p className="text-xs font-bold text-slate-900 mt-1 font-mono select-all">
-                  {employee.statutory?.esiNumber || (employee.statutory?.esiMasked && !employee.statutory.esiMasked.includes('•') ? employee.statutory.esiMasked : '3192001849001')}
+                <p className={`text-xs font-bold text-slate-900 mt-1 font-mono ${sensitive === 'FULL' ? 'select-all' : 'select-none'}`}>
+                  {shown(st?.esiNumber, st?.esiMasked)}
                 </p>
               </div>
             </div>
@@ -469,6 +756,62 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               {empDocs.length} Total Records
             </span>
           </div>
+
+          {isMaster && (
+            <form onSubmit={handleUploadDoc} className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 space-y-3 text-xs">
+              <div className="flex items-center gap-2 font-bold text-slate-800">
+                <Upload className="w-4 h-4 text-indigo-600" />
+                Upload a document for {employee.firstName}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  value={docForm.title}
+                  onChange={(e) => setDocForm({ ...docForm, title: e.target.value })}
+                  placeholder="Title, e.g. Offer Letter"
+                  aria-label="Document title"
+                  className="rounded-lg border border-slate-300 px-3 py-2 bg-white"
+                />
+                <select
+                  value={docForm.category}
+                  onChange={(e) => setDocForm({ ...docForm, category: e.target.value })}
+                  aria-label="Document category"
+                  className="rounded-lg border border-slate-300 px-3 py-2 bg-white"
+                >
+                  <option value="EMPLOYMENT">Employment (offer / appointment letter)</option>
+                  <option value="IDENTITY">Identity proof</option>
+                  <option value="EDUCATION">Education</option>
+                  <option value="FINANCIAL">Financial</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  aria-label="Document file"
+                  onChange={(e) => {
+                    setDocForm({ ...docForm, file: e.target.files?.[0] || null });
+                    setDocMessage(null);
+                  }}
+                  className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:cursor-pointer"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11px] text-slate-500">PDF, JPG, PNG, DOC or DOCX · max 4 MB</span>
+                <button
+                  type="submit"
+                  disabled={!docForm.file || docUploading}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold disabled:opacity-50 cursor-pointer"
+                >
+                  {docUploading ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+              {docMessage && (
+                <p role="status" className={docMessage.ok ? 'text-emerald-700 font-semibold' : 'text-rose-700 font-semibold'}>
+                  {docMessage.text}
+                </p>
+              )}
+            </form>
+          )}
 
           {empDocs.length === 0 ? (
             <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
@@ -509,7 +852,7 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
                       {doc.status}
                     </span>
 
-                    {(user?.role === 'ADMIN') && doc.status !== 'VERIFIED' && (
+                    {isMaster && doc.status !== 'VERIFIED' && (
                       <button
                         onClick={() => handleVerifyDoc(doc._id)}
                         className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-xs"
@@ -563,13 +906,82 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
         </div>
       )}
 
+      {/* Bank change request modal */}
+      {bankForm && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="text-sm font-bold text-slate-900">Request bank account change</h3>
+              <button onClick={() => setBankForm(null)} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={submitBankChange} className="p-6 space-y-3 text-xs">
+              <p className="text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2.5">
+                HR verifies the new account before it is used. Until then salary keeps going to the current account.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ['bankName', 'Bank name *', 'text'],
+                    ['accountHolder', 'Account holder name *', 'text'],
+                    ['accountNumber', 'Account number *', 'password'],
+                    ['confirmAccountNumber', 'Re-enter account number *', 'text'],
+                    ['ifsc', 'IFSC *', 'text'],
+                    ['branch', 'Branch', 'text'],
+                  ] as const
+                ).map(([key, label, type]) => (
+                  <div key={key}>
+                    <label className="block font-semibold text-slate-700">{label}</label>
+                    <input
+                      type={type}
+                      required={label.endsWith('*')}
+                      autoComplete="off"
+                      value={bankForm[key]}
+                      onChange={(e) => setBankForm({ ...bankForm, [key]: key === 'ifsc' ? e.target.value.toUpperCase() : e.target.value })}
+                      className={`mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 ${key.includes('ccount') || key === 'ifsc' ? 'font-mono' : ''}`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label className="block font-semibold text-slate-700">Reason</label>
+                <input
+                  value={bankForm.reason}
+                  onChange={(e) => setBankForm({ ...bankForm, reason: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  placeholder="e.g. Salary account moved to another bank"
+                />
+              </div>
+              {bankErrors.length > 0 && (
+                <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg">
+                  <ul className="list-disc pl-4">
+                    {bankErrors.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onClick={() => setBankForm(null)} className="px-4 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer">
+                  Cancel
+                </button>
+                <button type="submit" disabled={bankBusy} className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg cursor-pointer">
+                  {bankBusy ? 'Submitting...' : 'Submit for verification'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Edit Profile Modal */}
       {isEditOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-sm font-bold text-slate-900">
-                {isSelf && user?.role === 'EMPLOYEE' ? 'Update Personal Contact Details' : 'Edit Employee Information'}
+                {isMaster ? 'Edit Employee Information' : 'Update Personal Contact Details'}
               </h3>
               <button
                 onClick={() => setIsEditOpen(false)}
@@ -579,7 +991,16 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+            <form onSubmit={handleSaveEdit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              {editErrors.length > 0 && (
+                <div role="alert" className="p-3 bg-rose-50 border border-rose-200 text-xs text-rose-700 rounded-lg">
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {editErrors.map((m) => (
+                      <li key={m}>{m}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700">Personal Phone</label>
@@ -611,9 +1032,170 @@ export const EmployeeDetailPage: React.FC<EmployeeDetailPageProps> = ({ employee
                 />
               </div>
 
-              {/* Admin/HR only editable fields */}
-              {(user?.role === 'ADMIN') && (
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Current Address</p>
+                <input
+                  type="text"
+                  placeholder="House / street"
+                  aria-label="Address line"
+                  value={editFormData.currentAddress?.line || ''}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, currentAddress: { ...(editFormData.currentAddress || ({} as any)), line: e.target.value } })
+                  }
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs"
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(['city', 'state', 'postalCode', 'country'] as const).map((k) => (
+                    <input
+                      key={k}
+                      type="text"
+                      placeholder={k === 'postalCode' ? 'PIN code' : k[0].toUpperCase() + k.slice(1)}
+                      aria-label={k}
+                      value={(editFormData.currentAddress as any)?.[k] || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, currentAddress: { ...(editFormData.currentAddress || ({} as any)), [k]: e.target.value } })
+                      }
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 space-y-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Emergency Contact</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['name', 'relationship', 'phone'] as const).map((k) => (
+                    <input
+                      key={k}
+                      type={k === 'phone' ? 'tel' : 'text'}
+                      placeholder={k[0].toUpperCase() + k.slice(1)}
+                      aria-label={`Emergency contact ${k}`}
+                      value={(editFormData.emergencyContact as any)?.[k] || ''}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, emergencyContact: { ...(editFormData.emergencyContact || ({} as any)), [k]: e.target.value } })
+                      }
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-xs"
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {!isMaster && (
+                <p className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2.5 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  Date of joining, designation, grade, salary and PAN / Aadhaar can only be changed by HR.
+                </p>
+              )}
+
+              {/* HR / admin only editable fields */}
+              {isMaster && (
                 <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Department</label>
+                    <select
+                      value={editFormData.department || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white"
+                    >
+                      {!departmentOptions.some((d) => d.name === editFormData.department) && editFormData.department && (
+                        <option value={editFormData.department}>{editFormData.department}</option>
+                      )}
+                      {departmentOptions.map((d) => (
+                        <option key={d._id} value={d.name}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Reporting Manager</label>
+                    <select
+                      value={editFormData.reportingManagerId || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, reportingManagerId: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white"
+                    >
+                      <option value="">None (top of the organisation)</option>
+                      {managerOptions.map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.firstName} {m.lastName} ({m.employeeCode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Grade</label>
+                    <select
+                      value={editFormData.grade || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, grade: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white"
+                    >
+                      <option value="">Not assigned</option>
+                      {gradeOptions.map((g) => (
+                        <option key={g._id} value={g.code}>
+                          {g.code} · {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Work Location</label>
+                    <select
+                      value={editFormData.location || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white"
+                    >
+                      {!locationOptions.some((l) => l.name === editFormData.location) && editFormData.location && (
+                        <option value={editFormData.location}>{editFormData.location}</option>
+                      )}
+                      {locationOptions.map((l) => (
+                        <option key={l._id} value={l.name}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">PAN</label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={editFormData.panNumber || ''}
+                      placeholder={employee.statutory?.panMasked || 'ABCDE1234F'}
+                      onChange={(e) => setEditFormData({ ...editFormData, panNumber: e.target.value.toUpperCase() })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Aadhaar</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={14}
+                      value={editFormData.aadhaarNumber || ''}
+                      placeholder={employee.statutory?.aadhaarMasked || '12-digit number'}
+                      onChange={(e) => setEditFormData({ ...editFormData, aadhaarNumber: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+                    />
+                  </div>
+                  <div hidden={!access.canEditSalary}>
+                    <label className="block text-xs font-semibold text-slate-700">Annual CTC (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editFormData.annualSalary ?? ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, annualSalary: e.target.value === '' ? undefined : Number(e.target.value) })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700">Desk Extension</label>
+                    <input
+                      type="text"
+                      value={editFormData.extension || ''}
+                      onChange={(e) => setEditFormData({ ...editFormData, extension: e.target.value })}
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono"
+                    />
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700">Designation</label>
                     <input

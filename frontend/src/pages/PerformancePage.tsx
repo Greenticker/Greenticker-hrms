@@ -358,6 +358,12 @@ export const PerformancePage: React.FC = () => {
           <div className="py-12 text-center text-xs text-slate-400">Loading your goal sheet...</div>
         ) : mySheet ? (
           <EmployeeWorkspace sheet={mySheet} rules={ctx.rules} library={library} isOwner onSheetChange={setMySheet} />
+        ) : ctx.eligible === false ? (
+          <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-2">
+            <Target className="w-8 h-8 text-slate-300 mx-auto" />
+            <p className="text-sm font-semibold text-slate-800">You are not part of {cycle.name}</p>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">{ctx.ineligibleReason} Contact HR if you think this is wrong.</p>
+          </div>
         ) : (
           <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
             <Target className="w-8 h-8 text-[#039583] mx-auto" />

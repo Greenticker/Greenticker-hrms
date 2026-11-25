@@ -1,20 +1,19 @@
-"""HR service desk, F&F, audit logs, assets, letter templates, AI assistant, notifications, insurance."""
+"""Letter templates, AI assistant and notifications.
+(Help desk: helpdesk.py · assets: assets.py · benefits: benefits.py · audit logs: reports.py)"""
 
 import os
-import re
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
-from app.auth.module_access import can_write, require_read, require_write
-from app.auth.security import require_auth, require_role
+from app.auth.module_access import require_write
+from app.auth.security import require_auth
 from app.errors import ApiError
 from app.routes.common import audit, read_body
 from app.stores.db_store import db_store
 from app.stores.modules_store import modules_store
 from app.templates.letter_gallery import LETTER_TEMPLATE_GALLERY, get_gallery_template
-from app.utils.jsutil import js_str, now_iso, now_ms, num, rand_base36, s, today_str, truthy
+from app.utils.jsutil import now_iso, now_ms, rand_base36, s, truthy
 
 router = APIRouter()
 
@@ -24,116 +23,6 @@ ASSET_TYPES = [
     "SOFTWARE_LICENSE", "SUBSCRIPTION",
     "CAR", "BIKE", "OTHER",
 ]
-
-
-# ---------------------------------------------------------- HR service desk
-
-@router.get("/hr-requests")
-async def list_hr_requests(status: Optional[str] = None, user: dict = Depends(require_auth)):
-    return {"requests": modules_store.get_hr_requests(user, status)}
-
-
-@router.post("/hr-requests")
-async def create_hr_request(request: Request, user: dict = Depends(require_auth)):
-    emp = db_store.employees.get(user.get("employeeId")) if user.get("employeeId") else None
-    if not emp:
-        raise ApiError(400, "No employee record linked to current user.")
-    body = await read_body(request)
-    if not truthy(body.get("subject")) or not truthy(body.get("description")):
-        raise ApiError(400, "Subject and description are required.")
-    doc = modules_store.create_hr_request({
-        "employeeId": emp["_id"],
-        "employeeName": f"{emp.get('firstName')} {emp.get('lastName')}",
-        "employeeCode": emp.get("employeeCode"),
-        "department": emp.get("department"),
-        "category": body.get("category") or "GENERAL",
-        "subject": body["subject"],
-        "description": body["description"],
-        "priority": body.get("priority") or "MEDIUM",
-    })
-    return JSONResponse({"success": True, "request": doc}, status_code=201)
-
-
-@router.put("/hr-requests/{req_id}/resolve")
-async def resolve_hr_request(req_id: str, request: Request, _: dict = Depends(require_role("ADMIN"))):
-    body = await read_body(request)
-    if not truthy(body.get("remarks")):
-        raise ApiError(400, "Resolution remarks are required.")
-    updated = modules_store.resolve_hr_request(req_id, body["remarks"])
-    if not updated:
-        raise ApiError(404, "HR request ticket not found.")
-    return {"success": True, "request": updated}
-
-
-# --------------------------------------------------------------- audit logs
-# (Resignations, exits and F&F live in routes/exits.py)
-
-@router.get("/audit-logs")
-async def audit_logs(_: dict = Depends(require_read("audit_log"))):
-    return {"logs": db_store.auditLogs[:200]}
-
-
-# ------------------------------------------------------------------ assets
-
-@router.get("/assets")
-async def list_assets(employeeId: Optional[str] = None, user: dict = Depends(require_auth)):
-    result = modules_store.get_assets(user, employee_id=employeeId or None)
-    return {"assets": result["assets"], "canManage": can_write(user, "asset")}
-
-
-@router.post("/assets")
-async def allocate_asset(request: Request, user: dict = Depends(require_write("asset"))):
-    b = await read_body(request)
-    employee_id = s(b.get("employeeId") or "")
-    a_type = s(b.get("type") or "").upper()
-    category = s(b.get("category") or "").upper()
-    name = s(b.get("name") or "").strip()
-    asset_tag = s(b.get("assetTag") or "").strip()
-
-    if not db_store.employees.get(employee_id):
-        raise ApiError(400, "Select a valid employee.")
-    if a_type not in ASSET_TYPES:
-        raise ApiError(400, "Invalid asset type selected.")
-    if not name:
-        raise ApiError(400, "Asset name / model is required.")
-    if not asset_tag:
-        raise ApiError(400, "Asset tag / ID is required.")
-
-    duplicate = next(
-        (a for a in modules_store.assets.values()
-         if (a.get("assetTag") or "").lower() == asset_tag.lower() and a.get("status") == "ALLOCATED"),
-        None,
-    )
-    if duplicate:
-        raise ApiError(409, f"Asset tag {asset_tag} is already allocated to another employee.")
-
-    issued = s(b.get("issuedDate") or "")
-    asset = modules_store.allocate_asset({
-        "employeeId": employee_id,
-        "type": a_type,
-        "category": category or None,
-        "name": name,
-        "assetTag": asset_tag,
-        "serialNumber": js_str(b["serialNumber"]).strip() if truthy(b.get("serialNumber")) else None,
-        "issuedDate": issued if re.match(r"^\d{4}-\d{2}-\d{2}$", issued) else today_str(),
-        "notes": js_str(b["notes"]).strip() if truthy(b.get("notes")) else None,
-        "allocatedBy": f"{user.get('firstName')} {user.get('lastName')}".strip(),
-    })
-    audit(user, "ASSET_ALLOCATED", "ASSETS", "Asset", asset["_id"], {
-        "type": a_type, "name": name, "assetTag": asset_tag, "employee": asset.get("employeeName"),
-    })
-    return JSONResponse({"success": True, "asset": asset}, status_code=201)
-
-
-@router.put("/assets/{asset_id}/return")
-async def return_asset(asset_id: str, user: dict = Depends(require_write("asset"))):
-    asset = modules_store.return_asset(asset_id)
-    if not asset:
-        raise ApiError(404, "Asset not found.")
-    audit(user, "ASSET_RETURNED", "ASSETS", "Asset", asset["_id"], {
-        "type": asset.get("type"), "assetTag": asset.get("assetTag"), "employee": asset.get("employeeName"),
-    })
-    return {"success": True, "asset": asset}
 
 
 # -------------------------------------------------------- letter templates
@@ -276,27 +165,26 @@ Instructions:
 async def ai_raise_ticket(request: Request, user: dict = Depends(require_auth)):
     body = await read_body(request)
     query = s(body.get("query") or body.get("prompt") or "Unresolved Policy Query").strip()
-    emp = db_store.employees.get(user.get("employeeId")) if user.get("employeeId") else None
     name = f"{user.get('firstName')} {user.get('lastName')}"
 
-    ticket = modules_store.create_hr_request({
-        "employeeId": user.get("employeeId") or "emp_system",
-        "employeeName": name,
-        "employeeCode": (emp or {}).get("employeeCode") or "RHA-EMP",
-        "department": (emp or {}).get("department") or "General Assignment",
-        "subject": f"Policy Query Ticket: {query[:50]}{'...' if len(query) > 50 else ''}",
-        "description": f'Ticket raised by employee {name} via HR Assistant for query: "{query}"',
-        "category": "GENERAL",
-        "priority": "MEDIUM",
-    })
-
-    for admin in [u for u in db_store.users.values() if u.get("role") == "ADMIN"]:
+    from app.routes.helpdesk import CATEGORY_QUEUE, _migrate, settings as hd_settings
+    from datetime import datetime, timedelta, timezone
+    _migrate()
+    tid = f"tkt_{now_ms()}_{rand_base36(4)}"
+    ticket = {"_id": tid, "ticketNumber": f"HR-TKT-{len(modules_store.tickets) + 1001}", "employeeId": user.get("employeeId"),
+              "employeeName": name, "raisedByUserId": user["_id"], "category": "POLICY", "queue": CATEGORY_QUEUE["POLICY"], "confidential": False,
+              "subject": f"Policy query: {query[:50]}{'...' if len(query) > 50 else ''}",
+              "description": f'Raised via the HR assistant for the query: "{query}"', "priority": "MEDIUM", "status": "OPEN",
+              "createdAt": now_iso(), "dueAt": (datetime.now(timezone.utc) + timedelta(hours=hd_settings()["slaHours"]["MEDIUM"])).isoformat().replace("+00:00", "Z"),
+              "escalationLevel": 0, "slaBreached": False, "comments": [], "history": [{"action": "CREATED", "at": now_iso(), "by": name}]}
+    modules_store.tickets[tid] = ticket
+    for agent in [u for u in db_store.users.values() if u.get("role") == "HR"]:
         db_store.notifications.insert(0, {
             "_id": f"notif_{now_ms()}_{rand_base36(5)}",
-            "recipientUserId": admin["_id"],
-            "title": f"New Policy Inquiry Ticket ({ticket['ticketNumber']})",
-            "message": f'Employee {name} raised ticket {ticket["ticketNumber"]} regarding: "{query}".',
-            "type": "POLICY",
+            "recipientUserId": agent["_id"],
+            "title": f"New policy query ticket ({ticket['ticketNumber']})",
+            "message": f'{name} raised ticket {ticket["ticketNumber"]}: "{query}".',
+            "type": "HELPDESK",
             "isRead": False,
             "createdAt": now_iso(),
         })
@@ -337,61 +225,3 @@ async def mark_read(notif_id: str, _: dict = Depends(require_auth)):
     if notif:
         notif["isRead"] = True
     return {"success": True}
-
-
-# --------------------------------------------------------------- insurance
-
-@router.get("/insurance/policy")
-async def insurance_policy(_: dict = Depends(require_auth)):
-    return {"policy": modules_store.get_insurance_policy()}
-
-
-@router.get("/insurance/enrollment")
-async def insurance_enrollment(employeeId: Optional[str] = None, user: dict = Depends(require_auth)):
-    target = employeeId or user.get("employeeId") or "emp_emp_01"
-    return {"enrollment": modules_store.get_insurance_enrollment(target)}
-
-
-@router.post("/insurance/enroll")
-async def insurance_enroll(request: Request, user: dict = Depends(require_auth)):
-    body = await read_body(request)
-    target = body.get("employeeId") or user.get("employeeId") or "emp_emp_01"
-    enrollment = modules_store.update_insurance_enrollment(target, {
-        "sumInsured": body.get("sumInsured"), "dependents": body.get("dependents"), "status": body.get("status"),
-    })
-    return {"success": True, "enrollment": enrollment}
-
-
-@router.get("/insurance/claims")
-async def insurance_claims(status: Optional[str] = None, employeeId: Optional[str] = None, user: dict = Depends(require_auth)):
-    return {"claims": modules_store.get_insurance_claims(user, status=status, employee_id=employeeId)}
-
-
-@router.post("/insurance/claims")
-async def submit_insurance_claim(request: Request, user: dict = Depends(require_auth)):
-    body = await read_body(request)
-    if not truthy(body.get("patientName")) or not truthy(body.get("hospitalName")) or not truthy(body.get("amountRequested")):
-        raise ApiError(400, "Missing required insurance claim fields.")
-    claim = modules_store.submit_insurance_claim(user.get("employeeId") or "emp_emp_01", {
-        "patientName": body["patientName"],
-        "relation": body.get("relation"),
-        "hospitalName": body["hospitalName"],
-        "admissionDate": body.get("admissionDate") or today_str(),
-        "dischargeDate": body.get("dischargeDate"),
-        "claimType": body.get("claimType") or "REIMBURSEMENT",
-        "amountRequested": num(body["amountRequested"]),
-        "diagnosis": body.get("diagnosis") or "General Medical Treatment",
-        "documents": body.get("documents") or [],
-    })
-    return JSONResponse({"success": True, "claim": claim}, status_code=201)
-
-
-@router.put("/insurance/claims/{claim_id}/status")
-async def update_insurance_claim(claim_id: str, request: Request, user: dict = Depends(require_auth)):
-    if user.get("role") != "ADMIN":
-        raise ApiError(403, "Unauthorized to review insurance claims.")
-    body = await read_body(request)
-    updated = modules_store.update_insurance_claim_status(claim_id, body.get("status"), body.get("tpaRemarks"), body.get("amountApproved"))
-    if not updated:
-        raise ApiError(404, "Insurance claim not found.")
-    return {"success": True, "claim": updated}

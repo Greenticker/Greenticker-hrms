@@ -2,7 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, BellRing, CalendarRange, Edit2, Layers, ListChecks, MessageCircleQuestion, Plus, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { BulkUpload, RemindersPanel } from './PmsTools';
 import { pmsService, CompetencyInput, CycleInput, KpiInput, TemplateInput } from '../../services/pmsService';
-import { Competency, KpiLibraryItem, PmsCycle, PmsTemplate, Question360 } from '../../types/pms';
+import { Competency, CycleEligibility, KpiLibraryItem, PmsCycle, PmsTemplate, Question360 } from '../../types/pms';
+import { employeeService } from '../../services/employeeService';
+
+const EMPLOYMENT_TYPES: [string, string][] = [
+  ['FULL_TIME', 'Full time'],
+  ['PART_TIME', 'Part time'],
+  ['CONTRACT', 'Contract'],
+  ['INTERN', 'Intern'],
+];
+const DEFAULT_ELIGIBILITY: CycleEligibility = {
+  joinedOnOrBefore: null,
+  employmentTypes: ['FULL_TIME', 'PART_TIME'],
+  departments: [],
+  excludeProbation: false,
+  excludeNotice: true,
+};
 import { ReasonDialog } from './GoalSheetView';
 
 const GRADE_OPTIONS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'];
@@ -58,9 +73,27 @@ const CycleForm: React.FC<{ cycle?: PmsCycle; onClose: () => void; onSaved: () =
   const nextYear = new Date().getMonth() >= 3 ? new Date().getFullYear() + 1 : new Date().getFullYear();
   const [form, setForm] = useState<CycleInput>(
     cycle
-      ? { name: cycle.name, year: cycle.year, startDate: cycle.startDate, endDate: cycle.endDate, phases: cycle.phases }
-      : { name: '', year: nextYear, startDate: `${nextYear}-04-01`, endDate: `${nextYear + 1}-03-31`, phases: [] }
+      ? { name: cycle.name, year: cycle.year, startDate: cycle.startDate, endDate: cycle.endDate, phases: cycle.phases, eligibility: cycle.eligibility || DEFAULT_ELIGIBILITY }
+      : {
+          name: '',
+          year: nextYear,
+          startDate: `${nextYear}-04-01`,
+          endDate: `${nextYear + 1}-03-31`,
+          phases: [],
+          // Default cut-off: joined at least three months before the cycle ends
+          eligibility: { ...DEFAULT_ELIGIBILITY, joinedOnOrBefore: `${nextYear}-12-31` },
+        }
   );
+  const [deptNames, setDeptNames] = useState<string[]>([]);
+  useEffect(() => {
+    employeeService
+      .getDepartments()
+      .then((r) => setDeptNames(r.departments.map((d) => d.name)))
+      .catch(() => setDeptNames([]));
+  }, []);
+  const elig = form.eligibility || DEFAULT_ELIGIBILITY;
+  const setElig = (patch: Partial<CycleEligibility>) => setForm((f) => ({ ...f, eligibility: { ...(f.eligibility || DEFAULT_ELIGIBILITY), ...patch } }));
+  const toggle = (list: string[], value: string) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -112,6 +145,57 @@ const CycleForm: React.FC<{ cycle?: PmsCycle; onClose: () => void; onSaved: () =
             <input id="cy-end" type="date" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} className={inputCls} />
           </div>
         </div>
+
+        <fieldset className="border border-slate-200 rounded-xl p-4 space-y-3">
+          <legend className={`${labelCls} px-1`}>Eligibility: who gets the appraisal form</legend>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="cy-joined" className={labelCls}>Joined on or before</label>
+              <input
+                id="cy-joined"
+                type="date"
+                value={elig.joinedOnOrBefore || ''}
+                onChange={(e) => setElig({ joinedOnOrBefore: e.target.value || null })}
+                className={inputCls}
+              />
+              <p className="text-[11px] text-slate-400 mt-1">Leave empty to include everyone regardless of joining date.</p>
+            </div>
+            <div>
+              <p className={labelCls}>Employment types *</p>
+              <div className="flex flex-wrap gap-3 mt-1.5 text-xs">
+                {EMPLOYMENT_TYPES.map(([value, label]) => (
+                  <label key={value} className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={elig.employmentTypes.includes(value)} onChange={() => setElig({ employmentTypes: toggle(elig.employmentTypes, value) })} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={elig.excludeNotice} onChange={(e) => setElig({ excludeNotice: e.target.checked })} />
+              Exclude employees serving notice
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={elig.excludeProbation} onChange={(e) => setElig({ excludeProbation: e.target.checked })} />
+              Exclude employees on probation
+            </label>
+          </div>
+          {deptNames.length > 0 && (
+            <div>
+              <p className={labelCls}>Departments (none ticked = all departments)</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-1.5 text-xs">
+                {deptNames.map((d) => (
+                  <label key={d} className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={elig.departments.includes(d)} onChange={() => setElig({ departments: toggle(elig.departments, d) })} />
+                    {d}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </fieldset>
 
         <div>
           <p className={labelCls}>Phase dates and deadlines</p>
@@ -200,6 +284,7 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
   const [form, setForm] = useState<{ cycle?: PmsCycle } | null>(null);
   const [windowFor, setWindowFor] = useState<PmsCycle | null>(null);
   const [closing, setClosing] = useState<PmsCycle | null>(null);
+  const [reopeningCycle, setReopeningCycle] = useState<PmsCycle | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => pmsService.getCycles().then((r) => setCycles(r.cycles));
@@ -240,6 +325,7 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {fmtDate(c.startDate)} – {fmtDate(c.endDate)}
+                  {c.eligibleCount != null && <> · <strong className="text-slate-700">{c.eligibleCount}</strong> eligible employees</>}
                   {c.status === 'ACTIVE' && current && <> · Current phase: <strong className="text-slate-700">{current.label}</strong> (due {fmtDate(current.end)})</>}
                 </p>
               </div>
@@ -247,6 +333,11 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                 {c.status !== 'CLOSED' && (
                   <button type="button" onClick={() => setForm({ cycle: c })} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                     <Edit2 className="w-3.5 h-3.5" /> Edit dates
+                  </button>
+                )}
+                {c.status === 'CLOSED' && (
+                  <button type="button" onClick={() => setReopeningCycle(c)} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 cursor-pointer">
+                    Re-open cycle
                   </button>
                 )}
                 {c.status === 'DRAFT' && (
@@ -320,6 +411,20 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
       })}
       {form && <CycleForm cycle={form.cycle} onClose={() => setForm(null)} onSaved={() => { setForm(null); refresh(); }} />}
       {windowFor && <RevisionWindowForm cycle={windowFor} onClose={() => setWindowFor(null)} onSaved={() => { setWindowFor(null); refresh(); }} />}
+      {reopeningCycle && (
+        <ReasonDialog
+          title={`Re-open ${reopeningCycle.name}`}
+          label="Reason for re-opening the cycle (recorded in the audit log)"
+          confirmLabel="Re-open cycle"
+          required
+          onCancel={() => setReopeningCycle(null)}
+          onConfirm={async (r) => {
+            await pmsService.reopenCycle(reopeningCycle._id, r);
+            setReopeningCycle(null);
+            refresh();
+          }}
+        />
+      )}
       {closing && (
         <ReasonDialog
           title={`Close ${closing.name}`}

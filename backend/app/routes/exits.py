@@ -11,6 +11,7 @@ One record per separation (modules_store.fullFinalSettlements) feeds both the Ex
 Management and the F&F Settlement pages.
 """
 
+import os
 from datetime import date
 from typing import Optional
 
@@ -25,12 +26,18 @@ from app.services.mailer import _shell, esc, send_mail
 from app.stores.db_store import db_store
 from app.stores.modules_store import modules_store
 from app.utils.jsutil import js_str, now_iso, now_ms, num, rand_base36, today_str
+from app.utils.salary_structure import compute_salary_structure
 
 router = APIRouter()
 
 # Official role matrix, Exit Management module (app/auth/module_access.py)
 EXIT_VIEW_ROLES = read_roles("exit_mgmt")
 EXIT_MANAGE_ROLES = write_roles("exit_mgmt")
+# Settlement amounts and payout are payroll work (Payroll module: read & write)
+SETTLEMENT_ROLES = write_roles("payroll")
+FNF_MAKER = ("HR",)          # HR prepares the F&F figures
+FNF_CHECKER = ("FINANCE",)   # Finance approves and pays (a different person)
+SYSTEM_ACTOR = {"_id": "system", "email": "system", "role": "SYSTEM", "firstName": "System"}
 SEPARATION_TYPES = ("RESIGNATION", "TERMINATION", "RETIREMENT", "MUTUAL_SEPARATION", "END_OF_CONTRACT")
 CLEARANCE_KEYS = ("department", "itAssets", "finance", "admin")
 CLEARANCE_LABELS = {"department": "Department", "itAssets": "IT assets", "finance": "Finance", "admin": "Admin"}
@@ -124,7 +131,129 @@ def _permissions(sep: dict, user: dict) -> dict:
     open_ = sep.get("status") not in APPROVED
     keys = list(CLEARANCE_KEYS) if role in EXIT_MANAGE_ROLES else []
     all_cleared = all((sep.get("clearances") or {}).get(k, {}).get("cleared") for k in CLEARANCE_KEYS)
-    return {"canClear": keys if open_ else [], "canApprove": open_ and role in EXIT_MANAGE_ROLES and all_cleared}
+    settling = sep.get("status") == "HR_APPROVED"
+    from app.routes.assets import pending_assets
+    return {
+        "canClear": keys if open_ else [],
+        "canApprove": open_ and role in EXIT_MANAGE_ROLES and all_cleared,
+        "canSettle": settling and role in FNF_MAKER,
+        "canDisburse": settling and role in FNF_CHECKER and (sep.get("fnf") or {}).get("status") == "SETTLEMENT_PREPARED"
+                       and (sep.get("fnf") or {}).get("preparedByUserId") != user.get("_id"),
+        "pendingAssets": pending_assets(sep.get("employeeId") or ""),
+    }
+
+
+# ------------------------------------------------------------- F&F figures
+
+def _days_in_month(d: date) -> int:
+    nxt = date(d.year + (d.month == 12), d.month % 12 + 1, 1)
+    return (nxt - date(d.year, d.month, 1)).days
+
+
+def suggest_settlement(sep: dict) -> dict:
+    """Suggested F&F figures from salary, leave balance and service, with how each was worked out.
+    They are a starting point; Finance can change every figure before saving."""
+    emp = db_store.employees.get(sep.get("employeeId") or "") or {}
+    ctc = num(emp.get("annualSalary")) or 0
+    lwd = date.fromisoformat(sep["lastWorkingDay"])
+    if ctc <= 0:
+        return {"components": None, "basis": ["No annual salary on the employee record, so figures can't be suggested."]}
+    s = compute_salary_structure(ctc)
+    gross_m = float(s["totalGross"]["monthly"])
+    basic_m = float(next(w["monthly"] for w in s["wages"] if w["key"] == "basic"))
+    dim = _days_in_month(lwd)
+
+    unpaid = gross_m / dim * lwd.day
+    el = modules_store.get_leave_balance(emp["_id"]).get("earned", {}) if emp else {}
+    el_days = max(0, int(num(el.get("remaining")) or 0))
+    encash = el_days * basic_m / 26
+
+    basis = [
+        f"Unpaid salary: monthly gross ₹{gross_m:,.0f} ÷ {dim} days × {lwd.day} days worked in {lwd.strftime('%B %Y')}.",
+        f"Leave encashment: {el_days} earned-leave days × monthly basic ₹{basic_m:,.0f} ÷ 26.",
+    ]
+    gratuity = 0.0
+    try:
+        joined = date.fromisoformat(js_str(emp.get("joiningDate") or "")[:10])
+        service_days = (lwd - joined).days
+        years = service_days / 365.25
+        completed = int(years) + (1 if years - int(years) >= 0.5 else 0)
+        if service_days >= 4 * 365 + 240:  # 5 years; courts accept 4 years 240 days
+            gratuity = min(15 * basic_m * completed / 26, 2_000_000)
+            basis.append(f"Gratuity: 15 × monthly basic ₹{basic_m:,.0f} × {completed} years ÷ 26 (capped at ₹20,00,000).")
+        else:
+            basis.append(f"Gratuity: not payable — {years:.1f} years of service, under the 5-year minimum.")
+    except ValueError:
+        basis.append("Gratuity: not worked out — no joining date on the employee record.")
+
+    shortfall = max(0, int(sep.get("noticePeriodDays") or 0) - int(sep.get("noticeServedDays") or 0))
+    notice = shortfall * gross_m / 30
+    basis.append(f"Notice shortfall recovery: {shortfall} days × monthly gross ₹{gross_m:,.0f} ÷ 30.")
+
+    # Approved asset recoveries and loan balances are recovered from the F&F
+    recovery = sum((a.get("recovery") or {}).get("amount") or 0 for a in modules_store.assets.values()
+                   if (a.get("recovery") or {}).get("employeeId") == emp.get("_id") and (a.get("recovery") or {}).get("status") == "APPROVED"
+                   and not (a.get("recovery") or {}).get("recoveredInPayroll"))
+    if recovery:
+        basis.append(f"Asset recovery: ₹{recovery:,.0f} approved by Finance for lost / damaged assets.")
+    from app.routes.finance import _loan_view
+    loan_due = sum(max(0, _loan_view(l)["outstanding"]) for l in modules_store.loans.values() if l["employeeId"] == emp.get("_id"))
+    if loan_due:
+        basis.append(f"Loan / advance outstanding: ₹{loan_due:,.0f} recovered in full.")
+    comps = {
+        "unpaidSalary": round(unpaid), "leaveEncashmentDays": el_days, "leaveEncashmentAmount": round(encash),
+        "gratuity": round(gratuity), "bonusOrIncentive": 0, "noticePayShortfallDeduction": round(notice),
+        "assetRecovery": round(recovery), "loanRecovery": round(loan_due), "otherDeductions": 0,
+    }
+    comps["totalPayable"] = _total(comps)
+    return {"components": comps, "basis": basis}
+
+
+def _total(c: dict) -> int:
+    earnings = c["unpaidSalary"] + c["leaveEncashmentAmount"] + c["gratuity"] + c["bonusOrIncentive"]
+    return round(earnings - c["noticePayShortfallDeduction"] - c.get("otherDeductions", 0) - c.get("assetRecovery", 0) - c.get("loanRecovery", 0))
+
+
+def _lifecycle(record: dict, effective: str, previous: str, new: str, reason: str, by: dict, source_id: str) -> None:
+    """Add a separation milestone to the employee's Lifecycle timeline."""
+    event = db_store.create_lifecycle_event({
+        "employeeId": record.get("employeeId"), "employeeName": record.get("employeeName"),
+        "employeeCode": record.get("employeeCode"), "department": record.get("department"),
+        "eventType": "SEPARATION", "effectiveDate": effective, "previousValue": previous, "newValue": new,
+        "reason": reason, "initiatedBy": f"{_name(by) or by.get('email')} ({by.get('role')})",
+        "approvalStatus": "APPROVED", "sourceId": source_id,
+    })
+    event["_id"] = f"lc_sep_{now_ms()}_{rand_base36(6)}"  # several can be written in one request
+
+
+# ------------------------------------------------------ leaver deactivation
+
+def deactivate_due_exits(today: Optional[str] = None) -> list:
+    """After the last working day of an approved exit: employee -> EXITED and their login disabled."""
+    today = today or today_str()
+    done = []
+    for sep in modules_store.fullFinalSettlements.values():
+        if sep.get("status") not in APPROVED or (sep.get("lastWorkingDay") or "9999") >= today:
+            continue
+        emp = db_store.employees.get(sep.get("employeeId") or "")
+        if not emp or emp.get("status") == "EXITED":
+            continue
+        emp["status"] = "EXITED"
+        emp["exitedOn"] = sep["lastWorkingDay"]
+        emp["exitId"] = sep["_id"]
+        user = _user_for_employee(emp["_id"])
+        if user:
+            user["isActive"] = False
+            user["deactivatedOn"] = now_iso()
+        sep["employeeDeactivatedOn"] = now_iso()
+        audit(SYSTEM_ACTOR, "EMPLOYEE_EXITED", "EXIT", "Employee", emp["_id"], {
+            "field": "status", "old": "ACTIVE", "new": "EXITED", "lastWorkingDay": sep["lastWorkingDay"],
+            "loginDisabled": bool(user),
+        })
+        _lifecycle(sep, sep["lastWorkingDay"], "Active", "Exited (login disabled)",
+                   "Last working day completed", SYSTEM_ACTOR, sep["_id"])
+        done.append(emp["_id"])
+    return done
 
 
 def _with_permissions(sep: dict, user: dict) -> dict:
@@ -205,6 +334,8 @@ async def submit_resignation(request: Request, user: dict = Depends(require_auth
     _notify([r.get("userId") for r in recipients], "Resignation submitted",
             f"{resignation['employeeName']} resigned. Proposed last working day: {resignation['proposedLastWorkingDay']}.")
     resignation["notified"] = {"emails": [m["email"] for m in mail], "on": now_iso()}
+    _lifecycle(resignation, resignation["noticeDate"], "Active",
+               f"Resignation submitted (proposed last day {resignation['proposedLastWorkingDay']})", reason, user, rid)
     audit(user, "RESIGNATION_SUBMITTED", "EXIT", "Resignation", rid,
           {"employeeCode": resignation["employeeCode"], "proposedLastWorkingDay": resignation["proposedLastWorkingDay"],
            "notified": len(mail)})
@@ -223,6 +354,7 @@ async def withdraw_resignation(rid: str, user: dict = Depends(require_auth)):
     mgr_user = _user_for_employee(r.get("managerId"))
     _notify([u["_id"] for u in _hr_users()] + [(mgr_user or {}).get("_id")], "Resignation withdrawn",
             f"{r['employeeName']} withdrew their resignation.")
+    _lifecycle(r, today_str(), "Resignation submitted", "Resignation withdrawn", "Withdrawn by the employee", user, rid)
     audit(user, "RESIGNATION_WITHDRAWN", "EXIT", "Resignation", rid, {"employeeCode": r.get("employeeCode")})
     return {"success": True, "resignation": r}
 
@@ -237,6 +369,7 @@ async def list_resignations(_: dict = Depends(require_role(*EXIT_VIEW_ROLES))):
 
 @router.get("/full-final")
 async def full_final(user: dict = Depends(require_role(*EXIT_VIEW_ROLES))):
+    deactivate_due_exits()
     return {
         "settlements": [_with_permissions(s, user) for s in modules_store.get_full_final_settlements()],
         "canInitiate": user.get("role") in EXIT_MANAGE_ROLES,
@@ -309,6 +442,11 @@ async def initiate_exit(request: Request, user: dict = Depends(require_role(*EXI
         "initiatedOn": now_iso(),
     }
     modules_store.fullFinalSettlements[sep_id] = separation
+    # Payroll prorates the last month and stops paying after this date
+    emp["lastWorkingDay"] = separation["lastWorkingDay"]
+    # Group insurance ends on the last working day (insurer deletion list picks it up)
+    from app.routes.benefits import end_coverage
+    end_coverage(emp["_id"], separation["lastWorkingDay"], user)
     if resignation:
         resignation["status"] = "EXIT_INITIATED"
         resignation["exitId"] = sep_id
@@ -316,6 +454,9 @@ async def initiate_exit(request: Request, user: dict = Depends(require_role(*EXI
     emp_user = _user_for_employee(emp["_id"])
     _notify([(emp_user or {}).get("_id")], "Exit process started",
             f"HR has started your exit. Last working day: {separation['lastWorkingDay']}.")
+    _lifecycle(separation, separation["resignationDate"], "Resignation submitted" if resignation else "Active",
+               f"Exit initiated: {separation_type.replace('_', ' ').title()}, last day {separation['lastWorkingDay']}",
+               reason or "Exit initiated by HR", user, sep_id)
     audit(user, "EXIT_INITIATED", "EXIT", "Separation", sep_id, {
         "employeeCode": separation["employeeCode"], "separationType": separation_type,
         "lastWorkingDay": separation["lastWorkingDay"], "resignationId": separation["resignationId"],
@@ -338,6 +479,12 @@ async def set_clearance(sep_id: str, key: str, request: Request, user: dict = De
     remarks = js_str(body.get("remarks") or "").strip()
     if cleared and not remarks:
         raise ApiError(400, "Add a remark, e.g. what was handed over or returned.")
+    if cleared and key == "itAssets":
+        from app.routes.assets import pending_assets
+        pending = pending_assets(sep.get("employeeId") or "")
+        if pending:
+            raise ApiError(400, "Assets still with the employee: " + ", ".join(f"{a['assetTag']} ({a['name']})" for a in pending)
+                           + ". Return them or get a recovery approved by Finance first.", pendingAssets=pending)
     old = dict(sep["clearances"].get(key) or {})
     sep["clearances"][key] = {"cleared": cleared, "remarks": remarks,
                               "clearedBy": (_name(user) or user.get("email")) if cleared else "",
@@ -359,6 +506,9 @@ async def approve_exit(sep_id: str, request: Request, user: dict = Depends(requi
     pending = [CLEARANCE_LABELS[k] for k in CLEARANCE_KEYS if not sep["clearances"].get(k, {}).get("cleared")]
     if pending:
         raise ApiError(400, "Clear these first: " + ", ".join(pending) + ".")
+    from app.routes.assets import pending_assets
+    if pending_assets(sep.get("employeeId") or ""):
+        raise ApiError(400, "The employee still holds company assets; F&F cannot start until they are returned or recovered.")
     comment = js_str((await read_body(request)).get("comment") or "").strip()
     approver = _name(user) or user.get("email")
     now = now_iso()
@@ -381,6 +531,111 @@ async def approve_exit(sep_id: str, request: Request, user: dict = Depends(requi
             f"Exit of {sep['employeeName']} approved. Prepare the Full & Final settlement.")
     _notify([(emp_user or {}).get("_id")], "Exit approved",
             "Your exit has been approved and your Full & Final settlement has started.")
+    _lifecycle(sep, today_str(), "Clearances complete", "Exit approved, F&F initiated", comment or "Final approval", user, sep_id)
     audit(user, "EXIT_APPROVED_FNF_INITIATED", "EXIT", "Separation", sep_id,
           {"field": "status", "old": "FINANCE_CLEARANCE", "new": "HR_APPROVED", "reason": comment, "notified": len(mail)})
+    deactivate_due_exits()  # last working day may already be past
     return {"success": True, "settlement": _with_permissions(sep, user), "emails": mail}
+
+
+# ------------------------------------------------------------- F&F settlement
+
+def _settling(sep_id: str, user: dict) -> dict:
+    sep = modules_store.fullFinalSettlements.get(sep_id)
+    if not sep:
+        raise ApiError(404, "Exit record not found.")
+    if sep.get("status") == "DISBURSED":
+        raise ApiError(409, "This settlement has already been paid.")
+    if sep.get("status") != "HR_APPROVED":
+        raise ApiError(400, "The F&F settlement starts after the exit's final approval.")
+    return sep
+
+
+@router.get("/full-final/{sep_id}/settlement-suggestion")
+async def settlement_suggestion(sep_id: str, user: dict = Depends(require_role(*SETTLEMENT_ROLES, "AUDITORS"))):
+    return suggest_settlement(_settling(sep_id, user))
+
+
+@router.put("/full-final/{sep_id}/settlement")
+async def save_settlement(sep_id: str, request: Request, user: dict = Depends(require_role(*FNF_MAKER))):
+    sep = _settling(sep_id, user)
+    from app.routes.assets import pending_assets
+    if pending_assets(sep.get("employeeId") or ""):
+        raise ApiError(400, "F&F is blocked: the employee still holds company assets. Return them or approve a recovery first.")
+    body = await read_body(request)
+    comps = {}
+    for key in ("unpaidSalary", "leaveEncashmentDays", "leaveEncashmentAmount", "gratuity", "bonusOrIncentive",
+                "noticePayShortfallDeduction", "assetRecovery", "loanRecovery", "otherDeductions"):
+        raw = body.get(key)
+        value = 0 if raw in (None, "") else num(raw)
+        if value is None or value < 0:
+            raise ApiError(400, "Every amount must be a number of 0 or more.")
+        comps[key] = round(value) if key != "leaveEncashmentDays" else int(value)
+    comps["totalPayable"] = _total(comps)
+    note = js_str(body.get("otherDeductionsNote") or "").strip()
+    if comps["otherDeductions"] and not note:
+        raise ApiError(400, "Say what the other deductions are for.")
+    old = dict(sep.get("settlementComponents") or {})
+    sep["settlementComponents"] = {**comps, "otherDeductionsNote": note}
+    sep["fnf"] = {**(sep.get("fnf") or {}), "status": "SETTLEMENT_PREPARED",
+                  "preparedBy": _name(user) or user.get("email"), "preparedByUserId": user["_id"], "preparedOn": now_iso()}
+    # recoveries settled in F&F must not also be deducted in a later payroll
+    from app.utils.workflow import cancel_payroll_inputs
+    for a in modules_store.assets.values():
+        rec = a.get("recovery") or {}
+        if rec.get("employeeId") == sep.get("employeeId") and rec.get("status") == "APPROVED" and comps.get("assetRecovery"):
+            cancel_payroll_inputs(f"asset:{a['_id']}")
+            rec["settledInFnf"] = sep_id
+    audit(user, "FNF_SETTLEMENT_PREPARED", "EXIT", "Separation", sep_id, {
+        "changes": [{"field": k, "old": old.get(k), "new": v} for k, v in comps.items() if old.get(k) != v],
+    })
+    return {"success": True, "settlement": _with_permissions(sep, user)}
+
+
+@router.post("/full-final/{sep_id}/disburse")
+async def disburse_settlement(sep_id: str, request: Request, user: dict = Depends(require_role(*FNF_CHECKER))):
+    sep = _settling(sep_id, user)
+    if (sep.get("fnf") or {}).get("preparedByUserId") == user["_id"]:
+        raise ApiError(403, "Maker-checker: the person who prepared the settlement cannot also pay it.")
+    if (sep.get("fnf") or {}).get("status") != "SETTLEMENT_PREPARED":
+        raise ApiError(400, "Save the settlement figures before marking it as paid.")
+    body = await read_body(request)
+    reference = js_str(body.get("paymentReference") or "").strip()
+    if not reference:
+        raise ApiError(400, "Enter the payment reference (e.g. bank transaction ID).")
+    try:
+        paid_on = date.fromisoformat(js_str(body.get("paidOn") or today_str())).isoformat()
+    except ValueError:
+        raise ApiError(400, "Enter the payment date as a valid date.")
+    payer = _name(user) or user.get("email")
+    sep["status"] = "DISBURSED"
+    sep["fnf"] = {**sep["fnf"], "status": "PAID", "paidOn": paid_on, "paymentReference": reference,
+                  "paidBy": payer, "markedPaidOn": now_iso()}
+
+    emp = db_store.employees.get(sep.get("employeeId") or "") or {}
+    emp_user = _user_for_employee(emp.get("_id"))
+    # The leaver may already have lost their login, so prefer a personal address
+    emp_email = emp.get("personalEmail") or (emp_user or {}).get("email") or emp.get("workEmail")
+    total = sep["settlementComponents"]["totalPayable"]
+    mail = await _email(
+        [{"name": sep["employeeName"], "email": emp_email}],
+        "Your Full & Final settlement has been paid",
+        "Your Full & Final settlement has been processed.",
+        [("Net amount", f"₹{total:,}"), ("Paid on", paid_on), ("Payment reference", reference)],
+    ) if emp_email else []
+    _notify([u["_id"] for u in _hr_users()], "F&F paid", f"F&F of {sep['employeeName']} paid (₹{total:,}).")
+    _lifecycle(sep, paid_on, "F&F initiated", "F&F settled", "Full & Final settlement paid", user, sep_id)
+    audit(user, "FNF_DISBURSED", "EXIT", "Separation", sep_id, {
+        "field": "status", "old": "HR_APPROVED", "new": "DISBURSED", "amount": total, "paymentReference": reference,
+    })
+    deactivate_due_exits()
+    return {"success": True, "settlement": _with_permissions(sep, user), "emails": mail}
+
+
+@router.get("/exits/cron")
+async def exits_cron(request: Request):
+    """Daily Vercel Cron (backend/vercel.json): deactivate employees whose last working day has passed."""
+    secret = os.environ.get("CRON_SECRET") or ""
+    if not secret or request.headers.get("authorization") != f"Bearer {secret}":
+        raise ApiError(401, "Not authorised.")
+    return {"deactivated": deactivate_due_exits()}

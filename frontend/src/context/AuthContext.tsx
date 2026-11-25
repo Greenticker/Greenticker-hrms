@@ -1,12 +1,22 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Role, AuthResponse } from '../types/auth';
 import { request, setAuthToken, getAuthToken } from '../services/api';
+
+export interface MfaChallenge {
+  mfaRequired: true;
+  challengeId: string;
+  message: string;
+  devOtp?: string;
+}
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  sessionMessage: string | null;
+  login: (email: string, password: string) => Promise<User | MfaChallenge>;
+  verifyOtp: (challengeId: string, code: string) => Promise<User>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<User>;
   signup: (firstName: string, lastName: string, email: string, password: string, role?: Role) => Promise<User>;
   switchRole: (targetRole: Role) => Promise<User>;
   logout: () => void;
@@ -20,6 +30,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(getAuthToken());
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null);
+  const idleMinutes = useRef<number>(Number(localStorage.getItem('zenith_idle_minutes')) || 30);
+  const lastActivity = useRef<number>(Date.now());
+  const lastRefresh = useRef<number>(Date.now());
+
+  const accept = (data: AuthResponse & { idleTimeoutMinutes?: number }) => {
+    setAuthToken(data.accessToken);
+    setToken(data.accessToken);
+    setUser(data.user);
+    if (data.idleTimeoutMinutes) {
+      idleMinutes.current = data.idleTimeoutMinutes;
+      localStorage.setItem('zenith_idle_minutes', String(data.idleTimeoutMinutes));
+    }
+    lastActivity.current = Date.now();
+    lastRefresh.current = Date.now();
+    setSessionMessage(null);
+    return data.user;
+  };
+
+  // Idle timeout: the token expires after the configured idle time; while the user is active
+  // the app refreshes it (never beyond the maximum session length enforced by the server).
+  useEffect(() => {
+    if (!user) return;
+    const onActivity = () => { lastActivity.current = Date.now(); };
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }));
+    const endSession = (text: string) => {
+      setAuthToken(null);
+      setToken(null);
+      setUser(null);
+      setSessionMessage(text);
+    };
+    const timer = window.setInterval(async () => {
+      const idleMs = idleMinutes.current * 60_000;
+      const now = Date.now();
+      if (now - lastActivity.current >= idleMs) {
+        endSession('You were signed out after a period of inactivity.');
+        return;
+      }
+      if (now - lastRefresh.current > idleMs / 3 && now - lastActivity.current < idleMs / 3) {
+        lastRefresh.current = now;
+        try {
+          accept(await request<AuthResponse>('/auth/refresh', { method: 'POST' }));
+        } catch {
+          endSession('Your session has ended. Please sign in again.');
+        }
+      }
+    }, 15_000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, onActivity));
+      window.clearInterval(timer);
+    };
+  }, [user?.id]);
 
   const fetchCurrentUser = async () => {
     try {
@@ -43,16 +106,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     fetchCurrentUser();
   }, []);
 
-  const login = async (email: string, password: string): Promise<User> => {
-    const data = await request<AuthResponse>('/auth/login', {
+  const login = async (email: string, password: string): Promise<User | MfaChallenge> => {
+    const data = await request<AuthResponse | MfaChallenge>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    setAuthToken(data.accessToken);
-    setToken(data.accessToken);
-    setUser(data.user);
-    return data.user;
+    if ('mfaRequired' in data) return data;
+    return accept(data);
   };
+
+  const verifyOtp = async (challengeId: string, code: string): Promise<User> =>
+    accept(await request<AuthResponse>('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ challengeId, code }) }));
+
+  const changePassword = async (currentPassword: string, newPassword: string): Promise<User> =>
+    accept(await request<AuthResponse>('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }));
 
   const signup = async (
     firstName: string,
@@ -108,7 +175,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         token,
         isLoading,
+        sessionMessage,
         login,
+        verifyOtp,
+        changePassword,
         signup,
         switchRole,
         logout,
