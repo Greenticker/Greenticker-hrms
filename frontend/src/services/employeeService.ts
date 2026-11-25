@@ -181,7 +181,7 @@ export const employeeService = {
     });
   },
 
-  async getHierarchy(): Promise<{ hierarchy: OrgTreeNode | null }> {
-    return request<{ hierarchy: OrgTreeNode | null }>('/organization/hierarchy');
+  async getHierarchy(): Promise<{ hierarchy: OrgTreeNode | null; unassigned?: OrgTreeNode[] }> {
+    return request<{ hierarchy: OrgTreeNode | null; unassigned?: OrgTreeNode[] }>('/organization/hierarchy');
   },
 };

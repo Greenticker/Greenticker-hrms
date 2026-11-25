@@ -483,7 +483,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             </div>
           </div>
 
-          <div>{operationalQueueCard}</div>
         </div>
       )}
 
@@ -548,7 +547,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             </div>
           </div>
 
-          <div>{operationalQueueCard}</div>
         </div>
       )}
 
@@ -611,7 +609,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             </div>
           </div>
 
-          <div>{operationalQueueCard}</div>
         </div>
       )}
 

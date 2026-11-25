@@ -4,6 +4,7 @@ import { Department, Designation, Grade, Location, OrgTreeNode, Subdepartment } 
 import { canWriteMaster } from '../utils/access';
 import { employeeService } from '../services/employeeService';
 import { request } from '../services/api';
+import { OrgChart } from '../components/organization/OrgChart';
 import {
   Building2,
   GitFork,
@@ -32,6 +33,8 @@ export const OrganizationPage: React.FC = () => {
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [hierarchy, setHierarchy] = useState<OrgTreeNode | null>(null);
+  // People not reachable from the top of the tree (e.g. no reporting manager set yet)
+  const [unassigned, setUnassigned] = useState<OrgTreeNode[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [subTab, setSubTab] = useState<
     'hierarchy' | 'departments' | 'subdepartments' | 'designations' | 'locations' | 'grades' | 'managers'
@@ -57,7 +60,10 @@ export const OrganizationPage: React.FC = () => {
     return list;
   };
 
-  const managersList = useMemo(() => getAllManagers(hierarchy), [hierarchy]);
+  const managersList = useMemo(
+    () => [hierarchy, ...unassigned].flatMap((n) => getAllManagers(n)),
+    [hierarchy, unassigned],
+  );
 
   const handleSendManagerContact = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -257,6 +263,7 @@ export const OrganizationPage: React.FC = () => {
       setDesignations(desigRes.designations);
       setLocations(locRes.locations);
       setHierarchy(hierRes.hierarchy);
+      setUnassigned(hierRes.unassigned || []);
       employeeService
         .getGrades()
         .then((r) => setGrades(r.grades))
@@ -304,146 +311,6 @@ export const OrganizationPage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const renderTree = (node: OrgTreeNode, level: number = 0) => {
-    const isThirdRowOrDeeper = level >= 2;
-
-    return (
-      <div key={node.employeeId} className="flex flex-col items-center w-full">
-        {/* Node Card */}
-        {isThirdRowOrDeeper ? (
-          /* Row 3+ Card: Only Employee Name (all other details removed) */
-          <div className="flex items-center justify-center px-3.5 py-3 rounded-xl border border-slate-200 bg-white shadow-2xs transition-all hover:shadow-md hover:border-[#039583] hover:bg-slate-50/80 w-full min-h-[46px] text-center">
-            <span className="font-semibold text-xs text-slate-900 text-center leading-snug break-words">
-              {node.name}
-            </span>
-          </div>
-        ) : (
-          /* Row 1 & Row 2 Card: Full details without status / 'active' badge */
-          <div
-            className={`flex items-center gap-3 p-3.5 rounded-xl border bg-white shadow-xs transition-all hover:shadow-md hover:border-[#039583] w-full max-w-sm ${
-              level === 0
-                ? 'border-indigo-300 bg-gradient-to-r from-indigo-50/80 to-white shadow-sm ring-2 ring-indigo-500/20'
-                : 'border-slate-200'
-            }`}
-          >
-            <div className="w-9 h-9 rounded-full bg-[#023b77] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs">
-              {node.avatarInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-slate-900 truncate">{node.name}</span>
-                <span className="text-[10px] text-slate-400 font-mono">({node.employeeCode})</span>
-                {level === 0 && (
-                  <span className="text-[9px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded font-mono uppercase tracking-wider">
-                    Root
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-600 truncate mt-0.5">
-                {node.designation} · <strong className="font-medium text-slate-700">{node.department}</strong>
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Children (Flowchart Branches) */}
-        {node.reports && node.reports.length > 0 && (
-          <div className="flex flex-col items-center w-full relative">
-            {/* Vertical stem down from parent */}
-            <div className="w-0.5 h-6 bg-indigo-300" />
-
-            {/* Sub-nodes */}
-            {level === 0 ? (
-              /* Row 2: Direct reports of Root (Aditya, Arjun, Rajesh) */
-              <div className="flex flex-row items-start justify-center gap-8 w-full pt-4 relative">
-                {node.reports.map((child, idx) => {
-                  const isFirst = idx === 0;
-                  const isLast = idx === (node.reports?.length ?? 1) - 1;
-                  const isOnly = (node.reports?.length ?? 0) <= 1;
-
-                  return (
-                    <div
-                      key={child.employeeId}
-                      className={`flex flex-col items-center relative ${
-                        child.reports && child.reports.length > 0
-                          ? 'flex-1 min-w-[340px] max-w-5xl'
-                          : 'w-72 shrink-0'
-                      }`}
-                    >
-                      {/* Flowchart horizontal connector rail */}
-                      {!isOnly && (
-                        <>
-                          {!isFirst && <div className="absolute top-0 left-0 w-1/2 h-0.5 bg-indigo-300" />}
-                          {!isLast && <div className="absolute top-0 right-0 w-1/2 h-0.5 bg-indigo-300" />}
-                          <div className="w-2 h-2 rounded-full bg-indigo-400 absolute top-0 -mt-[3px] left-1/2 -ml-1 z-10" />
-                        </>
-                      )}
-                      {/* Flowchart vertical stem into child card */}
-                      <div className="w-0.5 h-5 bg-indigo-300" />
-                      {renderTree(child, level + 1)}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              /* Row 3+: Direct reports of Row 2 managers - Flowchart branched columns with connecting lines */
-              (() => {
-                const reports = node.reports || [];
-                const numCols = reports.length > 8 ? 4 : reports.length > 4 ? 3 : reports.length > 1 ? 2 : 1;
-                const columns: OrgTreeNode[][] = Array.from({ length: numCols }, () => []);
-                reports.forEach((child, i) => {
-                  columns[i % numCols].push(child);
-                });
-
-                return (
-                  <div className="flex flex-row items-start justify-center gap-4 w-full pt-4 relative max-w-5xl">
-                    {columns.map((col, colIdx) => {
-                      const isFirst = colIdx === 0;
-                      const isLast = colIdx === columns.length - 1;
-                      const isOnly = columns.length <= 1;
-
-                      return (
-                        <div
-                          key={colIdx}
-                          className="flex flex-col items-center relative flex-1 min-w-[170px] max-w-[240px]"
-                        >
-                          {/* Flowchart horizontal distribution rail */}
-                          {!isOnly && (
-                            <>
-                              {!isFirst && <div className="absolute top-0 left-0 w-1/2 h-0.5 bg-indigo-300" />}
-                              {!isLast && <div className="absolute top-0 right-0 w-1/2 h-0.5 bg-indigo-300" />}
-                              <div className="w-2 h-2 rounded-full bg-indigo-400 absolute top-0 -mt-[3px] left-1/2 -ml-1 z-10" />
-                            </>
-                          )}
-                          {/* Flowchart vertical stem down into column */}
-                          <div className="w-0.5 h-4 bg-indigo-300" />
-
-                          {/* Stacked employee name cards in this branch, connected by vertical flowchart lines */}
-                          <div className="flex flex-col items-center w-full">
-                            {col.map((emp, empIdx) => (
-                              <React.Fragment key={emp.employeeId}>
-                                {empIdx > 0 && <div className="w-0.5 h-3 bg-indigo-300 shrink-0" />}
-                                <div className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-slate-200 bg-white shadow-2xs transition-all hover:shadow-md hover:border-[#039583] hover:bg-slate-50 w-full min-h-[44px] text-center">
-                                  <span className="font-semibold text-xs text-slate-900 text-center leading-snug break-words">
-                                    {emp.name}
-                                  </span>
-                                </div>
-                              </React.Fragment>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()
-            )}
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -590,10 +457,8 @@ export const OrganizationPage: React.FC = () => {
 
           {loading ? (
             <p className="text-xs text-slate-500 py-8 text-center">Loading hierarchy structure...</p>
-          ) : hierarchy ? (
-            <div className="py-4 space-y-3 w-full overflow-x-auto">
-              <div className="min-w-[1020px] mx-auto pb-4">{renderTree(hierarchy)}</div>
-            </div>
+          ) : hierarchy || unassigned.length > 0 ? (
+            <OrgChart root={hierarchy} unassigned={unassigned} />
           ) : (
             <p className="text-xs text-slate-500 py-8 text-center">No hierarchy nodes found</p>
           )}

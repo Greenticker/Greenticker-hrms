@@ -305,27 +305,53 @@ async def create_grade(request: Request, user: dict = Depends(require_org_write)
 @router.get("/organization/hierarchy")
 async def hierarchy(_: dict = Depends(require_auth)):
     employees = list(db_store.employees.values())
-    ceo = next(
-        (e for e in employees if not e.get("reportingManagerId") or "Chief Executive" in (e.get("designation") or "")),
-        None,
+    ids = {e["_id"] for e in employees}
+
+    def has_manager(e: dict) -> bool:
+        mgr = e.get("reportingManagerId")
+        return bool(mgr) and mgr in ids and mgr != e["_id"]
+
+    # Top of the tree: the Chief Executive, else the first person without a valid manager.
+    ceo = next((e for e in employees if "Chief Executive" in (e.get("designation") or "")), None) or next(
+        (e for e in employees if not has_manager(e)), None
     )
+
+    placed: set = set()
 
     def build(emp: dict, seen: frozenset) -> dict:
         seen = seen | {emp["_id"]}
+        placed.add(emp["_id"])
         reports = [e for e in employees if e.get("reportingManagerId") == emp["_id"] and e["_id"] not in seen]
-        first, last = emp.get("firstName") or "", emp.get("lastName") or ""
+        first, last = (emp.get("firstName") or "").strip(), (emp.get("lastName") or "").strip()
         return {
             "employeeId": emp["_id"],
             "employeeCode": emp.get("employeeCode"),
-            "name": f"{emp.get('firstName')} {emp.get('lastName')}",
+            "name": f"{first} {last}".strip(),
             "designation": emp.get("designation"),
             "department": emp.get("department"),
             "status": emp.get("status"),
-            "avatarInitials": f"{first[:1] or 'undefined'}{last[:1] or 'undefined'}",
+            "avatarInitials": (first[:1] + last[:1]).upper() or "?",
             "reports": [build(r, seen) for r in reports],
         }
 
-    return {"hierarchy": build(ceo, frozenset()) if ceo else None}
+    tree = build(ceo, frozenset()) if ceo else None
+
+    # Everyone not reachable from the top (no manager set, manager record missing, or a
+    # reporting loop) is returned separately so the chart can still show them.
+    unassigned = []
+    for e in employees:
+        if e["_id"] in placed:
+            continue
+        if has_manager(e) and e["reportingManagerId"] not in placed:
+            # Will be picked up under their own (also unplaced) manager below, unless in a loop.
+            continue
+        unassigned.append(build(e, frozenset()))
+    # Anything still missing is part of a reporting loop.
+    for e in employees:
+        if e["_id"] not in placed:
+            unassigned.append(build(e, frozenset()))
+
+    return {"hierarchy": tree, "unassigned": unassigned}
 
 
 # ------------------------------------------------------- organisation profile
