@@ -49,10 +49,83 @@ interface OperationalQueueItem {
   tab: string;
 }
 
+interface DashboardShortcut {
+  label: string;
+  title: string;
+  description: string;
+  tab: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const DASHBOARD_SHORTCUTS: Partial<Record<Role, DashboardShortcut[]>> = {
+  SUPER_ADMIN: [
+    { label: 'WORKFORCE', title: 'Organization & People', description: 'Review teams and organization structure.', tab: 'organization', icon: Users },
+    { label: 'INSIGHTS', title: 'Workforce Analytics', description: 'Explore company-wide workforce reports.', tab: 'analytics', icon: TrendingUp },
+    { label: 'SECURITY', title: 'Audit Logs', description: 'Review recent system activity.', tab: 'audit_logs', icon: ShieldCheck },
+    { label: 'HIRING', title: 'Onboarding Queue', description: 'Track new hire progress and submissions.', tab: 'onboarding', icon: FileText },
+  ],
+  ADMIN: [
+    { label: 'WORKFORCE', title: 'Organization & People', description: 'Review teams and organization structure.', tab: 'organization', icon: Users },
+    { label: 'INSIGHTS', title: 'Workforce Analytics', description: 'Explore company-wide workforce reports.', tab: 'analytics', icon: TrendingUp },
+    { label: 'SECURITY', title: 'Audit Logs', description: 'Review recent system activity.', tab: 'audit_logs', icon: ShieldCheck },
+    { label: 'HIRING', title: 'Onboarding Queue', description: 'Track new hire progress and submissions.', tab: 'onboarding', icon: FileText },
+  ],
+  ADMIN_1: [
+    { label: 'STRUCTURE', title: 'Organization', description: 'Review departments and reporting structure.', tab: 'organization', icon: Users },
+    { label: 'GOVERNANCE', title: 'Audit Logs', description: 'Inspect organization activity records.', tab: 'audit_logs', icon: ShieldCheck },
+    { label: 'INSIGHTS', title: 'Workforce Analytics', description: 'View workforce trends and reports.', tab: 'analytics', icon: TrendingUp },
+    { label: 'PAYROLL SUPPORT', title: 'Salary Arrears', description: 'Review salary arrears workflows.', tab: 'salary_arrears', icon: DollarSign },
+  ],
+  ADMIN_2: [
+    { label: 'COMMUNICATION', title: 'Announcements', description: 'View company updates and notices.', tab: 'announcements', icon: FileText },
+    { label: 'POLICIES', title: 'Company Policies', description: 'Review current workplace policies.', tab: 'policies', icon: ShieldCheck },
+    { label: 'PEOPLE', title: 'Onboarding Queue', description: 'Track new hire progress and submissions.', tab: 'onboarding', icon: Users },
+    { label: 'COMPLIANCE', title: 'Audit Logs', description: 'Review recorded system activity.', tab: 'audit_logs', icon: Lock },
+  ],
+  MANAGER: [
+    { label: 'REPORTS', title: 'Team Statements', description: 'View reports available to your role.', tab: 'reports', icon: TrendingUp },
+    { label: 'POLICIES', title: 'Company Policies', description: 'Review current workplace policies.', tab: 'policies', icon: ShieldCheck },
+    { label: 'SUPPORT', title: 'Help Desk', description: 'Track your workplace requests.', tab: 'hr_requests', icon: AlertTriangle },
+    { label: 'TIME OFF', title: 'Public Holidays', description: 'See upcoming company holidays.', tab: 'holidays', icon: CalendarCheck },
+  ],
+  ACCOUNTS: [
+    { label: 'LEDGER', title: 'Finance & Accounting', description: 'Open accounting and ledger workflows.', tab: 'finance', icon: Landmark },
+    { label: 'PAYROLL', title: 'Payroll Summary', description: 'Review payroll information in your scope.', tab: 'payroll', icon: DollarSign },
+    { label: 'INSIGHTS', title: 'Reports', description: 'Review reports available to your role.', tab: 'reports', icon: TrendingUp },
+    { label: 'AUDIT', title: 'Audit Logs', description: 'Inspect recorded financial activity.', tab: 'audit_logs', icon: ShieldCheck },
+  ],
+  AUDITORS: [
+    { label: 'STRUCTURE', title: 'Organization', description: 'Review departments and reporting structure.', tab: 'organization', icon: Users },
+    { label: 'REPORTS', title: 'Compliance Reports', description: 'Review available compliance reporting.', tab: 'reports', icon: FileText },
+    { label: 'FINANCE', title: 'Finance & Accounting', description: 'Inspect financial records in read-only scope.', tab: 'finance', icon: Landmark },
+    { label: 'EXITS', title: 'Exit Management', description: 'Review exit records in read-only scope.', tab: 'exit_management', icon: Lock },
+  ],
+  EMPLOYEE: [
+    { label: 'PAY', title: 'My Payslips', description: 'Open your payroll documents.', tab: 'payroll', icon: DollarSign },
+    { label: 'SUPPORT', title: 'Help Desk', description: 'Get help with a workplace request.', tab: 'hr_requests', icon: AlertTriangle },
+    { label: 'DOCUMENTS', title: 'My Documents', description: 'Open your personal document records.', tab: 'documents', icon: FileText },
+    { label: 'EXIT', title: 'My Resignation', description: 'Review or submit a resignation request.', tab: 'resignation', icon: Lock },
+  ],
+};
+
+const ROLE_LABELS: Record<Role, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Administrator',
+  ADMIN_1: 'Admin 1',
+  ADMIN_2: 'Admin 2',
+  HR: 'Human Resources',
+  MANAGER: 'Manager',
+  FINANCE: 'Finance',
+  ACCOUNTS: 'Accounts',
+  AUDITORS: 'Auditor',
+  EMPLOYEE: 'Employee',
+};
+
 export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) => {
   const { user } = useAuth();
 
   const role: Role = user?.role || 'EMPLOYEE';
+  const dashboardShortcuts = DASHBOARD_SHORTCUTS[role] ?? [];
 
   // Real-time Employee Attendance state with dynamic overtime computation!
   const [isCheckedIn, setIsCheckedIn] = useState(true);
@@ -406,7 +479,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
           <h1 className="text-xl font-bold text-slate-900">
             Welcome back, {user?.firstName} {user?.lastName}
           </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Your {ROLE_LABELS[role]} workspace, with the information and tools available to your role.
+          </p>
         </div>
+        <span className="inline-flex w-fit items-center rounded-full border border-[#039583]/20 bg-[#039583]/5 px-3 py-1 text-xs font-semibold text-[#087f75]">
+          {ROLE_LABELS[role]}
+        </span>
       </div>
 
       {/* ============================================================ */}
@@ -1595,6 +1674,39 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             </div>
           </div>
         </div>
+      )}
+
+      {dashboardShortcuts.length > 0 && (
+        <section className="space-y-3" aria-label="Role-specific quick access">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Quick Access</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Shortcuts selected for your role.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            {dashboardShortcuts.map((shortcut) => {
+              const Icon = shortcut.icon;
+              return (
+                <button
+                  key={shortcut.title}
+                  type="button"
+                  onClick={() => onNavigateTab(shortcut.tab)}
+                  className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-[#039583]/40 hover:shadow-sm cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#039583]/10 text-[#087f75]">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-[9px] font-bold tracking-[0.14em] text-slate-400">{shortcut.label}</span>
+                  </div>
+                  <h3 className="mt-3 text-sm font-bold text-slate-900">{shortcut.title}</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{shortcut.description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
     </div>
   );
