@@ -45,7 +45,7 @@ interface SummaryRow {
 
 const KIND_LABEL: Record<Kind, string> = { REGULARIZATION: 'Regularization (missed punch)', OVERTIME: 'Overtime', COMP_OFF: 'Comp-off' };
 const STATUS_STYLE: Record<string, string> = { PENDING: 'bg-amber-100 text-amber-800', APPROVED: 'bg-emerald-100 text-emerald-800', REJECTED: 'bg-rose-100 text-rose-800' };
-const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25';
 const btn = (tone: string) => `px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer disabled:opacity-50 ${tone}`;
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const ATT_ADMIN = ['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR', 'ADMIN_2'];
@@ -140,13 +140,13 @@ export const AttendanceWorkflow: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2 flex-wrap">
           {tabs.filter(([, , s]) => s).map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${tab === id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
+            <button key={id} onClick={() => setTab(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${tab === id ? 'bg-primary text-white' : 'bg-slate-100 text-slate-600'}`}>
               {label}
             </button>
           ))}
         </div>
         {tab === 'requests' && !readOnly && (
-          <button onClick={() => { setErrors([]); setForm({ kind: 'REGULARIZATION', date: new Date().toISOString().slice(0, 10), checkInTime: '09:00', checkOutTime: '18:00', hours: '', reason: '' }); }} className={btn('bg-[#039583] text-white')}>
+          <button onClick={() => { setErrors([]); setForm({ kind: 'REGULARIZATION', date: new Date().toISOString().slice(0, 10), checkInTime: '09:00', checkOutTime: '18:00', hours: '', reason: '' }); }} className={btn('bg-primary text-white')}>
             Raise request
           </button>
         )}
@@ -186,7 +186,7 @@ export const AttendanceWorkflow: React.FC = () => {
             <ErrorList list={errors} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setForm(null)} className={btn('text-slate-600')}>Cancel</button>
-              <button type="submit" className={btn('bg-slate-900 text-white')}>Submit</button>
+              <button type="submit" className={btn('bg-primary text-white')}>Submit</button>
             </div>
           </form>
         </Dialog>
@@ -245,7 +245,7 @@ const MonthSummary: React.FC<{ canFinalise: boolean; flash: (t: string, ok?: boo
                 flash(err.message, false);
               }
             }}
-            className={btn('bg-[#039583] text-white')}
+            className={btn('bg-primary text-white')}
           >
             Finalise for payroll
           </button>
@@ -303,7 +303,7 @@ const HrTools: React.FC<{ role: string; flash: (t: string, ok?: boolean) => void
         {canEdit && (
           <div className="flex gap-2">
             <input type="month" value={lockMonth} onChange={(e) => setLockMonth(e.target.value)} aria-label="Month to lock" className="rounded-lg border border-slate-300 px-2 py-1" />
-            <button onClick={() => call('/attendance/lock', { month: lockMonth }, `${lockMonth} locked.`)} className={btn('bg-slate-900 text-white flex items-center gap-1')}><Lock className="w-3 h-3" /> Lock</button>
+            <button onClick={() => call('/attendance/lock', { month: lockMonth }, `${lockMonth} locked.`)} className={btn('bg-primary text-white flex items-center gap-1')}><Lock className="w-3 h-3" /> Lock</button>
           </div>
         )}
         {locks.map((l) => (
@@ -338,7 +338,7 @@ const HrTools: React.FC<{ role: string; flash: (t: string, ok?: boolean) => void
                 flash(err.message, false);
               }
             }}
-            className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white"
+            className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-primary file:text-white"
           />
           {uploadResult && (
             <div>
@@ -366,7 +366,7 @@ const HrTools: React.FC<{ role: string; flash: (t: string, ok?: boolean) => void
                 flash(err.message, false);
               }
             }}
-            className={btn('bg-slate-900 text-white')}
+            className={btn('bg-primary text-white')}
           >
             Add device
           </button>
@@ -396,7 +396,7 @@ const HrTools: React.FC<{ role: string; flash: (t: string, ok?: boolean) => void
             </select>
           </label>
           {canEdit && (
-            <button onClick={async () => { try { await request('/attendance/settings', { method: 'PUT', body: JSON.stringify(settings) }); flash('Policy saved.'); } catch (err: any) { flash(err.message, false); } }} className={btn('bg-slate-900 text-white')}>
+            <button onClick={async () => { try { await request('/attendance/settings', { method: 'PUT', body: JSON.stringify(settings) }); flash('Policy saved.'); } catch (err: any) { flash(err.message, false); } }} className={btn('bg-primary text-white')}>
               Save policy
             </button>
           )}

@@ -244,7 +244,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onToggle, 
                 <div
                   className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
                     m.sender === 'user'
-                      ? 'bg-slate-900 text-white rounded-br-none'
+                      ? 'bg-primary text-white rounded-br-none'
                       : m.ticketCreated
                       ? 'bg-emerald-50 text-emerald-950 border border-emerald-300 rounded-bl-none shadow-xs'
                       : m.noPolicyFound
@@ -340,7 +340,7 @@ export const ChatbotDrawer: React.FC<ChatbotDrawerProps> = ({ isOpen, onToggle, 
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer"
+              className="p-1.5 bg-primary text-white rounded-lg hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

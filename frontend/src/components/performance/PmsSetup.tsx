@@ -22,9 +22,9 @@ import { ReasonDialog } from './GoalSheetView';
 
 const GRADE_OPTIONS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'];
 
-const inputCls = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-slate-900';
+const inputCls = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary/25';
 const labelCls = 'block text-xs font-semibold text-slate-700';
-const btnPrimary = 'px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer disabled:opacity-50';
+const btnPrimary = 'px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer disabled:opacity-50';
 const btnGhost = 'px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer';
 const fmtDate = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -56,7 +56,7 @@ const SectionHeader: React.FC<{ title: string; hint: string; action?: React.Reac
 );
 
 const AddButton: React.FC<{ label: string; onClick: () => void }> = ({ label, onClick }) => (
-  <button type="button" onClick={onClick} className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#027a6b] text-white rounded-xl text-xs font-bold cursor-pointer self-start sm:self-auto">
+  <button type="button" onClick={onClick} className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold cursor-pointer self-start sm:self-auto">
     <Plus className="w-4 h-4" /> {label}
   </button>
 );
@@ -341,7 +341,7 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                   </button>
                 )}
                 {c.status === 'DRAFT' && (
-                  <button type="button" onClick={() => act(() => pmsService.activateCycle(c._id))} className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer">
+                  <button type="button" onClick={() => act(() => pmsService.activateCycle(c._id))} className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer">
                     Activate
                   </button>
                 )}
@@ -368,7 +368,7 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                   <button
                     type="button"
                     onClick={() => window.confirm('Release 360° reports to employees?') && act(() => pmsService.release360(c._id))}
-                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer"
+                    className="px-3 py-1.5 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer"
                   >
                     Release 360° results
                   </button>
@@ -398,7 +398,7 @@ const CyclesPanel: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                     key={p.key}
                     title={`${fmtDate(p.start)} – ${fmtDate(p.end)}`}
                     className={`px-2 py-1 rounded-lg text-[10px] font-semibold border ${
-                      state === 'now' && c.status === 'ACTIVE' ? 'bg-[#023b77] text-white border-[#023b77]' : state === 'past' ? 'bg-slate-50 text-slate-400 border-slate-100' : 'bg-white text-slate-600 border-slate-200'
+                      state === 'now' && c.status === 'ACTIVE' ? 'bg-primary text-white border-primary' : state === 'past' ? 'bg-slate-50 text-slate-400 border-slate-100' : 'bg-white text-slate-600 border-slate-200'
                     }`}
                   >
                     {p.label} · {fmtDate(p.end).slice(0, 6)}
@@ -483,7 +483,7 @@ const TemplateForm: React.FC<{ template?: PmsTemplate; onClose: () => void; onSa
                 key={g}
                 type="button"
                 onClick={() => toggleGrade(g)}
-                className={`px-3 py-1 rounded-lg text-xs font-bold border cursor-pointer ${form.grades.includes(g) ? 'bg-[#023b77] text-white border-[#023b77]' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                className={`px-3 py-1 rounded-lg text-xs font-bold border cursor-pointer ${form.grades.includes(g) ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
               >
                 {g}
               </button>
@@ -537,12 +537,12 @@ const TemplatesPanel: React.FC = () => {
               <div>
                 <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   {t.name}
-                  {t.isDefault && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#039583]/10 text-[#027a6b]">Default</span>}
+                  {t.isDefault && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-accent/10 text-primary-hover">Default</span>}
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">{t.grades.length ? `Grades ${t.grades.join(', ')}` : 'No grades assigned'}</p>
               </div>
               <div className="flex gap-1">
-                <button type="button" onClick={() => setForm({ template: t })} className="p-1.5 rounded-lg text-slate-400 hover:text-[#023b77] hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${t.name}`}>
+                <button type="button" onClick={() => setForm({ template: t })} className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${t.name}`}>
                   <Edit2 className="w-3.5 h-3.5" />
                 </button>
                 {!t.isDefault && (
@@ -563,13 +563,13 @@ const TemplatesPanel: React.FC = () => {
               </div>
             </div>
             <div className="mt-4 flex h-2.5 rounded-full overflow-hidden bg-slate-100">
-              <div className="bg-[#023b77]" style={{ width: `${t.kpiWeight}%` }} />
-              <div className="bg-[#039583]" style={{ width: `${t.competencyWeight}%` }} />
+              <div className="bg-primary" style={{ width: `${t.kpiWeight}%` }} />
+              <div className="bg-primary" style={{ width: `${t.competencyWeight}%` }} />
               <div className="bg-amber-400" style={{ width: `${t.feedback360Weight}%` }} />
             </div>
             <div className="mt-2 flex gap-4 text-[11px] text-slate-600">
-              <span><span className="inline-block w-2 h-2 rounded-full bg-[#023b77] mr-1" />KPI {t.kpiWeight}%</span>
-              <span><span className="inline-block w-2 h-2 rounded-full bg-[#039583] mr-1" />Competency {t.competencyWeight}%</span>
+              <span><span className="inline-block w-2 h-2 rounded-full bg-primary mr-1" />KPI {t.kpiWeight}%</span>
+              <span><span className="inline-block w-2 h-2 rounded-full bg-primary mr-1" />Competency {t.competencyWeight}%</span>
               <span><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />360° {t.feedback360Weight}%</span>
             </div>
           </div>
@@ -656,7 +656,7 @@ const KpiLibraryPanel: React.FC = () => {
       <SectionHeader title="KPI library" hint="Master list of KRAs and KPIs that managers and employees pick from." action={<AddButton label="Add KPI" onClick={() => setForm({})} />} />
       <div className="flex flex-wrap gap-1.5">
         {['ALL', ...departments].map((d) => (
-          <button key={d} type="button" onClick={() => setDept(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${dept === d ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+          <button key={d} type="button" onClick={() => setDept(d)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${dept === d ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
             {d === 'ALL' ? `All (${items.length})` : d}
           </button>
         ))}
@@ -690,7 +690,7 @@ const KpiLibraryPanel: React.FC = () => {
                 </td>
                 <td className="py-2.5 px-4">
                   <div className="flex gap-1 justify-end">
-                    <button type="button" onClick={() => setForm({ kpi: k })} className="p-1.5 rounded-lg text-slate-400 hover:text-[#023b77] hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${k.kpi}`}>
+                    <button type="button" onClick={() => setForm({ kpi: k })} className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${k.kpi}`}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
@@ -783,7 +783,7 @@ const CompetenciesPanel: React.FC = () => {
               {c.description && <p className="text-xs text-slate-600 mt-1.5">{c.description}</p>}
             </div>
             <div className="flex gap-1 shrink-0">
-              <button type="button" onClick={() => setForm({ item: c })} className="p-1.5 rounded-lg text-slate-400 hover:text-[#023b77] hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${c.name}`}>
+              <button type="button" onClick={() => setForm({ item: c })} className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 cursor-pointer" aria-label={`Edit ${c.name}`}>
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
               <button
@@ -855,7 +855,7 @@ const QuestionsPanel: React.FC = () => {
               </p>
             </div>
             <div className="flex gap-1 shrink-0">
-              <button type="button" onClick={() => setForm({ q, text: q.text, competencyId: q.competencyId })} className="p-1.5 rounded-lg text-slate-400 hover:text-[#023b77] hover:bg-slate-100 cursor-pointer" aria-label="Edit question">
+              <button type="button" onClick={() => setForm({ q, text: q.text, competencyId: q.competencyId })} className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 cursor-pointer" aria-label="Edit question">
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
               <button
@@ -927,7 +927,7 @@ export const PmsSetup: React.FC<{ onChanged: () => void }> = ({ onChanged }) => 
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${tab === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${tab === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
           >
             <Icon className="w-3.5 h-3.5" /> {label}
           </button>

@@ -9,7 +9,7 @@ const NoteItem: React.FC<{ note: FeedbackNote; direction: 'from' | 'to' }> = ({ 
   <li className="p-3 rounded-xl border border-slate-200 bg-white">
     <div className="flex items-center justify-between gap-2">
       <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
-        {note.kind === 'PRAISE' ? <Sparkles className="w-3.5 h-3.5 text-amber-500" /> : <Lightbulb className="w-3.5 h-3.5 text-[#039583]" />}
+        {note.kind === 'PRAISE' ? <Sparkles className="w-3.5 h-3.5 text-amber-500" /> : <Lightbulb className="w-3.5 h-3.5 text-accent" />}
         {direction === 'from' ? `From ${note.fromName}` : `To ${note.toName}`}
       </span>
       <span className="text-[10px] text-slate-400">{fmt(note.createdOn)}</span>
@@ -66,7 +66,7 @@ export const NoteComposer: React.FC<{ onSent?: () => void }> = ({ onSent }) => {
         {chosen ? (
           <div className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-xs">
             <span><strong>{chosen.name}</strong> <span className="text-slate-500">{chosen.department}</span></span>
-            <button type="button" onClick={() => setTo('')} className="text-[11px] text-[#039583] font-semibold cursor-pointer">Change</button>
+            <button type="button" onClick={() => setTo('')} className="text-[11px] text-accent font-semibold cursor-pointer">Change</button>
           </div>
         ) : (
           <>
@@ -90,7 +90,7 @@ export const NoteComposer: React.FC<{ onSent?: () => void }> = ({ onSent }) => {
           ['PRAISE', 'Praise', Sparkles],
           ['SUGGESTION', 'Suggestion', Lightbulb],
         ] as const).map(([k, label, Icon]) => (
-          <button key={k} type="button" onClick={() => setKind(k)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${kind === k ? 'bg-[#023b77] text-white border-[#023b77]' : 'border-slate-200 text-slate-600'}`}>
+          <button key={k} type="button" onClick={() => setKind(k)} className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${kind === k ? 'bg-primary text-white border-primary' : 'border-slate-200 text-slate-600'}`}>
             <Icon className="w-3.5 h-3.5" /> {label}
           </button>
         ))}
@@ -98,7 +98,7 @@ export const NoteComposer: React.FC<{ onSent?: () => void }> = ({ onSent }) => {
       <textarea rows={3} maxLength={500} value={text} onChange={(e) => setText(e.target.value)} aria-label="Note" placeholder="What did they do well, or what could help?" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs" />
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-slate-400">{text.length}/500</span>
-        <button type="submit" disabled={busy || !to || !text.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white cursor-pointer disabled:opacity-40">
+        <button type="submit" disabled={busy || !to || !text.trim()} className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40">
           <Send className="w-3.5 h-3.5" /> Send note
         </button>
       </div>

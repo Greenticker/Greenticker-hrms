@@ -24,13 +24,13 @@ const FeedbackForm: React.FC<{ form: Form; onDone: () => void; onCancel: () => v
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-2xl border border-slate-200 p-5">
-        <button type="button" onClick={onCancel} className="text-[11px] font-semibold text-[#039583] hover:underline cursor-pointer mb-1">
+        <button type="button" onClick={onCancel} className="text-[11px] font-semibold text-accent hover:underline cursor-pointer mb-1">
           ← Back
         </button>
         <h2 className="text-lg font-bold text-slate-900">Feedback for {form.rateeName}</h2>
         <p className="text-xs text-slate-500 mt-1">You are giving feedback as: {GROUP_LABEL[form.group]}</p>
         <p className="mt-3 text-[11px] text-slate-600 bg-slate-50 rounded-lg px-3 py-2 flex items-start gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#039583] shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-accent shrink-0" />
           {form.group === 'MANAGER'
             ? 'Your answers are combined into the report.'
             : 'Your answers are anonymous. Nobody, including HR, can see who gave which answer, and your group is only shown when at least 3 people from it reply.'}{' '}
@@ -51,7 +51,7 @@ const FeedbackForm: React.FC<{ form: Form; onDone: () => void; onCancel: () => v
                 <label
                   key={v}
                   className={`flex flex-col items-center gap-0.5 py-2 rounded-lg border cursor-pointer text-xs transition ${
-                    answers[q._id] === v ? 'bg-[#023b77] border-[#023b77] text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                    answers[q._id] === v ? 'bg-primary border-primary text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <input type="radio" name={q._id} value={v} checked={answers[q._id] === v} onChange={() => setAnswers((a) => ({ ...a, [q._id]: v }))} className="sr-only" />
@@ -89,7 +89,7 @@ const FeedbackForm: React.FC<{ form: Form; onDone: () => void; onCancel: () => v
               setBusy(false);
             }
           }}
-          className="px-5 py-2.5 text-xs font-bold text-white bg-[#039583] hover:bg-[#027a6b] rounded-xl cursor-pointer disabled:opacity-40"
+          className="px-5 py-2.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl cursor-pointer disabled:opacity-40"
         >
           {busy ? 'Submitting...' : 'Submit feedback'}
         </button>
@@ -159,7 +159,7 @@ export const GiveFeedback: React.FC<{ onCountChange: () => void }> = ({ onCountC
                     setError(err?.message || 'Could not open the form.');
                   }
                 }}
-                className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer shrink-0"
+                className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer shrink-0"
               >
                 Give feedback
               </button>

@@ -117,7 +117,7 @@ export const ModuleAccessMatrix: React.FC = () => {
               href="/assets/aistudio/Roles_cd259f7a.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#023b77] hover:text-[#039583] px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+              className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-primary hover:text-accent px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
             >
               <FileText className="w-3.5 h-3.5" />
               View Original PDF
@@ -148,7 +148,7 @@ export const ModuleAccessMatrix: React.FC = () => {
               id="matrix-role-select"
               value={matrixRoleFilter}
               onChange={(e) => setMatrixRoleFilter(e.target.value)}
-              className="bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer shadow-xs"
+              className="bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary/25 cursor-pointer shadow-xs"
             >
               <option value="ALL">All Roles (Full Access Matrix)</option>
               <option value="SUPER_ADMIN">Super Admin Access</option>
@@ -168,7 +168,7 @@ export const ModuleAccessMatrix: React.FC = () => {
               placeholder="Search module or rationale..."
               value={matrixSearch}
               onChange={(e) => setMatrixSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/25"
             />
           </div>
         </div>
@@ -178,15 +178,15 @@ export const ModuleAccessMatrix: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 border-collapse">
-            <thead className="bg-[#023b77] text-white text-[11px] uppercase font-bold tracking-wider border-b border-slate-300">
+            <thead className="bg-primary text-white text-[11px] uppercase font-bold tracking-wider border-b border-slate-300">
               <tr>
                 <th className="py-3.5 px-4 font-bold min-w-[180px]">Modules</th>
-                <th className="py-3.5 px-3 text-center bg-[#012a52]">Super Admin</th>
+                <th className="py-3.5 px-3 text-center bg-navy">Super Admin</th>
                 <th className="py-3.5 px-3 text-center">Admin 1</th>
                 <th className="py-3.5 px-3 text-center">Admin 2</th>
-                <th className="py-3.5 px-3 text-center bg-[#012a52]">Finance</th>
+                <th className="py-3.5 px-3 text-center bg-navy">Finance</th>
                 <th className="py-3.5 px-3 text-center">HR</th>
-                <th className="py-3.5 px-3 text-center bg-[#012a52]">Accounts</th>
+                <th className="py-3.5 px-3 text-center bg-navy">Accounts</th>
                 <th className="py-3.5 px-3 text-center">Auditors</th>
                 <th className="py-3.5 px-4 min-w-[260px]">Rationale / Notes</th>
               </tr>

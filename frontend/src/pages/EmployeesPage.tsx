@@ -506,7 +506,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
   return (
     <div className="space-y-6">
       {/* Header with Title and Role-scoped actions */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             {view === 'directory' ? 'Employee Directory' : view === 'team' ? 'My Team' : 'Employees Management'}
@@ -529,7 +529,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   key={v}
                   onClick={() => setView(v)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
-                    view === v ? 'bg-white text-[#023b77]' : 'text-white hover:bg-white/10'
+                    view === v ? 'bg-white text-primary' : 'text-white hover:bg-white/10'
                   }`}
                 >
                   {v === 'team' ? 'My Team' : 'Company Directory'}
@@ -553,7 +553,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 setFormErrors([]);
                 setIsAddModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs whitespace-nowrap border border-[#039583]"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs whitespace-nowrap border border-accent"
             >
               <Plus className="w-4 h-4" />
               <span>Add New Employee</span>
@@ -704,7 +704,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, ID, email, or role..."
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900 transition-colors"
+            className="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary/25 transition-colors"
           />
         </div>
 
@@ -1042,7 +1042,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     required
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                     placeholder="Liam"
                   />
                 </div>
@@ -1053,7 +1053,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     required
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                     placeholder="Morrison"
                   />
                 </div>
@@ -1067,7 +1067,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     required
                     value={formData.workEmail}
                     onChange={(e) => setFormData({ ...formData, workEmail: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                     placeholder="rohan.verma@vetan.ai"
                   />
                 </div>
@@ -1078,7 +1078,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     required
                     value={formData.personalEmail}
                     onChange={(e) => setFormData({ ...formData, personalEmail: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                     placeholder="rohan.verma@gmail.com"
                   />
                 </div>
@@ -1179,7 +1179,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                         subdepartment: matchingSub ? matchingSub.name : '',
                       });
                     }}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 bg-white"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25 bg-white"
                   >
                     {departments.map((d) => (
                       <option key={d._id} value={d.name}>
@@ -1213,7 +1213,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   <select
                     value={formData.subdepartment}
                     onChange={(e) => setFormData({ ...formData, subdepartment: e.target.value })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900 bg-white"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25 bg-white"
                   >
                     <option value="">None / General</option>
                     {subdepartments
@@ -1375,7 +1375,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     step="1000"
                     value={formData.annualSalary}
                     onChange={(e) => setFormData({ ...formData, annualSalary: Number(e.target.value) })}
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary/25"
                     placeholder="1200000"
                   />
                 </div>
@@ -1392,7 +1392,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                 >
                   {isSubmitting ? 'Submitting...' : 'Submit'}
                 </button>
@@ -1441,7 +1441,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     setImportResult(null);
                     setImportError(null);
                   }}
-                  className="text-xs file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:font-semibold file:cursor-pointer"
+                  className="text-xs file:mr-3 file:px-3 file:py-2 file:rounded-lg file:border-0 file:bg-primary file:text-white file:font-semibold file:cursor-pointer"
                 />
               </div>
 
@@ -1518,7 +1518,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   type="button"
                   disabled={importBusy || !importFile}
                   onClick={() => handleImport(false)}
-                  className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg cursor-pointer"
+                  className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-primary-hover disabled:opacity-50 rounded-lg cursor-pointer"
                 >
                   {importBusy ? 'Working...' : 'Import'}
                 </button>
@@ -1560,7 +1560,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   required
                   value={deptFormData.name}
                   onChange={(e) => setDeptFormData({ ...deptFormData, name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. Quality Assurance"
                 />
               </div>
@@ -1571,7 +1571,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   type="text"
                   value={deptFormData.code}
                   onChange={(e) => setDeptFormData({ ...deptFormData, code: e.target.value.toUpperCase() })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. QA (auto-generated if empty)"
                 />
               </div>
@@ -1587,7 +1587,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 <button
                   type="submit"
                   disabled={isDeptSubmitting}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {isDeptSubmitting ? 'Creating...' : 'Create Department'}
                 </button>
@@ -1629,7 +1629,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   onChange={(e) =>
                     setSubdeptFormData({ ...subdeptFormData, departmentName: e.target.value })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary/25"
                 >
                   {departments.map((d) => (
                     <option key={d._id} value={d.name}>
@@ -1646,7 +1646,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   required
                   value={subdeptFormData.name}
                   onChange={(e) => setSubdeptFormData({ ...subdeptFormData, name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. Frontend Core, Cloud Infra, Talent Acquisition"
                 />
               </div>
@@ -1659,7 +1659,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   onChange={(e) =>
                     setSubdeptFormData({ ...subdeptFormData, code: e.target.value.toUpperCase() })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. ENG-FE (auto-generated if empty)"
                 />
               </div>
@@ -1672,7 +1672,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   onChange={(e) =>
                     setSubdeptFormData({ ...subdeptFormData, description: e.target.value })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="Brief role or functional responsibility"
                 />
               </div>
@@ -1688,7 +1688,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 <button
                   type="submit"
                   disabled={isSubdeptSubmitting}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {isSubdeptSubmitting ? 'Creating...' : 'Create Sub-Department'}
                 </button>
@@ -1731,7 +1731,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   value={desigFormData.title}
                   onChange={(e) => setDesigFormData({ ...desigFormData, title: e.target.value })}
                   placeholder="e.g. Staff AI Researcher"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                 />
               </div>
 
@@ -1743,7 +1743,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     value={desigFormData.code}
                     onChange={(e) => setDesigFormData({ ...desigFormData, code: e.target.value })}
                     placeholder="SAIR"
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary/25"
                   />
                 </div>
                 <div>
@@ -1773,7 +1773,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                 <button
                   type="submit"
                   disabled={isDesigSubmitting}
-                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                  className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {isDesigSubmitting ? 'Creating...' : 'Create Designation'}
                 </button>
@@ -1820,7 +1820,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                     max="24"
                     value={probationMonthsInput}
                     onChange={(e) => setProbationMonthsInput(Number(e.target.value))}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono font-bold focus:outline-none focus:ring-1 focus:ring-primary/25"
                   />
                   <span className="text-xs text-slate-500 shrink-0">Months</span>
                 </div>
@@ -1866,7 +1866,7 @@ export const EmployeesPage: React.FC<EmployeesPageProps> = ({ onSelectEmployee }
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                    className="px-4 py-1.5 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg transition-colors cursor-pointer"
                   >
                     Save Changes
                   </button>

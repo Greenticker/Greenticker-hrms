@@ -101,7 +101,7 @@ export const ReasonDialog: React.FC<{
             required={required}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
           />
         </div>
         {error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}
@@ -113,7 +113,7 @@ export const ReasonDialog: React.FC<{
             type="submit"
             disabled={busy || (required && !text.trim())}
             className={`px-4 py-2 text-xs font-bold text-white rounded-lg cursor-pointer disabled:opacity-50 ${
-              danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-[#023b77] hover:bg-[#012a52]'
+              danger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-primary hover:bg-navy'
             }`}
           >
             {busy ? 'Working...' : confirmLabel}
@@ -226,7 +226,7 @@ const KpiPicker: React.FC<{
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search KRA or KPI..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/25"
             />
           </div>
           <select value={dept} onChange={(e) => setDept(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white">
@@ -242,7 +242,7 @@ const KpiPicker: React.FC<{
               key={k._id}
               type="button"
               onClick={() => onPick(k)}
-              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-[#039583] hover:bg-[#039583]/5 transition cursor-pointer flex items-center justify-between gap-3"
+              className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-accent hover:bg-accent/5 transition cursor-pointer flex items-center justify-between gap-3"
             >
               <div className="min-w-0">
                 <p className="text-xs font-bold text-slate-900">
@@ -349,7 +349,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
 
   const currentStep = STEPS.findIndex((s) => s.status === sheet.status);
   const pct = (v?: number | null) => (v == null ? '—' : `${Math.round(v * 1000) / 10}%`);
-  const inputCls = 'w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#023b77]';
+  const inputCls = 'w-full rounded-md border border-slate-300 px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary';
 
   return (
     <div className="space-y-4">
@@ -358,7 +358,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div>
             {onBack && (
-              <button type="button" onClick={onBack} className="text-[11px] font-semibold text-[#039583] hover:underline cursor-pointer mb-1">
+              <button type="button" onClick={onBack} className="text-[11px] font-semibold text-accent hover:underline cursor-pointer mb-1">
                 ← Back to list
               </button>
             )}
@@ -379,11 +379,11 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
           <div className="flex items-center gap-1.5">
             {STEPS.map((s, i) => (
               <React.Fragment key={s.status}>
-                {i > 0 && <div className={`h-0.5 w-6 ${i <= currentStep ? 'bg-[#039583]' : 'bg-slate-200'}`} />}
+                {i > 0 && <div className={`h-0.5 w-6 ${i <= currentStep ? 'bg-primary' : 'bg-slate-200'}`} />}
                 <div className="flex flex-col items-center gap-1">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                      i < currentStep ? 'bg-[#039583] text-white' : i === currentStep ? 'bg-[#023b77] text-white' : 'bg-slate-100 text-slate-400'
+                      i < currentStep ? 'bg-primary text-white' : i === currentStep ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'
                     }`}
                   >
                     {i < currentStep ? <CheckCircle2 className="w-3.5 h-3.5" /> : s.status === 'LOCKED' ? <Lock className="w-3 h-3" /> : i + 1}
@@ -493,7 +493,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
                   type="button"
                   disabled={edit.length >= rules.maxLines}
                   onClick={() => setPicker(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer disabled:opacity-40"
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer disabled:opacity-40"
                 >
                   <BookOpen className="w-3.5 h-3.5" /> From library
                 </button>
@@ -587,7 +587,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono text-slate-600">{pct(l.achievement)}</td>
                           <td className="py-2.5 px-3 text-center">
-                            {l.score != null ? <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-[#023b77] text-white text-[11px] font-bold">{l.score}</span> : '—'}
+                            {l.score != null ? <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-white text-[11px] font-bold">{l.score}</span> : '—'}
                           </td>
                         </>
                       )}
@@ -613,7 +613,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
               </button>
             )}
             {perms.canSubmit && (
-              <button type="button" disabled={busy || liveErrors.length > 0} onClick={submit} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer disabled:opacity-40">
+              <button type="button" disabled={busy || liveErrors.length > 0} onClick={submit} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer disabled:opacity-40">
                 <Send className="w-3.5 h-3.5" /> Submit for approval
               </button>
             )}
@@ -623,7 +623,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
               </button>
             )}
             {perms.canApprove && (
-              <button type="button" disabled={busy} onClick={() => setDialog('approve')} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer">
+              <button type="button" disabled={busy} onClick={() => setDialog('approve')} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer">
                 <CheckCircle2 className="w-3.5 h-3.5" /> {sheet.status === 'APPROVED' || !sheet.reviewerName ? 'Approve & lock' : 'Approve'}
               </button>
             )}
@@ -638,7 +638,7 @@ export const GoalSheetView: React.FC<Props> = ({ sheet, rules, library, onChange
                   <button type="button" onClick={() => setActualsMode(false)} className="px-3.5 py-2 text-xs font-semibold rounded-lg text-slate-600 bg-slate-100 cursor-pointer">
                     Cancel
                   </button>
-                  <button type="button" disabled={busy} onClick={() => setDialog('actuals')} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer">
+                  <button type="button" disabled={busy} onClick={() => setDialog('actuals')} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer">
                     <Save className="w-3.5 h-3.5" /> Save actuals
                   </button>
                 </>

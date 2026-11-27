@@ -83,7 +83,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
       email: 'hr@vetan.ai',
       pass: 'HR@12345',
       desc: 'Employee Master owner, Onboarding verification, POSH, Performance',
-      color: 'border-teal-300 bg-teal-50/70 hover:border-teal-500',
+      color: 'border-brand-300 bg-brand-50/70 hover:border-brand-500',
     },
     {
       role: 'ACCOUNTS' as Role,
@@ -133,7 +133,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-lg tracking-[0.5em] text-center" />
               </label>
               <div className="flex gap-2">
-                <button type="submit" disabled={loading || code.length !== 6} className="flex-1 rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold disabled:opacity-50">Verify</button>
+                <button type="submit" disabled={loading || code.length !== 6} className="flex-1 rounded-lg bg-primary text-white py-2 text-sm font-semibold disabled:opacity-50">Verify</button>
                 <button type="button" onClick={() => setOtp(null)} className="rounded-lg border border-slate-300 px-3 text-sm">Back</button>
               </div>
             </form>
@@ -150,7 +150,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   placeholder="name@company.com"
                 />
               </div>
@@ -166,7 +166,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   placeholder="••••••••"
                 />
               </div>
@@ -176,7 +176,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 disabled:opacity-50 transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/25 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {loading ? 'Authenticating with JWT...' : 'Sign In to Workspace'}
               </button>
@@ -187,7 +187,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
           <div className="mt-8 pt-6 border-t border-slate-200 space-y-3">
             <div className="flex items-center justify-between">
               <label htmlFor="role-select-dropdown" className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <UserCheck className="w-3.5 h-3.5 text-[#039583]" />
+                <UserCheck className="w-3.5 h-3.5 text-accent" />
                 Select Role to Test
               </label>
               <span className="text-[11px] text-slate-400 font-mono">RBAC Test Suite</span>
@@ -203,7 +203,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
                   setPassword(selected.pass);
                 }
               }}
-              className="w-full bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-slate-900 cursor-pointer shadow-xs"
+              className="w-full bg-slate-50 border border-slate-300 text-slate-900 text-xs font-bold rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/25 cursor-pointer shadow-xs"
             >
               <option value="" disabled>-- Choose a Role from Access Matrix --</option>
               {quickLogins.map((item) => (
@@ -243,7 +243,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
             <div>
               <button
                 onClick={onNavigateToRegisterCompany}
-                className="text-xs text-[#039583] hover:text-[#027d70] font-bold cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                className="text-xs text-accent hover:text-primary-hover font-bold cursor-pointer flex items-center justify-center gap-1 mx-auto"
               >
                 <Building2 className="w-3.5 h-3.5" /> Register a New Company Workspace
               </button>

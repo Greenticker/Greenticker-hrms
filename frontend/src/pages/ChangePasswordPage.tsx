@@ -27,7 +27,7 @@ export const ChangePasswordPage: React.FC = () => {
         <label className="block text-xs font-semibold">New password<input type="password" required className={cls} value={f.next} onChange={(e) => setF({ ...f, next: e.target.value })} /></label>
         <label className="block text-xs font-semibold">Confirm new password<input type="password" required className={cls} value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} /></label>
         <div className="flex gap-2">
-          <button type="submit" className="flex-1 rounded-lg bg-slate-900 text-white py-2 text-sm font-semibold">Change password</button>
+          <button type="submit" className="flex-1 rounded-lg bg-primary text-white py-2 text-sm font-semibold">Change password</button>
           <button type="button" onClick={logout} className="rounded-lg border border-slate-300 px-3 text-sm">Sign out</button>
         </div>
       </form>

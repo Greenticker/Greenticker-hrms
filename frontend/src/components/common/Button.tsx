@@ -6,6 +6,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 
+/**
+ * Design-system button: 8px radius, Poppins 600, 8px icon gap, 150ms transitions.
+ * Heights: sm 32px · md 40px · lg 48px.
+ */
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
@@ -16,20 +20,25 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseClasses =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap cursor-pointer';
+    'inline-flex items-center justify-center gap-2 font-semibold rounded-lg border transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed whitespace-nowrap cursor-pointer';
 
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-xs',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-5 py-2.5 text-base',
+    sm: 'h-8 px-4 text-xs',
+    md: 'h-10 px-4 text-sm',
+    lg: 'h-12 px-5 text-base',
   };
 
   const variantClasses = {
-    primary: 'bg-slate-900 text-white hover:bg-slate-800 focus-visible:outline-slate-900 shadow-sm',
-    secondary: 'bg-slate-100 text-slate-800 hover:bg-slate-200 focus-visible:outline-slate-600',
-    outline: 'border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 focus-visible:outline-slate-500',
-    danger: 'bg-rose-600 text-white hover:bg-rose-700 focus-visible:outline-rose-600 shadow-sm',
-    ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+    primary:
+      'bg-primary border-primary text-white hover:bg-primary-hover hover:border-primary-hover active:bg-primary-active disabled:bg-slate-400 disabled:border-slate-400',
+    secondary:
+      'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 active:bg-slate-100 disabled:text-slate-400 disabled:bg-slate-100',
+    outline:
+      'bg-white border-primary text-primary hover:bg-primary-subtle active:bg-primary-light disabled:text-slate-400 disabled:border-slate-300',
+    danger:
+      'bg-rose-600 border-rose-600 text-white hover:bg-rose-700 hover:border-rose-700 active:bg-rose-800 focus-visible:outline-rose-600 disabled:bg-slate-400 disabled:border-slate-400',
+    ghost:
+      'bg-primary-subtle border-transparent text-primary hover:bg-primary-light active:bg-primary-light disabled:text-slate-400',
   };
 
   return (

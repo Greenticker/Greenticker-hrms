@@ -21,7 +21,7 @@ import { Download, Eye, FileText, Lock, Plus, X } from 'lucide-react';
 const fmt = (n: number | undefined) =>
   (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const thisMonth = () => new Date().toISOString().slice(0, 7);
-const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25';
 const btn = (tone: string) => `px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${tone}`;
 const card = 'bg-white border border-slate-200 rounded-2xl p-5 space-y-4';
 
@@ -168,7 +168,7 @@ const PayslipView: React.FC<{ p: PayslipFull }> = ({ p }) => {
           Employer contributions (not part of net pay): {p.employerContributions.map((c) => `${c.name} ₹${fmt(c.amount)}`).join(', ')}
         </p>
       )}
-      <div className="p-3 rounded-xl bg-slate-900 text-white flex justify-between font-bold">
+      <div className="p-3 rounded-xl bg-primary text-white flex justify-between font-bold">
         <span>Net pay</span><span className="font-mono">₹{fmt(p.netSalary)}</span>
       </div>
     </div>
@@ -229,7 +229,7 @@ export const PayrollPage: React.FC = () => {
             role="tab"
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={btn(tab === t.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')}
+            className={btn(tab === t.id ? 'bg-primary text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')}
           >
             {t.label}
           </button>
@@ -285,7 +285,7 @@ const MyPayslips: React.FC = () => {
                 <td><Badge s={p.status} /></td>
                 <td className="text-right space-x-2">
                   <button className={btn('bg-slate-100 text-slate-700')} onClick={() => setOpen(p)}><Eye className="w-3 h-3 inline" /> View</button>
-                  <button className={btn('bg-slate-900 text-white')} onClick={() => download(p._id)}><Lock className="w-3 h-3 inline" /> PDF</button>
+                  <button className={btn('bg-primary text-white')} onClick={() => download(p._id)}><Lock className="w-3 h-3 inline" /> PDF</button>
                 </td>
               </tr>
             ))}
@@ -408,7 +408,7 @@ const MyDeclaration: React.FC = () => {
         </tbody>
       </table>
       <div className="flex justify-end">
-        <button className={btn('bg-slate-900 text-white')} disabled={!decl.declarationOpen} onClick={save}>Save declaration</button>
+        <button className={btn('bg-primary text-white')} disabled={!decl.declarationOpen} onClick={save}>Save declaration</button>
       </div>
       {proof && (
         <Modal title={`Upload proof — ${proof.section}`} onClose={() => setProof(null)}>
@@ -416,7 +416,7 @@ const MyDeclaration: React.FC = () => {
           <input type="number" className={inputCls} value={proof.amount} onChange={(e) => setProof({ ...proof, amount: e.target.value })} />
           <label className="text-xs font-semibold block">File (PDF/JPG/PNG)</label>
           <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => setProof({ ...proof, file: e.target.files?.[0] || null })} />
-          <div className="flex justify-end"><button className={btn('bg-slate-900 text-white')} onClick={upload}>Upload</button></div>
+          <div className="flex justify-end"><button className={btn('bg-primary text-white')} onClick={upload}>Upload</button></div>
         </Modal>
       )}
     </div>
@@ -475,7 +475,7 @@ const Form16Panel: React.FC<{ employees: Employee[] }> = ({ employees }) => {
         <div className="space-y-3 text-xs">
           <div className="flex justify-between items-center">
             <h3 className="font-bold text-sm">FY {data.fy} — {data.employee.name}</h3>
-            <button className={btn('bg-slate-900 text-white')} onClick={pdf}><Download className="w-3 h-3 inline" /> Download</button>
+            <button className={btn('bg-primary text-white')} onClick={pdf}><Download className="w-3 h-3 inline" /> Download</button>
           </div>
           <table className="w-full">
             <thead><tr className="text-left text-slate-500 border-b"><th className="py-1">Quarter</th><th className="text-right">Gross</th><th className="text-right">TDS</th></tr></thead>
@@ -559,7 +559,7 @@ const RunsPanel: React.FC<{ isMaker: boolean; isChecker: boolean; isAccounts: bo
           <div className="flex flex-wrap gap-2 ml-auto">
             {(isMaker || isChecker) && <button className={btn('bg-slate-100 text-slate-800')} disabled={busy} onClick={doPreview}>Preview & exceptions</button>}
             {isMaker && (
-              <button className={btn('bg-slate-900 text-white')} disabled={busy || run?.locked || run?.status === 'PAID'}
+              <button className={btn('bg-primary text-white')} disabled={busy || run?.locked || run?.status === 'PAID'}
                 onClick={() => act(() => payrollService.prepare(month), (r) => r.message)}>
                 Prepare payroll
               </button>
@@ -749,7 +749,7 @@ const InputsPanel: React.FC<{ employees: Employee[]; isMaker: boolean }> = ({ em
           </select>
           <input className={inputCls} type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
           <input className={inputCls} placeholder="Label (optional)" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
-          <button className={btn('bg-slate-900 text-white')} onClick={add}><Plus className="w-3 h-3 inline" /> Add</button>
+          <button className={btn('bg-primary text-white')} onClick={add}><Plus className="w-3 h-3 inline" /> Add</button>
         </div>
       )}
       <table className="w-full text-xs">
@@ -853,7 +853,7 @@ const RevisionsPanel: React.FC<{ employees: Employee[]; isMaker: boolean; isChec
             <input className={inputCls} type="number" placeholder="New annual CTC" value={form.newAnnualSalary} onChange={(e) => setForm({ ...form, newAnnualSalary: e.target.value })} />
             <input className={inputCls} type="date" aria-label="Effective from" value={form.effectiveFrom} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} />
             <input className={inputCls} placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
-            <button className={btn('bg-slate-900 text-white')} onClick={propose}>Send for approval</button>
+            <button className={btn('bg-primary text-white')} onClick={propose}>Send for approval</button>
           </div>
         </div>
       )}
@@ -981,7 +981,7 @@ const StructuresPanel: React.FC<{ isMaker: boolean; employees: Employee[] }> = (
       <div className={card}>
         <div className="flex justify-between items-center">
           <h3 className="font-bold text-sm">Salary structures</h3>
-          {isMaker && <button className={btn('bg-slate-900 text-white')} onClick={() => setEdit(emptyStructure())}><Plus className="w-3 h-3 inline" /> New structure</button>}
+          {isMaker && <button className={btn('bg-primary text-white')} onClick={() => setEdit(emptyStructure())}><Plus className="w-3 h-3 inline" /> New structure</button>}
         </div>
         <table className="w-full text-xs">
           <thead><tr className="text-left text-slate-500 border-b"><th className="py-2">Name</th><th>Components</th><th>Grades</th><th /></tr></thead>
@@ -1041,7 +1041,7 @@ const StructuresPanel: React.FC<{ isMaker: boolean; employees: Employee[] }> = (
               <p className="text-slate-500">PT slabs configured for: {Object.keys(st.pt || {}).join(', ')}</p>
             </fieldset>
           </div>
-          {isMaker && <div className="flex justify-end"><button className={btn('bg-slate-900 text-white')} onClick={saveSettings}>Save settings</button></div>}
+          {isMaker && <div className="flex justify-end"><button className={btn('bg-primary text-white')} onClick={saveSettings}>Save settings</button></div>}
           {isMaker && <TaxWindows settings={settings} onSaved={load} setMsg={setMsg} />}
         </div>
       )}
@@ -1072,7 +1072,7 @@ const StructuresPanel: React.FC<{ isMaker: boolean; employees: Employee[] }> = (
           </table>
           <div className="flex justify-between">
             <button className={btn('bg-slate-100 text-slate-700')} onClick={() => setEdit({ ...edit, components: [...edit.components!, { code: '', name: '', basis: 'FIXED', value: 0 }] })}>Add component</button>
-            <button className={btn('bg-slate-900 text-white')} onClick={saveStructure}>Save</button>
+            <button className={btn('bg-primary text-white')} onClick={saveStructure}>Save</button>
           </div>
         </Modal>
       )}
@@ -1086,7 +1086,7 @@ const StructuresPanel: React.FC<{ isMaker: boolean; employees: Employee[] }> = (
               </label>
             ))}
           </div>
-          <div className="flex justify-end"><button className={btn('bg-slate-900 text-white')} onClick={doAssign}>Assign</button></div>
+          <div className="flex justify-end"><button className={btn('bg-primary text-white')} onClick={doAssign}>Assign</button></div>
         </Modal>
       )}
       {previewSlip && <Modal title="Structure preview" onClose={() => setPreviewSlip(null)} wide><PayslipView p={previewSlip} /></Modal>}
@@ -1118,7 +1118,7 @@ const TaxWindows: React.FC<{ settings: any; onSaved: () => void; setMsg: (m: Msg
           <input type="date" className={inputCls + ' w-44'} value={w[k].until || ''} onChange={(e) => setW({ ...w, [k]: { ...w[k], until: e.target.value || null } })} />
         </div>
       ))}
-      <button className={btn('bg-slate-900 text-white')} onClick={save}>Save windows</button>
+      <button className={btn('bg-primary text-white')} onClick={save}>Save windows</button>
     </div>
   );
 };

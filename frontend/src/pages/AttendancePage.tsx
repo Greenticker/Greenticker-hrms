@@ -300,7 +300,7 @@ export const AttendancePage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Attendance & Overtime Management
@@ -310,7 +310,7 @@ export const AttendancePage: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={fetchAttendance}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-semibold transition border border-[#039583]"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold transition border border-accent"
           >
             Refresh Timesheet
           </button>
@@ -336,7 +336,7 @@ export const AttendancePage: React.FC = () => {
       <div className={`grid grid-cols-1 ${canPunch ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-6 items-stretch`}>
         {/* Column 1: Clock-In / Check-Out Widget (anyone with an employee record, except read-only roles) */}
         {canPunch && (
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5 h-full">
+          <div className="bg-navy text-white rounded-2xl p-6 flex flex-col justify-between space-y-5 h-full">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -553,7 +553,7 @@ export const AttendancePage: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+            className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/25"
           >
             <option value="ALL">All Statuses</option>
             <option value="PRESENT">Present</option>
@@ -571,7 +571,7 @@ export const AttendancePage: React.FC = () => {
             placeholder="Search employee, code, or date..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
           />
         </div>
       </div>
@@ -832,7 +832,7 @@ export const AttendancePage: React.FC = () => {
                     })
                   }
                   required
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -847,7 +847,7 @@ export const AttendancePage: React.FC = () => {
 
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs"
+                  className="px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold shadow-xs"
                 >
                   Confirm Regularization
                 </button>

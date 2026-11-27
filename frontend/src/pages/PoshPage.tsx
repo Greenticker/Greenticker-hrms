@@ -128,7 +128,7 @@ export const PoshPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 text-white p-6 rounded-2xl shadow-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-primary text-white p-6 rounded-2xl shadow-md">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-1">
@@ -232,7 +232,7 @@ export const PoshPage: React.FC = () => {
                   onClick={() => setSelectedCase(c)}
                   className={`p-5 rounded-2xl border transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                      ? 'bg-primary text-white border-primary shadow-md'
                       : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 shadow-xs'
                   }`}
                 >
@@ -313,7 +313,7 @@ export const PoshPage: React.FC = () => {
                         key={st}
                         className={`p-2 rounded-lg text-[9px] font-bold tracking-tighter uppercase transition-all ${
                           isDone
-                            ? 'bg-slate-900 text-white shadow-xs'
+                            ? 'bg-primary text-white shadow-xs'
                             : 'text-slate-400'
                         }`}
                       >
@@ -350,7 +350,7 @@ export const PoshPage: React.FC = () => {
                     placeholder="Enter formal findings, witness recording references, or committee recommendations..."
                     value={stageNotes}
                     onChange={(e) => setStageNotes(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                   <div className="flex justify-end gap-2">
                     {selectedCase.stage !== 'ACTION_TAKEN' && (
@@ -361,7 +361,7 @@ export const PoshPage: React.FC = () => {
                             handleAdvanceStage(selectedCase._id, stagesOrder[nextIdx]);
                           }
                         }}
-                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-xs"
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-primary-hover text-white font-semibold text-xs shadow-xs"
                       >
                         Advance to Next Stage
                       </button>
@@ -474,7 +474,7 @@ export const PoshPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-primary-hover rounded-xl shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? 'Recording...' : 'Register Formal Grievance'}
                 </button>

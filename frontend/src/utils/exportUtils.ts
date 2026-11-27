@@ -83,7 +83,7 @@ export function exportToPdf(
   });
 
   // Header Banner
-  doc.setFillColor(2, 59, 119); // #023b77
+  doc.setFillColor(2, 59, 119); // #23408E
   doc.rect(0, 0, doc.internal.pageSize.width, 22, 'F');
 
   doc.setTextColor(255, 255, 255);
@@ -118,7 +118,7 @@ export function exportToPdf(
     startY: startY,
     theme: 'grid',
     headStyles: {
-      fillColor: [3, 149, 131], // #039583
+      fillColor: [3, 149, 131], // #4C6FBF
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       fontSize: 8,

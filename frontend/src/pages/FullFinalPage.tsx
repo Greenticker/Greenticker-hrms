@@ -92,7 +92,7 @@ const SettlementForm: React.FC<{ fnf: FullFinalSettlement; onClose: () => void; 
           <p className="text-xs text-slate-600">
             Last working day {fmt(fnf.lastWorkingDay)} · notice {fnf.noticeServedDays} of {fnf.noticePeriodDays} days
           </p>
-          <button type="button" onClick={suggest} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-[#023b77]/30 text-[#023b77] hover:bg-[#023b77]/5 cursor-pointer">
+          <button type="button" onClick={suggest} className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-primary/30 text-primary hover:bg-primary-hover/5 cursor-pointer">
             <Sparkles className="w-3.5 h-3.5" /> Suggest figures
           </button>
         </div>
@@ -133,7 +133,7 @@ const SettlementForm: React.FC<{ fnf: FullFinalSettlement; onClose: () => void; 
         {error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
-          <button type="submit" disabled={busy} className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer disabled:opacity-50">
+          <button type="submit" disabled={busy} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer disabled:opacity-50">
             {busy ? 'Saving...' : 'Save settlement'}
           </button>
         </div>
@@ -228,7 +228,7 @@ export const FullFinalPage: React.FC = () => {
   }, [settlements]);
 
   const summaryTiles = [
-    { label: 'Total Net Settlements', value: inr(totals.netPayable), icon: Wallet, tone: 'text-[#023b77]' },
+    { label: 'Total Net Settlements', value: inr(totals.netPayable), icon: Wallet, tone: 'text-primary' },
     { label: `Pending Payout (${totals.pendingCount})`, value: inr(totals.pendingPayout), icon: Clock, tone: 'text-amber-600' },
     { label: 'Gratuity Liability', value: inr(totals.gratuity), icon: Landmark, tone: 'text-indigo-600' },
     { label: 'Settlements Paid', value: String(totals.disbursed), icon: Banknote, tone: 'text-emerald-600' },
@@ -236,7 +236,7 @@ export const FullFinalPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs">
         <h1 className="text-2xl font-bold tracking-tight text-white">Full and Final Settlement</h1>
         <p className="text-xs text-slate-200 mt-1">Settlements start when an exit gets final approval. Finance prepares the figures and records the payout.</p>
       </div>

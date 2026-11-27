@@ -14,7 +14,7 @@ const STATUS_STYLE: Record<string, string> = {
   REJECTED: 'bg-rose-100 text-rose-800',
   CANCELLED: 'bg-slate-100 text-slate-600',
 };
-const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+const inputCls = 'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25';
 const btn = (tone: string) => `px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer disabled:opacity-50 ${tone}`;
 const today = () => new Date().toISOString().slice(0, 10);
 const LEAVE_READ_ALL = ['ADMIN', 'SUPER_ADMIN', 'ADMIN_1', 'HR', 'ADMIN_2', 'AUDITORS'];
@@ -204,7 +204,7 @@ export const LeavePage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Leave Management</h1>
           <p className="text-xs text-slate-300 mt-1">Requests go to your reporting manager (or their delegate) for approval.</p>
@@ -214,7 +214,7 @@ export const LeavePage: React.FC = () => {
             <button onClick={openDelegate} className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold text-xs cursor-pointer">
               {delegate ? `Delegate: ${delegate.delegateName}` : 'Set approval delegate'}
             </button>
-            <button onClick={() => { setErrors([]); setForm({ ...emptyForm, leaveType: types.find((t) => t.active)?.code || 'CL' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#027a6b] text-white font-semibold text-xs cursor-pointer">
+            <button onClick={() => { setErrors([]); setForm({ ...emptyForm, leaveType: types.find((t) => t.active)?.code || 'CL' }); }} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs cursor-pointer">
               <Plus className="w-4 h-4" /> Apply for leave
             </button>
           </div>
@@ -230,7 +230,7 @@ export const LeavePage: React.FC = () => {
 
       <div className="flex gap-2 flex-wrap">
         {tabs.filter(([, , show]) => show).map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${tab === id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200'}`}>
+          <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${tab === id ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200'}`}>
             {label}
           </button>
         ))}
@@ -342,7 +342,7 @@ export const LeavePage: React.FC = () => {
             <Errors list={errors} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setForm(null)} className={btn('text-slate-600 hover:bg-slate-100')}>Cancel</button>
-              <button type="submit" disabled={busy} className={btn('bg-slate-900 hover:bg-slate-800 text-white')}>{busy ? 'Submitting...' : form._editId ? 'Submit change' : 'Apply'}</button>
+              <button type="submit" disabled={busy} className={btn('bg-slate-900 hover:bg-primary-hover text-white')}>{busy ? 'Submitting...' : form._editId ? 'Submit change' : 'Apply'}</button>
             </div>
           </form>
         </Modal>
@@ -405,7 +405,7 @@ export const LeavePage: React.FC = () => {
             <Errors list={errors} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setDelegateForm(null)} className={btn('text-slate-600 hover:bg-slate-100')}>Cancel</button>
-              <button type="submit" className={btn('bg-slate-900 text-white')}>Save</button>
+              <button type="submit" className={btn('bg-primary text-white')}>Save</button>
             </div>
           </form>
         </Modal>
@@ -524,7 +524,7 @@ const LeaveSettingsPanel: React.FC<{
         <div className="p-4 flex items-center justify-between">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Settings2 className="w-4 h-4" /> Leave types and rules</h3>
           {canEdit && (
-            <button onClick={() => { setErrors([]); setEditing({ code: '', name: '', annualEntitlement: 0, carryForwardMax: 0, encashable: false, encashMax: 0, allowHalfDay: true, maxBackdatedDays: 7, gender: 'ANY', minServiceDays: 0, sandwich: false, excessPolicy: 'BLOCK', paid: true, active: true }); }} className={btn('bg-slate-900 text-white')}>
+            <button onClick={() => { setErrors([]); setEditing({ code: '', name: '', annualEntitlement: 0, carryForwardMax: 0, encashable: false, encashMax: 0, allowHalfDay: true, maxBackdatedDays: 7, gender: 'ANY', minServiceDays: 0, sandwich: false, excessPolicy: 'BLOCK', paid: true, active: true }); }} className={btn('bg-primary text-white')}>
               Add leave type
             </button>
           )}
@@ -581,7 +581,7 @@ const LeaveSettingsPanel: React.FC<{
                   flash(err.message, false);
                 }
               }}
-              className={btn('bg-slate-900 text-white')}
+              className={btn('bg-primary text-white')}
             >
               Save adjustment
             </button>
@@ -605,7 +605,7 @@ const LeaveSettingsPanel: React.FC<{
                     flash(err.message, false);
                   }
                 }}
-                className={btn('bg-[#039583] text-white')}
+                className={btn('bg-primary text-white')}
               >
                 Run year-end
               </button>
@@ -674,7 +674,7 @@ const LeaveSettingsPanel: React.FC<{
             <Errors list={errors} />
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setEditing(null)} className={btn('text-slate-600 hover:bg-slate-100')}>Cancel</button>
-              <button type="submit" className={btn('bg-slate-900 text-white')}>Save</button>
+              <button type="submit" className={btn('bg-primary text-white')}>Save</button>
             </div>
           </form>
         </Modal>

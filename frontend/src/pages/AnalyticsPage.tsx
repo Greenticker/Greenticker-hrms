@@ -26,10 +26,10 @@ export const AnalyticsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <PieChart className="w-6 h-6 text-[#039583]" />
+            <PieChart className="w-6 h-6 text-accent" />
             <span>Executive Workforce Analytics & Insights</span>
           </h1>
           <p className="text-xs text-slate-200 mt-1">
@@ -293,7 +293,7 @@ export const AnalyticsPage: React.FC = () => {
       </div>
 
       {/* AI HR Insights & Recommendations */}
-      <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-6 rounded-2xl shadow-md space-y-3">
+      <div className="bg-navy text-white p-6 rounded-2xl space-y-3">
         <div className="flex items-center gap-2 text-indigo-400">
           <Sparkles className="w-5 h-5" />
           <h3 className="text-sm font-bold uppercase tracking-wider text-white">AI HR Intelligence Insights</h3>

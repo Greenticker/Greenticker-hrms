@@ -33,7 +33,7 @@ export const GeofenceD3Summary: React.FC<GeofenceD3SummaryProps> = ({ records })
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between h-full space-y-3">
       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2">
-          <Radio className="w-4 h-4 text-[#039583] animate-pulse" />
+          <Radio className="w-4 h-4 text-accent animate-pulse" />
           <h3 className="text-sm font-bold text-slate-900 tracking-tight">
             Geofence Status
           </h3>
@@ -50,10 +50,10 @@ export const GeofenceD3Summary: React.FC<GeofenceD3SummaryProps> = ({ records })
         {offices.map((o) => (
           <div key={o.city} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 text-center space-y-0.5">
             <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-slate-800">
-              <MapPin className="w-3 h-3 text-[#039583]" />
+              <MapPin className="w-3 h-3 text-accent" />
               {o.city}
             </div>
-            <p className="text-xs font-black text-[#023b77]">{o.checkedInCount} Staff</p>
+            <p className="text-xs font-black text-primary">{o.checkedInCount} Staff</p>
             <p className="text-[9px] text-slate-400 font-mono">0.5 km radius</p>
           </div>
         ))}

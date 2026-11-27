@@ -278,10 +278,10 @@ export const ShiftsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Clock className="w-6 h-6 text-[#039583]" />
+            <Clock className="w-6 h-6 text-accent" />
             Work Shifts & Employee Rosters
           </h1>
           <p className="text-xs text-blue-100/80 mt-1">
@@ -292,7 +292,7 @@ export const ShiftsPage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <button
             onClick={fetchShiftsAndEmployees}
-            className="p-2.5 bg-[#012a52] hover:bg-[#023b77] text-white rounded-xl transition cursor-pointer border border-[#039583]/50"
+            className="p-2.5 bg-navy hover:bg-primary-hover text-white rounded-xl transition cursor-pointer border border-accent/50"
             title="Refresh rosters"
           >
             <RotateCcw className="w-4 h-4" />
@@ -301,7 +301,7 @@ export const ShiftsPage: React.FC = () => {
           {canManageShifts && (
             <button
               onClick={handleOpenCreateModal}
-              className="px-4 py-2.5 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs cursor-pointer border border-[#039583]"
+              className="px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs cursor-pointer border border-accent"
             >
               <Plus className="w-4 h-4" />
               Configure New Shift
@@ -405,7 +405,7 @@ export const ShiftsPage: React.FC = () => {
             }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white transition"
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white transition"
           />
           {search && (
             <button
@@ -431,7 +431,7 @@ export const ShiftsPage: React.FC = () => {
                 onClick={() => setFilterType(tab.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   filterType === tab.id
-                    ? 'bg-slate-900 text-white shadow-2xs'
+                    ? 'bg-primary text-white shadow-2xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -459,7 +459,7 @@ export const ShiftsPage: React.FC = () => {
             {canManageShifts && (
               <button
                 onClick={handleOpenCreateModal}
-                className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
+                className="mt-4 px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold inline-flex items-center gap-1.5 transition cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Configure New Shift
@@ -683,7 +683,7 @@ export const ShiftsPage: React.FC = () => {
                                 : emp.shift || ''
                             }
                             onChange={(e) => handleQuickEmployeeShiftChange(emp._id, e.target.value)}
-                            className="p-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-1 focus:ring-slate-900 focus:outline-none"
+                            className="p-1.5 bg-white border border-slate-300 rounded-lg text-xs font-medium text-slate-800 focus:ring-1 focus:ring-primary/25 focus:outline-none"
                           >
                             {activeShifts.map((s) => (
                               <option key={s._id} value={`${s.name} (${s.startTime} - ${s.endTime})`}>
@@ -813,7 +813,7 @@ export const ShiftsPage: React.FC = () => {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
 
@@ -825,7 +825,7 @@ export const ShiftsPage: React.FC = () => {
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono uppercase text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
               </div>
@@ -838,7 +838,7 @@ export const ShiftsPage: React.FC = () => {
                     value={formData.startTime}
                     onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
 
@@ -849,7 +849,7 @@ export const ShiftsPage: React.FC = () => {
                     value={formData.endTime}
                     onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
               </div>
@@ -865,7 +865,7 @@ export const ShiftsPage: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, expectedHours: Number(e.target.value) })
                     }
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
 
@@ -879,7 +879,7 @@ export const ShiftsPage: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, breakMinutes: Number(e.target.value) })
                     }
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
 
@@ -893,7 +893,7 @@ export const ShiftsPage: React.FC = () => {
                     onChange={(e) =>
                       setFormData({ ...formData, gracePeriodMinutes: Number(e.target.value) })
                     }
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:bg-white"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:bg-white"
                   />
                 </div>
               </div>
@@ -950,7 +950,7 @@ export const ShiftsPage: React.FC = () => {
               <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
                   <label className="font-bold text-slate-800 flex items-center gap-1.5">
-                    <Users className="w-4 h-4 text-[#039583]" />
+                    <Users className="w-4 h-4 text-accent" />
                     Assign Specific Employees ({formData.assignedEmployeeIds.length} Selected)
                   </label>
                   <span className="text-[10px] text-slate-400">Employee Specific Assignment</span>
@@ -973,7 +973,7 @@ export const ShiftsPage: React.FC = () => {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleEmpSelection(emp._id)}
-                            className="rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
+                            className="rounded text-slate-900 focus:ring-primary/25 cursor-pointer"
                           />
                           <div>
                             <span className="font-bold">
@@ -1002,7 +1002,7 @@ export const ShiftsPage: React.FC = () => {
                     id="nightShift"
                     checked={formData.isNightShift}
                     onChange={(e) => setFormData({ ...formData, isNightShift: e.target.checked })}
-                    className="rounded text-slate-900 focus:ring-slate-900 cursor-pointer"
+                    className="rounded text-slate-900 focus:ring-primary/25 cursor-pointer"
                   />
                   <label htmlFor="nightShift" className="font-semibold text-slate-700 cursor-pointer">
                     Classify as Night / Overnight Shift (crosses midnight)
@@ -1021,7 +1021,7 @@ export const ShiftsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
+                  className="px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {editingShift ? (
                     <>

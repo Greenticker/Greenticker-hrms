@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       case 'ADMIN_2':
         return 'bg-violet-500/20 text-violet-200 border-violet-400/40 shadow-xs';
       case 'HR':
-        return 'bg-teal-500/20 text-teal-200 border-teal-400/40 shadow-xs';
+        return 'bg-brand-500/20 text-brand-200 border-brand-400/40 shadow-xs';
       case 'FINANCE':
         return 'bg-emerald-500/20 text-emerald-200 border-emerald-400/40 shadow-xs';
       case 'ACCOUNTS':
@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="h-16 bg-[#023b77] border-b border-[#039583]/40 sticky top-0 z-30 px-6 flex items-center justify-between text-white shadow-md">
+    <header className="h-16 bg-primary border-b border-white/10 sticky top-0 z-30 px-6 flex items-center justify-between text-white">
       {/* Zone 1: Logo (toggles sidebar) & Current Breadcrumb */}
       <div className="flex items-center gap-4">
         <button
@@ -98,7 +98,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           title={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
           className="flex items-center gap-3 group cursor-pointer focus:outline-none"
         >
-          <div className="bg-white px-3 py-1.5 rounded-xl shadow-md border border-slate-200/90 flex items-center justify-center group-hover:ring-2 group-hover:ring-[#039583] transition">
+          <div className="bg-white px-3 py-1.5 rounded-xl shadow-md border border-slate-200/90 flex items-center justify-center group-hover:ring-2 group-hover:ring-accent transition">
             <VetanLogo size="sm" variant="horizontal" theme="light" />
           </div>
         </button>
@@ -109,16 +109,16 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Zone 2: Center (Role Testing Switcher Dropdown) */}
-      <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 bg-[#012a52] rounded-xl text-xs border border-[#039583]/50 shadow-inner">
+      <div className="hidden md:flex items-center gap-2.5 px-3 py-1.5 bg-navy rounded-xl text-xs border border-accent/50 shadow-inner">
         <div className="text-slate-300 font-semibold flex items-center gap-1.5 uppercase tracking-wider text-[10px] shrink-0">
-          <UserCheck className="w-3.5 h-3.5 text-[#039583]" />
+          <UserCheck className="w-3.5 h-3.5 text-accent" />
           Active Role:
         </div>
         <select
           value={user?.role || 'EMPLOYEE'}
           onChange={(e) => handleRoleSwitch(e.target.value as Role)}
           disabled={isSwitching}
-          className="bg-[#023b77] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-[#039583] focus:outline-none focus:ring-2 focus:ring-[#039583] cursor-pointer shadow-xs"
+          className="bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-accent focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer shadow-xs"
         >
           <option value="SUPER_ADMIN">Super Admin</option>
           <option value="ADMIN_1">Admin 1</option>
@@ -141,7 +141,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#039583] rounded-full animate-pulse" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
           )}
         </button>
 
@@ -152,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setIsProfileOpen(!isProfileOpen)}
             className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-white/10 transition-colors cursor-pointer border border-transparent hover:border-white/10"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#039583] to-[#023b77] text-white font-bold text-xs flex items-center justify-center shadow-xs ring-2 ring-white/20">
+            <div className="w-9 h-9 rounded-xl bg-accent text-white font-bold text-xs flex items-center justify-center shadow-xs ring-2 ring-white/20">
               {user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'}
             </div>
             <div className="text-left hidden lg:block">
@@ -198,7 +198,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={user?.role || 'EMPLOYEE'}
                   onChange={(e) => handleRoleSwitch(e.target.value as Role)}
                   disabled={isSwitching}
-                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-[#039583] cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 text-xs font-bold rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                 >
                   <option value="SUPER_ADMIN">Super Admin (Full Access)</option>
                   <option value="ADMIN_1">Admin 1 (Operations & HR)</option>

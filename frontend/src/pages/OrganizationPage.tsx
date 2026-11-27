@@ -316,7 +316,7 @@ export const OrganizationPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Department and Organization Structure
@@ -326,7 +326,7 @@ export const OrganizationPage: React.FC = () => {
         {canManage && subTab === 'departments' && (
           <button
             onClick={() => setIsAddDeptOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-accent"
           >
             <Plus className="w-4 h-4" />
             <span>Add Department</span>
@@ -336,7 +336,7 @@ export const OrganizationPage: React.FC = () => {
         {canManage && subTab === 'subdepartments' && (
           <button
             onClick={() => setIsAddSubdeptOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-accent"
           >
             <Plus className="w-4 h-4" />
             <span>Add Sub-Department</span>
@@ -346,7 +346,7 @@ export const OrganizationPage: React.FC = () => {
         {canManage && subTab === 'designations' && (
           <button
             onClick={() => setIsAddDesignationOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-accent"
           >
             <Plus className="w-4 h-4" />
             <span>Add Designation</span>
@@ -359,7 +359,7 @@ export const OrganizationPage: React.FC = () => {
               setGradeError(null);
               setIsAddGradeOpen(true);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-accent"
           >
             <Plus className="w-4 h-4" />
             <span>Add Grade</span>
@@ -369,7 +369,7 @@ export const OrganizationPage: React.FC = () => {
         {canManage && subTab === 'locations' && (
           <button
             onClick={() => setIsAddLocationOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-[#039583]"
+            className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs border border-accent"
           >
             <Plus className="w-4 h-4" />
             <span>Add Office Location</span>
@@ -382,7 +382,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('hierarchy')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'hierarchy' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'hierarchy' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <GitFork className="w-3.5 h-3.5" />
@@ -391,7 +391,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('departments')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'departments' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'departments' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Building2 className="w-3.5 h-3.5" />
@@ -400,7 +400,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('subdepartments')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
-            subTab === 'subdepartments' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'subdepartments' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
@@ -409,7 +409,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('designations')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            subTab === 'designations' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'designations' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Briefcase className="w-3.5 h-3.5" />
@@ -418,7 +418,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('locations')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            subTab === 'locations' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'locations' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <MapPin className="w-3.5 h-3.5" />
@@ -427,7 +427,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('grades')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            subTab === 'grades' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'grades' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Award className="w-3.5 h-3.5" />
@@ -436,7 +436,7 @@ export const OrganizationPage: React.FC = () => {
         <button
           onClick={() => setSubTab('managers')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-            subTab === 'managers' ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+            subTab === 'managers' ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <Users className="w-3.5 h-3.5" />
@@ -509,14 +509,14 @@ export const OrganizationPage: React.FC = () => {
                   placeholder="Search sub-departments..."
                   value={subdeptSearch}
                   onChange={(e) => setSubdeptSearch(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl w-60 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl w-60 focus:outline-none focus:ring-1 focus:ring-primary/25"
                 />
               </div>
 
               <select
                 value={subdeptDeptFilter}
                 onChange={(e) => setSubdeptDeptFilter(e.target.value)}
-                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900 bg-white"
+                className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/25 bg-white"
               >
                 <option value="ALL">All Parent Departments</option>
                 {departments.map((d) => (
@@ -617,7 +617,7 @@ export const OrganizationPage: React.FC = () => {
                 onClick={() => setDesigView('ACTIVE')}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   desigView === 'ACTIVE'
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-primary text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -627,7 +627,7 @@ export const OrganizationPage: React.FC = () => {
                 onClick={() => setDesigView('HISTORY')}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   desigView === 'HISTORY'
-                    ? 'bg-slate-900 text-white shadow-xs'
+                    ? 'bg-primary text-white shadow-xs'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -759,14 +759,14 @@ export const OrganizationPage: React.FC = () => {
                 key={loc._id}
                 className={`bg-white rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md ${
                   loc.isHeadquarters
-                    ? 'border-[#039583]/50 ring-1 ring-[#039583]/30 bg-gradient-to-br from-teal-50/20 to-white'
+                    ? 'border-accent/50 ring-1 ring-accent/30 bg-primary-subtle'
                     : 'border-slate-200'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-100 shrink-0 text-[#039583] mt-0.5">
-                      <MapPin className="w-5 h-5 text-[#039583]" />
+                    <div className="p-2.5 rounded-xl bg-brand-50 border border-brand-100 shrink-0 text-accent mt-0.5">
+                      <MapPin className="w-5 h-5 text-accent" />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-900 leading-snug">{loc.name}</h3>
@@ -795,7 +795,7 @@ export const OrganizationPage: React.FC = () => {
                     </div>
                   </div>
                   {loc.isHeadquarters && (
-                    <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-mono shrink-0 whitespace-nowrap">
+                    <span className="text-[10px] font-bold text-brand-700 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded font-mono shrink-0 whitespace-nowrap">
                       Head Office
                     </span>
                   )}
@@ -903,7 +903,7 @@ export const OrganizationPage: React.FC = () => {
                 <button type="button" onClick={() => setIsAddGradeOpen(false)} className="px-4 py-2 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer">
                   Cancel
                 </button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 rounded-lg cursor-pointer">
+                <button type="submit" disabled={isSubmitting} className="px-5 py-2 font-bold text-white bg-slate-900 hover:bg-primary-hover disabled:opacity-50 rounded-lg cursor-pointer">
                   {isSubmitting ? 'Saving...' : 'Add Grade'}
                 </button>
               </div>
@@ -973,7 +973,7 @@ export const OrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Department'}
                 </button>
@@ -1013,7 +1013,7 @@ export const OrganizationPage: React.FC = () => {
                   onChange={(e) =>
                     setSubdeptForm({ ...subdeptForm, departmentName: e.target.value })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary/25"
                 >
                   {departments.map((d) => (
                     <option key={d._id} value={d.name}>
@@ -1032,7 +1032,7 @@ export const OrganizationPage: React.FC = () => {
                   required
                   value={subdeptForm.name}
                   onChange={(e) => setSubdeptForm({ ...subdeptForm, name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. Frontend Core, Cloud Infra, ML Ops"
                 />
               </div>
@@ -1047,7 +1047,7 @@ export const OrganizationPage: React.FC = () => {
                   onChange={(e) =>
                     setSubdeptForm({ ...subdeptForm, code: e.target.value.toUpperCase() })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-mono uppercase focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. ENG-FE (auto-generated if empty)"
                 />
               </div>
@@ -1060,7 +1060,7 @@ export const OrganizationPage: React.FC = () => {
                   onChange={(e) =>
                     setSubdeptForm({ ...subdeptForm, description: e.target.value })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="Focusing on core user interface components and client apps..."
                 />
               </div>
@@ -1076,7 +1076,7 @@ export const OrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Sub-Department'}
                 </button>
@@ -1112,7 +1112,7 @@ export const OrganizationPage: React.FC = () => {
                   required
                   value={desigForm.title}
                   onChange={(e) => setDesigForm({ ...desigForm, title: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. Lead AI Research Engineer"
                 />
               </div>
@@ -1208,7 +1208,7 @@ export const OrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg cursor-pointer disabled:opacity-50"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Designation'}
                 </button>
@@ -1373,7 +1373,7 @@ export const OrganizationPage: React.FC = () => {
                           type="checkbox"
                           checked={locForm.departments.includes(d.name)}
                           onChange={() => toggleLocDepartment(d.name)}
-                          className="rounded border-slate-300 text-[#039583] focus:ring-[#039583]"
+                          className="rounded border-slate-300 text-accent focus:ring-accent"
                         />
                         <span>{d.name}</span>
                       </label>
@@ -1392,7 +1392,7 @@ export const OrganizationPage: React.FC = () => {
                             type="checkbox"
                             checked={locForm.subdepartments.includes(s.name)}
                             onChange={() => toggleLocSubdepartment(s)}
-                            className="rounded border-slate-300 text-[#039583] focus:ring-[#039583]"
+                            className="rounded border-slate-300 text-accent focus:ring-accent"
                           />
                           <span>
                             {s.name} <span className="text-slate-400">({s.departmentName})</span>
@@ -1410,7 +1410,7 @@ export const OrganizationPage: React.FC = () => {
                   id="isHeadquarters"
                   checked={locForm.isHeadquarters}
                   onChange={(e) => setLocForm({ ...locForm, isHeadquarters: e.target.checked })}
-                  className="rounded border-slate-300 text-[#039583] focus:ring-[#039583]"
+                  className="rounded border-slate-300 text-accent focus:ring-accent"
                 />
                 <label htmlFor="isHeadquarters" className="text-xs text-slate-700 font-medium cursor-pointer">
                   Set as Primary Head Office
@@ -1428,7 +1428,7 @@ export const OrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg cursor-pointer"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-lg cursor-pointer"
                 >
                   {isSubmitting ? 'Adding...' : 'Add Location'}
                 </button>
@@ -1457,10 +1457,10 @@ export const OrganizationPage: React.FC = () => {
                 const isExpanded = !!expandedManagers[mgr.employeeId];
                 const teamCount = mgr.reports ? mgr.reports.length : 0;
                 return (
-                  <div key={mgr.employeeId} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-xs hover:border-[#039583] transition-all space-y-4">
+                  <div key={mgr.employeeId} className="border border-slate-200 rounded-2xl p-5 bg-white shadow-xs hover:border-accent transition-all space-y-4">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3.5 cursor-pointer flex-1" onClick={() => setExpandedManagers(prev => ({ ...prev, [mgr.employeeId]: !prev[mgr.employeeId] }))}>
-                        <div className="w-11 h-11 rounded-full bg-[#023b77] text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm">
+                        <div className="w-11 h-11 rounded-full bg-primary text-white font-bold text-sm flex items-center justify-center shrink-0 shadow-sm">
                           {mgr.avatarInitials}
                         </div>
                         <div>
@@ -1477,7 +1477,7 @@ export const OrganizationPage: React.FC = () => {
 
                       <button
                         onClick={() => setContactManagerModal(mgr)}
-                        className="px-3 py-1.5 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-semibold transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+                        className="px-3 py-1.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
                         title="Send email message to manager"
                       >
                         <Users className="w-3.5 h-3.5" />
@@ -1489,7 +1489,7 @@ export const OrganizationPage: React.FC = () => {
                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                       <button
                         onClick={() => setExpandedManagers(prev => ({ ...prev, [mgr.employeeId]: !prev[mgr.employeeId] }))}
-                        className="text-xs font-semibold text-[#023b77] hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <span>{isExpanded ? 'Hide Team Members' : 'Show Team Members'}</span>
                         <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
@@ -1558,7 +1558,7 @@ export const OrganizationPage: React.FC = () => {
                   value={contactSubject}
                   onChange={(e) => setContactSubject(e.target.value)}
                   placeholder="e.g. Project Update / Leave Query"
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#023b77]"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
@@ -1570,7 +1570,7 @@ export const OrganizationPage: React.FC = () => {
                   value={contactMessage}
                   onChange={(e) => setContactMessage(e.target.value)}
                   placeholder="Write your message here..."
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#023b77]"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
 
@@ -1591,7 +1591,7 @@ export const OrganizationPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSendingContact}
-                  className="px-5 py-2 rounded-xl bg-[#023b77] hover:bg-[#039583] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-primary hover:bg-primary text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                 >
                   {isSendingContact ? 'Sending Email...' : 'Send Message'}
                 </button>

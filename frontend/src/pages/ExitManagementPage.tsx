@@ -72,7 +72,7 @@ const TextDialog: React.FC<{
         {error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onCancel} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
-          <button type="submit" disabled={busy || (required && !text.trim())} className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer disabled:opacity-50">
+          <button type="submit" disabled={busy || (required && !text.trim())} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer disabled:opacity-50">
             {busy ? 'Saving...' : confirmLabel}
           </button>
         </div>
@@ -143,7 +143,7 @@ const InitiateExitModal: React.FC<{
   const shortfall = datesValid ? Math.max(0, form.noticePeriodDays - served) : 0;
   const canSave = Boolean(form.employeeId) && datesValid && form.noticePeriodDays >= 0 && !saving;
 
-  const inputCls = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-slate-900';
+  const inputCls = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary/25';
   const labelCls = 'block text-xs font-semibold text-slate-700';
 
   return (
@@ -274,7 +274,7 @@ const InitiateExitModal: React.FC<{
             <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer">
               Cancel
             </button>
-            <button type="submit" disabled={!canSave} className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer disabled:opacity-50">
+            <button type="submit" disabled={!canSave} className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer disabled:opacity-50">
               {saving ? 'Starting...' : 'Initiate exit'}
             </button>
           </div>
@@ -363,7 +363,7 @@ export const ExitManagementPage: React.FC = () => {
 
 
   const statTiles = [
-    { label: 'Total Separations', value: stats.total, icon: UserMinus, tone: 'text-[#023b77]' },
+    { label: 'Total Separations', value: stats.total, icon: UserMinus, tone: 'text-primary' },
     { label: 'Exits In Progress', value: stats.inProgress, icon: CalendarClock, tone: 'text-amber-600' },
     { label: 'Clearances Pending', value: stats.pendingClearances, icon: ListChecks, tone: 'text-rose-600' },
     { label: 'Notice Shortfall', value: stats.shortfall, icon: AlertTriangle, tone: 'text-orange-600' },
@@ -372,7 +372,7 @@ export const ExitManagementPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Exit Management</h1>
           <p className="text-xs text-slate-200 mt-1">
@@ -384,7 +384,7 @@ export const ExitManagementPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setInitiating(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#027a6b] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Initiate Exit</span>
@@ -430,7 +430,7 @@ export const ExitManagementPage: React.FC = () => {
                       setFromResignation(r);
                       setInitiating(true);
                     }}
-                    className="shrink-0 px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer"
+                    className="shrink-0 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer"
                   >
                     Initiate exit
                   </button>
@@ -470,7 +470,7 @@ export const ExitManagementPage: React.FC = () => {
             onClick={() => setFilter(key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
               filter === key
-                ? 'bg-[#023b77] text-white border-[#023b77]'
+                ? 'bg-primary text-white border-primary'
                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
@@ -601,7 +601,7 @@ export const ExitManagementPage: React.FC = () => {
                             type="button"
                             onClick={() => setClearing({ sep, key, label, cleared: !cleared })}
                             className={`mt-1.5 px-2.5 py-1 text-[11px] font-bold rounded-md cursor-pointer ${
-                              cleared ? 'text-slate-600 hover:bg-slate-100' : 'bg-[#039583] text-white hover:bg-[#027a6b]'
+                              cleared ? 'text-slate-600 hover:bg-slate-100' : 'bg-primary text-white hover:bg-primary-hover'
                             }`}
                           >
                             {cleared ? 'Reopen' : 'Mark cleared'}
@@ -624,12 +624,12 @@ export const ExitManagementPage: React.FC = () => {
                   </span>
                 </div>
               ) : sep.permissions?.canApprove ? (
-                <div className="p-4 rounded-xl bg-[#023b77]/5 border border-[#023b77]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <p className="text-xs text-slate-700">All clearances are complete. Give final approval to close the exit and start the F&F settlement.</p>
                   <button
                     type="button"
                     onClick={() => setApproving(sep)}
-                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer"
+                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer"
                   >
                     <BadgeCheck className="w-4 h-4" /> Final approval
                   </button>

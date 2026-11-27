@@ -90,7 +90,7 @@ export const VetanLogo: React.FC<VetanLogoProps> = ({
         />
       </div>
       {showSubtitle && subtitleText && (
-        <span className="text-[11px] font-bold tracking-widest text-[#039583] uppercase mt-0.5">
+        <span className="text-[11px] font-bold tracking-widest text-accent uppercase mt-0.5">
           {subtitleText}
         </span>
       )}

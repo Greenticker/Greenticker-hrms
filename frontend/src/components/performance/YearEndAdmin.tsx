@@ -49,7 +49,7 @@ const Calibration: React.FC<{ isHR: boolean; onOpen: (employeeId: string) => voi
               <div key={k} className="grid grid-cols-[150px_1fr_70px] items-center gap-3 text-xs">
                 <span className="font-semibold text-slate-700">{k} · {RATING_LABEL[Number(k)]}</span>
                 <div className="h-3 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full bg-[#023b77]" style={{ width: `${(data.distribution[k].pct / maxPct) * 100}%` }} />
+                  <div className="h-full bg-primary" style={{ width: `${(data.distribution[k].pct / maxPct) * 100}%` }} />
                 </div>
                 <span className="text-right font-mono text-slate-600">{data.distribution[k].count} · {data.distribution[k].pct}%</span>
               </div>
@@ -58,11 +58,11 @@ const Calibration: React.FC<{ isHR: boolean; onOpen: (employeeId: string) => voi
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
           <p className="text-xs text-slate-600"><strong className="text-slate-900">{inCalibration}</strong> waiting in calibration · <strong className="text-slate-900">{finalCount}</strong> locked, not published · <strong className="text-slate-900">{data.notStarted.length}</strong> not started</p>
-          <button type="button" disabled={!inCalibration} onClick={() => act(pmsService.lockCalibration, 'Locked')} className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white cursor-pointer disabled:opacity-40">
+          <button type="button" disabled={!inCalibration} onClick={() => act(pmsService.lockCalibration, 'Locked')} className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40">
             <Lock className="w-3.5 h-3.5" /> Approve & lock calibrated ratings
           </button>
           {isHR && (
-            <button type="button" disabled={!finalCount} onClick={() => window.confirm(`Publish ${finalCount} ratings? Employees will see them immediately.`) && act(pmsService.publishRatings, 'Published')} className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white cursor-pointer disabled:opacity-40">
+            <button type="button" disabled={!finalCount} onClick={() => window.confirm(`Publish ${finalCount} ratings? Employees will see them immediately.`) && act(pmsService.publishRatings, 'Published')} className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40">
               <Megaphone className="w-3.5 h-3.5" /> Publish locked ratings
             </button>
           )}
@@ -104,7 +104,7 @@ const Calibration: React.FC<{ isHR: boolean; onOpen: (employeeId: string) => voi
                 <td className="py-2.5 px-3 text-center font-mono">{r.proposedRating ?? '—'}</td>
                 <td className="py-2.5 px-3 text-center font-mono" title={r.calibration?.reason}>{r.calibratedRating ?? '—'}{r.calibration?.rating ? ' *' : ''}</td>
                 <td className="py-2.5 px-3 text-center">
-                  {r.finalRating ? <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-[#023b77] text-white text-[11px] font-bold">{r.finalRating}</span> : '—'}
+                  {r.finalRating ? <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-primary text-white text-[11px] font-bold">{r.finalRating}</span> : '—'}
                 </td>
               </tr>
             ))}
@@ -233,7 +233,7 @@ const Payroll: React.FC = () => {
                   setError(err?.message || 'Could not send to payroll.');
                 }
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white cursor-pointer disabled:opacity-40"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40"
             >
               <Send className="w-3.5 h-3.5" /> Send to payroll for approval
             </button>
@@ -315,7 +315,7 @@ const Pips: React.FC<{ isHR: boolean }> = ({ isHR }) => {
                 setError(err?.message || 'Could not start plans.');
               }
             }}
-            className="px-4 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white cursor-pointer disabled:opacity-40 shrink-0"
+            className="px-4 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40 shrink-0"
           >
             Start improvement plans
           </button>
@@ -346,7 +346,7 @@ export const YearEndAdmin: React.FC<{ isHR: boolean; onOpenEmployee: (employeeId
     <div className="space-y-4">
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit max-w-full overflow-x-auto">
         {views.filter(([, , , v]) => v).map(([id, label, Icon]) => (
-          <button key={id} type="button" onClick={() => setView(id)} className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${view === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
+          <button key={id} type="button" onClick={() => setView(id)} className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${view === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
             <Icon className="w-3.5 h-3.5" /> {label}
           </button>
         ))}

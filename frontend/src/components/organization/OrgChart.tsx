@@ -66,17 +66,17 @@ const ManagerCard: React.FC<{ node: OrgTreeNode; level: number; ctx: ChartCtx }>
   return (
     <div
       className={`relative flex items-center gap-2.5 p-2.5 pr-3 rounded-xl border bg-white shadow-xs w-60 transition-shadow hover:shadow-md ${
-        level === 0 ? 'border-indigo-300 bg-gradient-to-r from-indigo-50 to-white ring-2 ring-indigo-500/20' : 'border-slate-200'
+        level === 0 ? 'border-indigo-300 bg-primary-subtle ring-2 ring-indigo-500/20' : 'border-slate-200'
       } ${hit ? 'ring-2 ring-amber-400 border-amber-400' : ''}`}
       title={`${node.name} (${node.employeeCode})\n${node.designation} · ${node.department}`}
     >
-      <div className="w-8 h-8 rounded-full bg-[#023b77] text-white font-bold text-[11px] flex items-center justify-center shrink-0">
+      <div className="w-8 h-8 rounded-full bg-primary text-white font-bold text-[11px] flex items-center justify-center shrink-0">
         {node.avatarInitials}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-xs text-slate-900 truncate">{node.name}</div>
-        <div className="text-[10px] text-slate-500 truncate">{node.designation}</div>
-        <div className="text-[10px] text-[#039583] font-semibold truncate">{node.department}</div>
+        <div className="font-bold text-sm text-slate-900 truncate">{node.name}</div>
+        <div className="text-xs text-slate-500 truncate">{node.designation}</div>
+        <div className="text-xs text-accent font-semibold truncate">{node.department}</div>
       </div>
       {hasReports && (
         <button
@@ -112,8 +112,8 @@ const LeafGroup: React.FC<{ nodes: OrgTreeNode[]; ctx: ChartCtx }> = ({ nodes, c
               hit ? 'border-amber-400 ring-2 ring-amber-400' : 'border-slate-200'
             }`}
           >
-            <div className="text-[11px] font-semibold text-slate-900 truncate">{n.name}</div>
-            <div className="text-[9px] text-slate-500 truncate">{n.designation}</div>
+            <div className="text-[13px] font-semibold text-slate-900 truncate">{n.name}</div>
+            <div className="text-[11px] text-slate-500 truncate">{n.designation}</div>
           </div>
         );
       })}
@@ -164,7 +164,7 @@ const UnassignedPanel: React.FC<{ nodes: OrgTreeNode[]; ctx: ChartCtx }> = ({ no
     <div className="flex flex-col gap-3 p-3 rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/60">
       <div>
         <div className="text-xs font-bold text-amber-800">No reporting manager ({count})</div>
-        <div className="text-[10px] text-amber-700">Set a reporting manager on these employees to place them in the tree.</div>
+        <div className="text-xs text-amber-700">Set a reporting manager on these employees to place them in the tree.</div>
       </div>
       <div className="flex flex-row items-start gap-6">
         {leaves.length > 0 && <LeafGroup nodes={leaves} ctx={ctx} />}
@@ -318,7 +318,7 @@ export const OrgChart: React.FC<{ root: OrgTreeNode | null; unassigned?: OrgTree
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Highlight name, code, role…"
-            className="h-8 pl-8 pr-3 w-56 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-[#039583]"
+            className="h-8 pl-8 pr-3 w-56 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-accent"
           />
         </div>
         <span className="text-[11px] text-slate-500">{totalPeople} people</span>
@@ -338,7 +338,7 @@ export const OrgChart: React.FC<{ root: OrgTreeNode | null; unassigned?: OrgTree
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button
-          className={`${btn} ${autoFit ? 'border-[#039583] text-[#039583]' : ''}`}
+          className={`${btn} ${autoFit ? 'border-accent text-accent' : ''}`}
           onClick={() => setAutoFit(true)}
           title="Fit everything in the window"
         >

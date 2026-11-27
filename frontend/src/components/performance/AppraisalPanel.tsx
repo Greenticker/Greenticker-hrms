@@ -11,7 +11,7 @@ export const APPRAISAL_STATUS: Record<AppraisalStatus, { label: string; cls: str
   REVIEWER: { label: 'With reviewer', cls: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
   CALIBRATION: { label: 'Calibration', cls: 'bg-purple-50 text-purple-800 border-purple-200' },
   FINAL: { label: 'Final', cls: 'bg-slate-100 text-slate-700 border-slate-200' },
-  PUBLISHED: { label: 'Published', cls: 'bg-[#039583]/10 text-[#027a6b] border-[#039583]/30' },
+  PUBLISHED: { label: 'Published', cls: 'bg-accent/10 text-primary-hover border-accent/30' },
   APPEAL: { label: 'Under appeal', cls: 'bg-rose-50 text-rose-800 border-rose-200' },
   CLOSED: { label: 'Closed', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
 };
@@ -40,8 +40,8 @@ const RatingPicker: React.FC<{ value?: number; onChange?: (v: number) => void; l
         onClick={() => onChange?.(v)}
         title={RATING_LABEL[v]}
         className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
-          value === v ? 'bg-[#023b77] border-[#023b77] text-white' : 'border-slate-200 text-slate-500'
-        } ${onChange ? 'hover:border-[#023b77] cursor-pointer' : 'cursor-default'}`}
+          value === v ? 'bg-primary border-primary text-white' : 'border-slate-200 text-slate-500'
+        } ${onChange ? 'hover:border-primary cursor-pointer' : 'cursor-default'}`}
       >
         {v}
       </button>
@@ -62,8 +62,8 @@ const Section: React.FC<{ title: string; hint?: string; children: React.ReactNod
 
 const btn = {
   ghost: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer disabled:opacity-40',
-  primary: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer disabled:opacity-40',
-  dark: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer disabled:opacity-40',
+  primary: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer disabled:opacity-40',
+  dark: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer disabled:opacity-40',
   warn: 'flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 cursor-pointer',
 };
 
@@ -109,7 +109,7 @@ const RatingDialog: React.FC<{
                 key={v}
                 type="button"
                 onClick={() => setRating(v)}
-                className={`flex-1 py-2 rounded-lg border text-xs font-bold cursor-pointer ${rating === v ? 'bg-[#023b77] border-[#023b77] text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                className={`flex-1 py-2 rounded-lg border text-xs font-bold cursor-pointer ${rating === v ? 'bg-primary border-primary text-white' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               >
                 {v} <span className="block text-[9px] font-normal">{RATING_LABEL[v]}</span>
               </button>
@@ -123,7 +123,7 @@ const RatingDialog: React.FC<{
         {error && <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onCancel} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
-          <button type="submit" disabled={busy || (needReason && !reason.trim())} className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] rounded-lg cursor-pointer disabled:opacity-50">
+          <button type="submit" disabled={busy || (needReason && !reason.trim())} className="px-4 py-2 text-xs font-bold text-white bg-primary rounded-lg cursor-pointer disabled:opacity-50">
             {busy ? 'Saving...' : confirmLabel}
           </button>
         </div>
@@ -305,13 +305,13 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
       <div className="space-y-3">
         {error && <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">{error}</div>}
         <div className="bg-white p-10 rounded-2xl border border-slate-200 text-center space-y-3">
-          <ClipboardCheck className="w-8 h-8 text-[#039583] mx-auto" />
+          <ClipboardCheck className="w-8 h-8 text-accent mx-auto" />
           <p className="text-sm font-semibold text-slate-800">Year-end appraisal not started</p>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             {goalsLocked ? 'The employee starts the appraisal with their self appraisal.' : 'The appraisal opens once the goal sheet is approved and locked.'}
           </p>
           {goalsLocked && (
-            <button type="button" onClick={() => run(async () => ({ appraisal: (await pmsService.getAppraisal(employeeId, true)).appraisal! }))} className="px-5 py-2.5 text-xs font-bold text-white bg-[#039583] rounded-xl cursor-pointer">
+            <button type="button" onClick={() => run(async () => ({ appraisal: (await pmsService.getAppraisal(employeeId, true)).appraisal! }))} className="px-5 py-2.5 text-xs font-bold text-white bg-primary rounded-xl cursor-pointer">
               Start my self appraisal
             </button>
           )}
@@ -376,8 +376,8 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           {STEPS.map((s, i) => (
             <React.Fragment key={s}>
-              {i > 0 && <div className={`h-0.5 min-w-4 flex-1 ${i <= stepIndex ? 'bg-[#039583]' : 'bg-slate-200'}`} />}
-              <span className={`text-[10px] font-semibold whitespace-nowrap px-2 py-1 rounded-full ${i < stepIndex ? 'bg-[#039583]/10 text-[#027a6b]' : i === stepIndex ? 'bg-[#023b77] text-white' : 'text-slate-400'}`}>
+              {i > 0 && <div className={`h-0.5 min-w-4 flex-1 ${i <= stepIndex ? 'bg-primary' : 'bg-slate-200'}`} />}
+              <span className={`text-[10px] font-semibold whitespace-nowrap px-2 py-1 rounded-full ${i < stepIndex ? 'bg-accent/10 text-primary-hover' : i === stepIndex ? 'bg-primary text-white' : 'text-slate-400'}`}>
                 {APPRAISAL_STATUS[s].label}
               </span>
             </React.Fragment>
@@ -402,7 +402,7 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
               {note && <p className="text-[10px] text-slate-400">{note as string}</p>}
             </div>
           ))}
-          <div className="bg-[#023b77] text-white rounded-xl p-4 col-span-2 lg:col-span-1">
+          <div className="bg-primary text-white rounded-xl p-4 col-span-2 lg:col-span-1">
             <p className="text-[11px] font-semibold text-slate-300">Rating</p>
             <p className="text-3xl font-black mt-0.5">{sc.finalRating ?? '—'}</p>
             <p className="text-[10px] text-slate-300">{sc.finalRating ? RATING_LABEL[sc.finalRating] : 'not yet calculated'}</p>
@@ -417,7 +417,7 @@ export const AppraisalPanel: React.FC<{ employeeId: string }> = ({ employeeId })
 
       {/* Published: accept / appeal */}
       {ap.status === 'PUBLISHED' && p.canAccept && (
-        <div className="p-4 rounded-2xl bg-[#039583]/10 border border-[#039583]/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <p className="text-xs text-slate-800">
             Your rating has been published. Accept it, or appeal to HR if you disagree.
             {autoAcceptOn && <> It is accepted automatically on <strong>{fmt(autoAcceptOn.toISOString())}</strong>.</>}

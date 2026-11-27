@@ -123,7 +123,7 @@ export const BulkUpload: React.FC = () => {
           ['goals', 'Goals'],
           ['actuals', 'KPI actuals'],
         ] as const).map(([id, label]) => (
-          <button key={id} type="button" onClick={() => reset(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${mode === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600'}`}>
+          <button key={id} type="button" onClick={() => reset(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${mode === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600'}`}>
             {label}
           </button>
         ))}
@@ -152,7 +152,7 @@ export const BulkUpload: React.FC = () => {
           >
             <Download className="w-3.5 h-3.5" /> Download template
           </button>
-          <label className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer">
+          <label className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer">
             <Upload className="w-3.5 h-3.5" /> {file ? 'Choose another file' : 'Upload Excel file'}
             <input ref={input} type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
           </label>
@@ -189,7 +189,7 @@ export const BulkUpload: React.FC = () => {
                 >
                   <Download className="w-3.5 h-3.5" /> Error report
                 </button>
-                <button type="button" disabled={!importable} onClick={() => run(true)} className="px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer disabled:opacity-40">
+                <button type="button" disabled={!importable} onClick={() => run(true)} className="px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer disabled:opacity-40">
                   {goals ? `Import ${importable} employee(s)` : `Save ${okRows} actual(s)`}
                 </button>
               </div>
@@ -281,7 +281,7 @@ export const RemindersPanel: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <BellRing className="w-4 h-4 text-[#039583]" /> Automatic reminders are {data.enabled ? 'on' : 'off'}
+            <BellRing className="w-4 h-4 text-accent" /> Automatic reminders are {data.enabled ? 'on' : 'off'}
           </p>
           <p className="text-[11px] text-slate-500 mt-0.5">
             {data.enabled ? 'Due reminders are sent every 6 hours.' : 'Nothing is sent automatically. Check the list below before switching them on.'}
@@ -295,7 +295,7 @@ export const RemindersPanel: React.FC = () => {
               await pmsService.setRemindersEnabled(!data.enabled);
               load();
             }}
-            className={`px-4 py-2 text-xs font-bold rounded-lg cursor-pointer ${data.enabled ? 'border border-slate-300 bg-white text-slate-700' : 'bg-[#039583] text-white'}`}
+            className={`px-4 py-2 text-xs font-bold rounded-lg cursor-pointer ${data.enabled ? 'border border-slate-300 bg-white text-slate-700' : 'bg-primary text-white'}`}
           >
             {data.enabled ? 'Switch off' : 'Switch on'}
           </button>
@@ -313,7 +313,7 @@ export const RemindersPanel: React.FC = () => {
                 setError(err?.message || 'Could not send reminders.');
               }
             }}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white cursor-pointer disabled:opacity-40"
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-primary text-white cursor-pointer disabled:opacity-40"
           >
             <Send className="w-3.5 h-3.5" /> Send due reminders now
           </button>

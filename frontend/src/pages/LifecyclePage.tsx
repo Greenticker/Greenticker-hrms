@@ -281,7 +281,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-navy text-white p-6 rounded-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Employee Lifecycle
@@ -292,7 +292,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
           {onNavigateTab && user?.employeeId && (
             <button
               onClick={() => onNavigateTab('resignation')}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
+              className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>My Resignation</span>
@@ -301,7 +301,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
           {onNavigateTab && canSeeExits && (
             <button
               onClick={() => onNavigateTab('exit_management')}
-              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
+              className="h-10 px-4 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-white/30 cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Exit Management</span>
@@ -316,14 +316,14 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                   setSelectedBulkEmpIds(employees.map((e) => e._id));
                 }
               }}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-xs cursor-pointer"
+              className="h-10 px-4 bg-white text-primary hover:bg-primary-light rounded-lg text-xs font-semibold flex items-center gap-2 transition cursor-pointer"
             >
               <Zap className="w-4 h-4" />
               <span>Bulk Action (Transfer / Promotion / Increment)</span>
             </button>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2.5 bg-[#039583] hover:bg-[#023b77] text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition shadow-xs border border-[#039583] cursor-pointer"
+              className="h-10 px-4 bg-primary hover:bg-primary-hover active:bg-primary-active text-white rounded-lg text-xs font-semibold flex items-center gap-2 transition border border-white/20 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Single Action</span>
@@ -387,8 +387,8 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
       </div>
 
       {/* Filter and Search */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 text-xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2 min-w-0 text-xs">
           {[
             { id: 'ALL', label: 'All Milestones' },
             { id: 'PROMOTION', label: 'Promotions' },
@@ -403,7 +403,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
               onClick={() => setSelectedType(tab.id)}
               className={`px-3 py-1.5 rounded-lg font-medium whitespace-nowrap transition ${
                 selectedType === tab.id
-                  ? 'bg-slate-900 text-white shadow-xs'
+                  ? 'bg-primary text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
@@ -412,14 +412,14 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
           ))}
         </div>
 
-        <div className="relative w-full md:w-72">
+        <div className="relative w-full xl:w-72 shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Search employee, new title, reason..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
           />
         </div>
       </div>
@@ -442,8 +442,8 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
           <div className="divide-y divide-slate-100">
             {filteredEvents.map((ev) => (
               <div key={ev._id} className="p-5 hover:bg-slate-50/70 transition space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
                     <span
                       className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase font-mono border ${
                         ev.eventType === 'PROMOTION'
@@ -459,7 +459,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                     >
                       {ev.eventType.replace('_', ' ')}
                     </span>
-                    <h3 className="text-sm font-bold text-slate-900">{ev.employeeName}</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 break-words min-w-0">{ev.employeeName}</h3>
                     <span className="text-xs text-slate-400 font-mono font-medium">
                       ({ev.employeeCode})
                     </span>
@@ -467,7 +467,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                     <span className="text-xs text-slate-500 hidden sm:inline">{ev.department}</span>
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono shrink-0">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     <span>Effective: {ev.effectiveDate}</span>
                   </div>
@@ -475,8 +475,8 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
 
                 {/* Transition Diff Box */}
                 <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center gap-3 flex-wrap min-w-0">
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 min-w-0 max-w-full break-words">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block">
                         {ev.eventType === 'SEPARATION' ? 'Before' : 'Previous Baseline'}
                       </span>
@@ -485,8 +485,8 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
 
                     <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
 
-                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-900/20 text-slate-900 font-semibold shadow-2xs">
-                      <span className="text-[10px] uppercase font-bold text-blue-600 block">
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-primary/30 text-slate-900 font-semibold min-w-0 max-w-full break-words">
+                      <span className="text-[10px] uppercase font-bold text-primary block">
                         {ev.eventType === 'SEPARATION' ? 'Now' : 'New Approved Value'}
                       </span>
                       <span className="font-bold">{ev.newValue}</span>
@@ -500,13 +500,13 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                 </div>
 
                 {/* Justification */}
-                <p className="text-xs text-slate-600 pl-1">
+                <p className="text-xs text-slate-600 pl-1 break-words">
                   <span className="font-semibold text-slate-800">{ev.eventType === 'SEPARATION' ? 'Reason' : 'Business Justification'}: </span>
                   {ev.reason}
                 </p>
 
                 {ev.notes && (
-                  <p className="text-[11px] text-slate-400 italic pl-1">
+                  <p className="text-[11px] text-slate-400 italic pl-1 break-words">
                     Notes: {ev.notes}
                   </p>
                 )}
@@ -546,7 +546,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                 <select
                   value={formData.employeeId}
                   onChange={(e) => handleEmployeeChange(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                 >
                   {employees.map((emp) => (
                     <option key={emp._id} value={emp._id}>
@@ -562,7 +562,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                   <select
                     value={formData.eventType}
                     onChange={(e) => handleEventTypeChange(e.target.value as LifecycleEventType)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   >
                     <option value="PROMOTION">Promotion</option>
                     <option value="TRANSFER">Department Transfer</option>
@@ -580,7 +580,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                     value={formData.effectiveDate}
                     onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
                     required
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
               </div>
@@ -632,7 +632,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                       value={formData.newValue}
                       onChange={(e) => setFormData({ ...formData, newValue: e.target.value })}
                       required
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                     />
                   )}
                 </div>
@@ -646,7 +646,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   required
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -657,7 +657,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                   placeholder="e.g. Executive Board Resolution #412"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -672,7 +672,7 @@ export const LifecyclePage: React.FC<LifecyclePageProps> = ({ onNavigateTab }) =
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50"
+                  className="px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs disabled:opacity-50"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Apply & Record Milestone

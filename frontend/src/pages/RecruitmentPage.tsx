@@ -117,9 +117,9 @@ const inr = (n?: number) => (n || n === 0 ? `₹${Math.round(n).toLocaleString('
 const dayOffset = (days: number) => new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
 
 const inputCls =
-  'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+  'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/25';
 const btnPrimary =
-  'px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer text-xs';
+  'px-4 py-2 font-semibold text-white bg-slate-900 hover:bg-primary-hover rounded-xl shadow-xs disabled:opacity-50 cursor-pointer text-xs';
 const btnGhost = 'px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer text-xs';
 const chip = 'px-2 py-0.5 rounded text-[10px] font-bold uppercase';
 const actionBtn = (tone: string) =>
@@ -183,7 +183,7 @@ const Footer: React.FC<{ onCancel: () => void; busy: boolean; label: string; dan
     <button
       type="submit"
       disabled={busy}
-      className={danger ? btnPrimary.replace('bg-slate-900 hover:bg-slate-800', 'bg-rose-600 hover:bg-rose-700') : btnPrimary}
+      className={danger ? btnPrimary.replace('bg-slate-900 hover:bg-primary-hover', 'bg-rose-600 hover:bg-rose-700') : btnPrimary}
     >
       {busy ? 'Working...' : label}
     </button>
@@ -670,7 +670,7 @@ export const RecruitmentPage: React.FC = () => {
           return (
             <div key={r.roundNumber} className="bg-white p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-1">
               <div className="flex flex-wrap items-center gap-2 justify-between">
-                <span className="font-bold text-[#023b77]">
+                <span className="font-bold text-primary">
                   {r.roundName} · {r.date} {r.time} IST · {r.mode.replace('_', ' ').toLowerCase()}
                 </span>
                 <span className="flex items-center gap-2">
@@ -814,7 +814,7 @@ export const RecruitmentPage: React.FC = () => {
                       setConvertForm({ workEmail: '', panNumber: '', aadhaarNumber: '', department: job?.department || '', joiningDate: c.offer?.joiningDate || '', phone: c.phone || '' });
                       setConverting(c);
                     }}
-                    className={actionBtn('bg-[#039583] hover:bg-[#027a6b] text-white')}
+                    className={actionBtn('bg-primary hover:bg-primary-hover text-white')}
                   >
                     <UserCheck className="w-3.5 h-3.5" /> Convert to employee
                   </button>
@@ -864,7 +864,7 @@ export const RecruitmentPage: React.FC = () => {
   // ---------------------------------------------------------------- page
   return (
     <div className="space-y-6">
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Recruitment & Hiring</h1>
           <p className="text-xs text-slate-300 mt-1">
@@ -902,7 +902,7 @@ export const RecruitmentPage: React.FC = () => {
               setRefResume(null);
               setRefForm(emptyRef);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#027a6b] text-white font-semibold text-xs cursor-pointer border border-[#039583]"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs cursor-pointer border border-accent"
           >
             <UserPlus className="w-4 h-4" /> Refer a candidate
           </button>
@@ -931,7 +931,7 @@ export const RecruitmentPage: React.FC = () => {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold border cursor-pointer ${
-                tab === t.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                tab === t.id ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
               }`}
             >
               {t.label}
@@ -1334,7 +1334,7 @@ export const RecruitmentPage: React.FC = () => {
                 <input value={candForm.currentCompany} onChange={(e) => setCandForm({ ...candForm, currentCompany: e.target.value })} className={inputCls} />
               </Field>
               <Field label={`Resume (PDF, DOC, DOCX · max ${MAX_UPLOAD_LABEL})`}>
-                <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setCandResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:cursor-pointer" />
+                <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setCandResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-primary file:text-white file:cursor-pointer" />
               </Field>
             </div>
             <Field label="Notes">
@@ -1697,7 +1697,7 @@ export const RecruitmentPage: React.FC = () => {
               </select>
             </Field>
             <Field label={`Resume * (PDF, DOC, DOCX · max ${MAX_UPLOAD_LABEL})`}>
-              <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setRefResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-900 file:text-white file:cursor-pointer" />
+              <input type="file" accept=".pdf,.doc,.docx" aria-label="Resume" onChange={(e) => setRefResume(e.target.files?.[0] || null)} className="text-xs file:mr-2 file:px-2.5 file:py-1.5 file:rounded-lg file:border-0 file:bg-primary file:text-white file:cursor-pointer" />
             </Field>
             <Field label="Why are they a good fit?">
               <textarea rows={2} value={refForm.notes} onChange={(e) => setRefForm({ ...refForm, notes: e.target.value })} className={inputCls} />

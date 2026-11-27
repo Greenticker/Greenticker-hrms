@@ -158,13 +158,13 @@ const CheckinCard: React.FC<{ employeeId: string; checkin: Checkin; onChange: (c
                   if (dirty && !(await run(() => pmsService.saveCheckin(employeeId, checkin.period, payload())))) return;
                   await run(() => pmsService.submitCheckin(employeeId, checkin.period));
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer disabled:opacity-40"
               >
                 <Send className="w-3.5 h-3.5" /> Send to manager
               </button>
             )}
             {perms.canComplete && (
-              <button type="button" onClick={() => setCompleting(true)} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer">
+              <button type="button" onClick={() => setCompleting(true)} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer">
                 <MessageSquare className="w-3.5 h-3.5" /> Add comments & complete
               </button>
             )}
@@ -210,7 +210,7 @@ export const CheckinsPanel: React.FC<{ employeeId: string }> = ({ employeeId }) 
         </div>
       )}
       <div className="flex items-center gap-2 text-xs text-slate-600">
-        <CheckCircle2 className="w-4 h-4 text-[#039583]" /> {done} of {data.checkins.length} check-ins completed
+        <CheckCircle2 className="w-4 h-4 text-accent" /> {done} of {data.checkins.length} check-ins completed
       </div>
       {data.checkins.map((c) => (
         <CheckinCard

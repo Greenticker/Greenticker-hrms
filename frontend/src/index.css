@@ -1,5 +1,111 @@
 @import "tailwindcss";
 
+/*
+ * AI tools UI design system
+ * Brand: #23408E · Typography: Poppins · Modern, minimal, corporate.
+ *
+ * Semantic colours map onto the spec exactly:
+ *   success  = green  (#16A34A / text #166534)
+ *   warning  = amber  (#D97706 / text #92400E)
+ *   danger   = red    (#DC2626 / text #991B1B)
+ *   info     = sky    (#0284C7 / text #075985)
+ *   ai       = violet (#7C3AED / text #5B21B6)
+ *   neutral  = slate  (#64748B / text #334155)
+ *
+ * The app historically used emerald / rose / purple / indigo / blue. Those
+ * scales are remapped below so every existing class follows the spec.
+ */
+@theme {
+  --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand tokens */
+  --color-primary: #23408E;
+  --color-primary-hover: #1B3475;
+  --color-primary-active: #162B60;
+  --color-primary-light: #DCE6FF;
+  --color-primary-subtle: #F1F5FF;
+  --color-navy: #162B60;
+  --color-accent: #4C6FBF;
+
+  /* Brand scale (used for indigo + blue) */
+  --color-brand-50: #F1F5FF;
+  --color-brand-100: #DCE6FF;
+  --color-brand-200: #BFD0FA;
+  --color-brand-300: #93ABEB;
+  --color-brand-400: #6A89D2;
+  --color-brand-500: #4C6FBF;
+  --color-brand-600: #23408E;
+  --color-brand-700: #1B3475;
+  --color-brand-800: #162B60;
+  --color-brand-900: #12234F;
+  --color-brand-950: #0B1736;
+
+  --color-indigo-50: #F1F5FF;
+  --color-indigo-100: #DCE6FF;
+  --color-indigo-200: #BFD0FA;
+  --color-indigo-300: #93ABEB;
+  --color-indigo-400: #6A89D2;
+  --color-indigo-500: #4C6FBF;
+  --color-indigo-600: #23408E;
+  --color-indigo-700: #1B3475;
+  --color-indigo-800: #162B60;
+  --color-indigo-900: #12234F;
+  --color-indigo-950: #0B1736;
+
+  --color-blue-50: #F1F5FF;
+  --color-blue-100: #DCE6FF;
+  --color-blue-200: #BFD0FA;
+  --color-blue-300: #93ABEB;
+  --color-blue-400: #6A89D2;
+  --color-blue-500: #4C6FBF;
+  --color-blue-600: #23408E;
+  --color-blue-700: #1B3475;
+  --color-blue-800: #162B60;
+  --color-blue-900: #12234F;
+  --color-blue-950: #0B1736;
+
+  /* Success: emerald -> green */
+  --color-emerald-50: #F0FDF4;
+  --color-emerald-100: #DCFCE7;
+  --color-emerald-200: #BBF7D0;
+  --color-emerald-300: #86EFAC;
+  --color-emerald-400: #4ADE80;
+  --color-emerald-500: #22C55E;
+  --color-emerald-600: #16A34A;
+  --color-emerald-700: #15803D;
+  --color-emerald-800: #166534;
+  --color-emerald-900: #14532D;
+  --color-emerald-950: #052E16;
+
+  /* Danger: rose -> red */
+  --color-rose-50: #FEF2F2;
+  --color-rose-100: #FEE2E2;
+  --color-rose-200: #FECACA;
+  --color-rose-300: #FCA5A5;
+  --color-rose-400: #F87171;
+  --color-rose-500: #EF4444;
+  --color-rose-600: #DC2626;
+  --color-rose-700: #B91C1C;
+  --color-rose-800: #991B1B;
+  --color-rose-900: #7F1D1D;
+  --color-rose-950: #450A0A;
+
+  /* AI / intelligence: purple -> violet */
+  --color-purple-50: #F5F3FF;
+  --color-purple-100: #EDE9FE;
+  --color-purple-200: #DDD6FE;
+  --color-purple-300: #C4B5FD;
+  --color-purple-400: #A78BFA;
+  --color-purple-500: #8B5CF6;
+  --color-purple-600: #7C3AED;
+  --color-purple-700: #6D28D9;
+  --color-purple-800: #5B21B6;
+  --color-purple-900: #4C1D95;
+  --color-purple-950: #2E1065;
+
+  /* Spacing tokens (XS..5XL) are Tailwind's 1/2/3/4/5/6/8/10/12/16 steps */
+}
+
 @layer base {
   html {
     font-size: 112.5%;
@@ -7,26 +113,69 @@
 
   body {
     font-family: 'Poppins', sans-serif;
+    font-weight: 400;
     color: #0f172a;
+    background-color: #F8FAFC;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
     letter-spacing: normal;
   }
+  h1 { font-weight: 700; }
+  h2, h3 { font-weight: 600; }
+
+  a { color: var(--color-primary); }
+  a:hover { color: var(--color-primary-hover); }
+
+  button {
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: 150ms;
+  }
+
+  /* Form inputs: default / hover / focus / disabled per spec */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    border-color: #CBD5E1;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):hover:not(:disabled):not(:focus),
+  select:hover:not(:disabled):not(:focus),
+  textarea:hover:not(:disabled):not(:focus) {
+    border-color: #94A3B8;
+  }
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):focus,
+  select:focus,
+  textarea:focus {
+    border-color: #23408E;
+    --tw-ring-color: rgb(35 64 142 / 0.25);
+  }
+  input:disabled, select:disabled, textarea:disabled {
+    border-color: #E2E8F0;
+    background-color: #F1F5F9;
+  }
+  input[aria-invalid='true'], select[aria-invalid='true'], textarea[aria-invalid='true'] {
+    border-color: #DC2626;
+  }
+  ::placeholder {
+    color: #94A3B8;
+  }
+  input[type='checkbox'], input[type='radio'] {
+    accent-color: #23408E;
+  }
 }
 
+/* Brand accents. Kept for existing markup; now a flat brand fill (no decorative gradient). */
 .bg-brand-gradient {
-  background: linear-gradient(135deg, #023b77 0%, #039583 100%);
+  background: #23408E;
 }
 
 .text-brand-gradient {
-  background: linear-gradient(135deg, #023b77 0%, #039583 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #23408E;
 }
 
 .border-brand-gradient {
-  border-image: linear-gradient(135deg, #023b77, #039583) 1;
+  border-color: #23408E;
 }
 
 @layer utilities {

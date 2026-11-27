@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
           nested ? 'px-3 py-2 text-[13px]' : 'px-3 py-2.5 text-sm'
         } ${
           isActive
-            ? 'bg-gradient-to-r from-[#039583] to-[#087f88] text-white shadow-lg shadow-slate-950/15 ring-1 ring-white/15 font-semibold'
+            ? 'bg-primary text-white ring-1 ring-white/10 font-semibold'
             : nested
             ? 'text-slate-300 hover:bg-white/[0.08] hover:text-white'
             : 'text-slate-100 hover:bg-white/[0.08] hover:text-white'
@@ -257,7 +257,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
         <span className="flex items-center gap-2.5 truncate">
           <Icon
             className={`w-[17px] h-[17px] shrink-0 transition-colors ${
-              isActive ? 'text-white' : 'text-slate-400 group-hover:text-[#6ee7d8]'
+              isActive ? 'text-white' : 'text-slate-400 group-hover:text-primary-light'
             }`}
           />
           <span className="truncate">{item.label}</span>
@@ -280,11 +280,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
   return (
     <aside
       aria-hidden={!isOpen}
-      className={`relative bg-gradient-to-b from-[#07366b] via-[#052f60] to-[#03264c] text-slate-200 h-[calc(100vh-4rem)] sticky top-16 self-start select-none overflow-y-auto overflow-x-hidden shrink-0 transition-[width] duration-200 ease-in-out ${
-        isOpen ? 'w-72 border-r border-white/10 shadow-[8px_0_30px_rgba(2,35,70,0.08)]' : 'w-0 border-r-0 invisible'
+      className={`relative bg-navy text-slate-200 h-[calc(100vh-4rem)] sticky top-16 self-start select-none overflow-y-auto overflow-x-hidden shrink-0 transition-[width] duration-200 ease-in-out ${
+        isOpen ? 'w-56 border-r border-white/10' : 'w-0 border-r-0 invisible'
       }`}
     >
-      <div className="w-72 min-h-full flex flex-col pb-8">
+      <div className="w-56 min-h-full flex flex-col pb-8">
         <div className="px-4 pt-5 pb-4">
           <p className="mb-2.5 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
             Workspace
@@ -297,7 +297,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Find a page..."
               aria-label="Find a page"
-              className="w-full rounded-xl bg-[#011f40]/55 border border-white/10 pl-10 pr-9 py-2.5 text-[13px] text-white placeholder:text-slate-400 shadow-inner shadow-black/10 transition focus:outline-none focus:border-[#039583]/70 focus:ring-2 focus:ring-[#039583]/25 focus:bg-[#011f40]/80"
+              className="w-full rounded-xl bg-navy/55 border border-white/10 pl-10 pr-9 py-2.5 text-[13px] text-white placeholder:text-slate-400 shadow-inner shadow-black/10 transition focus:outline-none focus:border-accent/70 focus:ring-2 focus:ring-accent/25 focus:bg-navy/80"
             />
             {query && (
               <button
@@ -341,7 +341,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
                       >
                         <span className="flex items-center gap-2.5 truncate">
                           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
-                            hasActive || isExpanded ? 'bg-[#039583]/20 text-[#72e6d6]' : 'bg-white/[0.06] text-slate-400 group-hover:text-[#72e6d6]'
+                            hasActive || isExpanded ? 'bg-accent/20 text-primary-light' : 'bg-white/[0.06] text-slate-400 group-hover:text-primary-light'
                           }`}>
                             <GroupIcon className="w-[17px] h-[17px]" />
                           </span>

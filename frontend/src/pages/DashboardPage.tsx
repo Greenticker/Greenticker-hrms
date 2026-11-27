@@ -395,7 +395,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             onClick={() => setQueueFilter(f.id as any)}
             className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition cursor-pointer ${
               queueFilter === f.id
-                ? 'bg-slate-900 text-white font-bold shadow-2xs'
+                ? 'bg-primary text-white font-bold shadow-2xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -483,7 +483,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
             Your {ROLE_LABELS[role]} workspace, with the information and tools available to your role.
           </p>
         </div>
-        <span className="inline-flex w-fit items-center rounded-full border border-[#039583]/20 bg-[#039583]/5 px-3 py-1 text-xs font-semibold text-[#087f75]">
+        <span className="inline-flex w-fit items-center rounded-full border border-accent/20 bg-accent/5 px-3 py-1 text-xs font-semibold text-primary-hover">
           {ROLE_LABELS[role]}
         </span>
       </div>
@@ -772,19 +772,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               onClick={() => onNavigateTab('leave')}
               className="group relative overflow-hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
             >
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#023b77] to-[#039583]" />
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary to-accent" />
               <div className="absolute -right-7 -top-8 h-24 w-24 rounded-full bg-blue-50 transition-transform duration-300 group-hover:scale-125" />
               <div className="relative flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#176a91] ring-1 ring-blue-100">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-primary ring-1 ring-blue-100">
                     <CalendarCheck className="h-5 w-5" />
                   </span>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#176a91]">Leave</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary">Leave</span>
                     <p className="mt-0.5 text-xs font-semibold text-slate-600">Pending Leave Approvals</p>
                   </div>
                 </div>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-all group-hover:border-blue-200 group-hover:text-[#176a91]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-all group-hover:border-blue-200 group-hover:text-primary">
                   <ArrowUpRight className="h-4 w-4" />
                 </span>
               </div>
@@ -1008,11 +1008,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div
               onClick={() => onNavigateTab('payroll')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-[#023b77] hover:shadow-sm transition"
+              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-primary hover:shadow-sm transition"
             >
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-xs font-semibold">Monthly Payroll Disbursal</span>
-                <Landmark className="w-4 h-4 text-[#023b77]" />
+                <Landmark className="w-4 h-4 text-primary" />
               </div>
               <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">
                 ₹34,80,000
@@ -1082,10 +1082,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => onNavigateTab('payroll')}
-                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-[#023b77] hover:text-white hover:border-[#023b77] transition-all text-left group cursor-pointer"
+                className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-primary-hover hover:text-white hover:border-primary transition-all text-left group cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <Play className="w-4 h-4 text-[#039583] group-hover:text-white" />
+                  <Play className="w-4 h-4 text-accent group-hover:text-white" />
                   <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" />
                 </div>
                 <p className="text-xs font-bold text-slate-900 group-hover:text-white">Run Monthly Payroll</p>
@@ -1141,14 +1141,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                   <h3 className="text-sm font-bold text-slate-900">Department Payroll Cost Centers</h3>
                   <p className="text-xs text-slate-500">Monthly compensation expenditure distribution</p>
                 </div>
-                <span className="text-xs font-bold font-mono text-[#023b77]">₹34,80,000 / mo</span>
+                <span className="text-xs font-bold font-mono text-primary">₹34,80,000 / mo</span>
               </div>
 
               <div className="space-y-3 pt-2">
                 {[
                   { dept: 'Engineering & Technology', amount: '₹18,40,000', pct: 53, color: 'bg-indigo-600' },
                   { dept: 'Sales & Client Growth', amount: '₹7,80,000', pct: 22, color: 'bg-emerald-600' },
-                  { dept: 'Finance & Accounts', amount: '₹3,20,000', pct: 9, color: 'bg-[#023b77]' },
+                  { dept: 'Finance & Accounts', amount: '₹3,20,000', pct: 9, color: 'bg-primary' },
                   { dept: 'Operations & Human Resources', amount: '₹3,10,000', pct: 9, color: 'bg-amber-600' },
                   { dept: 'Executive & Strategic Advisory', amount: '₹2,30,000', pct: 7, color: 'bg-purple-600' },
                 ].map((item) => (
@@ -1253,7 +1253,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => onNavigateTab('payroll')}
-                className="text-xs font-bold text-[#023b77] hover:underline cursor-pointer"
+                className="text-xs font-bold text-primary hover:underline cursor-pointer"
               >
                 View Complete Payroll Ledger →
               </button>
@@ -1294,7 +1294,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                         <button
                           type="button"
                           onClick={() => onNavigateTab('payroll')}
-                          className="text-xs font-semibold text-[#023b77] hover:underline cursor-pointer"
+                          className="text-xs font-semibold text-primary hover:underline cursor-pointer"
                         >
                           View Run
                         </button>
@@ -1316,11 +1316,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div
               onClick={() => onNavigateTab('tax')}
-              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-[#023b77] hover:shadow-sm transition"
+              className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs cursor-pointer hover:border-primary hover:shadow-sm transition"
             >
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-xs font-semibold">General Ledger & JV Posting</span>
-                <Landmark className="w-4 h-4 text-[#023b77]" />
+                <Landmark className="w-4 h-4 text-primary" />
               </div>
               <p className="text-2xl font-black text-slate-900 mt-2 font-mono tabular-nums">100% Reconciled</p>
               <div className="flex items-center gap-1.5 mt-2 text-[11px] text-emerald-600 font-medium">
@@ -1380,7 +1380,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => onNavigateTab('tax')}
-                className="px-4 py-2 rounded-xl bg-[#023b77] text-white text-xs font-bold hover:bg-[#012a52] transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-navy transition cursor-pointer"
               >
                 Open General Ledger
               </button>
@@ -1478,7 +1478,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
               <button
                 type="button"
                 onClick={() => onNavigateTab('reports')}
-                className="px-4 py-2 rounded-xl bg-[#023b77] text-white text-xs font-bold hover:bg-[#012a52] transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-navy transition cursor-pointer"
               >
                 View Compliance Reports
               </button>
@@ -1692,10 +1692,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigateTab }) =
                   key={shortcut.title}
                   type="button"
                   onClick={() => onNavigateTab(shortcut.tab)}
-                  className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-[#039583]/40 hover:shadow-sm cursor-pointer"
+                  className="group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-sm cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#039583]/10 text-[#087f75]">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-primary-hover">
                       <Icon className="h-4 w-4" />
                     </span>
                     <span className="text-[9px] font-bold tracking-[0.14em] text-slate-400">{shortcut.label}</span>

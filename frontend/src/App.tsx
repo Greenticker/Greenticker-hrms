@@ -172,7 +172,7 @@ function MainApp() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-lg animate-pulse">
+          <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-black text-lg animate-pulse">
             V
           </div>
           <p className="text-xs font-semibold text-slate-500 font-mono">

@@ -6,25 +6,25 @@ import { API_BASE, ApiError, getAuthToken } from '../../services/api';
 /** Small shared building blocks for the module pages. */
 
 export const inputCls =
-  'w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-slate-900';
+  'w-full min-h-11 px-4 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 placeholder:text-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary disabled:bg-slate-100 disabled:border-slate-200';
 export const btn = (tone: string) =>
-  `px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${tone}`;
-export const PRIMARY = 'bg-slate-900 text-white hover:bg-slate-800';
-export const SECONDARY = 'bg-slate-100 text-slate-800 hover:bg-slate-200';
+  `inline-flex items-center justify-center gap-2 h-8 px-4 rounded-lg font-semibold text-xs cursor-pointer transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed ${tone}`;
+export const PRIMARY = 'bg-primary text-white hover:bg-primary-hover active:bg-primary-active';
+export const SECONDARY = 'bg-primary-subtle text-primary hover:bg-primary-light';
 export const GOOD = 'bg-emerald-600 text-white hover:bg-emerald-700';
 export const BAD = 'bg-rose-600 text-white hover:bg-rose-700';
-export const card = 'bg-white border border-slate-200 rounded-2xl p-5 space-y-4';
+export const card = 'bg-white border border-slate-200 rounded-xl p-6 space-y-4';
 
 export const fmtMoney = (n: number | undefined | null) =>
   (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export const fmtDate = (s?: string | null) => (s ? s.slice(0, 16).replace('T', ' ') : '—');
 
 const TONES: Record<string, string> = {
-  green: 'bg-emerald-100 text-emerald-800',
+  green: 'bg-green-100 text-green-800',
   amber: 'bg-amber-100 text-amber-800',
-  red: 'bg-rose-100 text-rose-800',
-  blue: 'bg-indigo-100 text-indigo-800',
-  grey: 'bg-slate-100 text-slate-600',
+  red: 'bg-red-100 text-red-800',
+  blue: 'bg-sky-100 text-sky-800',
+  grey: 'bg-slate-100 text-slate-700',
 };
 const STATUS_TONE: Record<string, string> = {
   APPROVED: 'green', ACTIVE: 'green', PAID: 'green', POSTED: 'green', PUBLISHED: 'green', VERIFIED: 'green', RESOLVED: 'green', CLOSED: 'grey',
@@ -37,7 +37,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 export const Badge: React.FC<{ s?: string | null; tone?: string }> = ({ s, tone }) =>
   s ? (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${TONES[tone || STATUS_TONE[s] || 'grey']}`}>
+    <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold whitespace-nowrap ${TONES[tone || STATUS_TONE[s] || 'grey']}`}>
       {s.replace(/_/g, ' ')}
     </span>
   ) : null;
@@ -64,7 +64,7 @@ export const Msg: React.FC<{ msg: MsgState }> = ({ msg }) =>
   msg && msg.text.length ? (
     <div
       role={msg.ok ? 'status' : 'alert'}
-      className={`p-3 rounded-xl text-xs border ${msg.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-rose-50 border-rose-200 text-rose-700'}`}
+      className={`p-4 rounded-lg text-xs border ${msg.ok ? 'bg-green-100 border-green-200 text-green-800' : 'bg-red-100 border-red-200 text-red-800'}`}
     >
       {msg.text.length === 1 ? msg.text[0] : <ul className="list-disc pl-4">{msg.text.map((t) => <li key={t}>{t}</li>)}</ul>}
     </div>
@@ -85,7 +85,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
 export const PageHeader: React.FC<{ title: string; subtitle?: string; children?: React.ReactNode }> = ({ title, subtitle, children }) => (
   <div className="flex flex-wrap items-end justify-between gap-3">
     <div>
-      <h1 className="text-xl font-bold text-slate-900">{title}</h1>
+      <h1 className="text-xl font-bold text-navy">{title}</h1>
       {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
     </div>
     {children}
@@ -103,7 +103,7 @@ export function Table<T extends Record<string, any>>({ cols, rows, empty, rowKey
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-left text-slate-500 border-b">
+          <tr className="text-left text-slate-500 font-medium border-b border-slate-200">
             {cols.map((c) => (
               <th key={c.key} className={`py-2 px-2 ${c.right ? 'text-right' : ''}`}>{c.label}</th>
             ))}

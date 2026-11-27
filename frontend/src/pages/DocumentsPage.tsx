@@ -596,7 +596,7 @@ export const DocumentsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">
             Document Management
@@ -609,7 +609,7 @@ export const DocumentsPage: React.FC = () => {
             setIsUploadOpen(true);
             setErrorMsg(null);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm shrink-0 border border-[#039583]"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs shadow-sm shrink-0 border border-accent"
         >
           <Plus className="w-4 h-4" />
           Upload Document
@@ -724,7 +724,7 @@ export const DocumentsPage: React.FC = () => {
                 setSearch(event.target.value)
               }
               placeholder="Search documents, employees or file names..."
-              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+              className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
             />
           </div>
 
@@ -1084,7 +1084,7 @@ export const DocumentsPage: React.FC = () => {
                         })
                       }
                       required
-                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                     >
                       <option value="">
                         Select employee
@@ -1124,7 +1124,7 @@ export const DocumentsPage: React.FC = () => {
                       })
                     }
                     required
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   >
                     {CATEGORY_OPTIONS.map(
                       (category) => (
@@ -1156,7 +1156,7 @@ export const DocumentsPage: React.FC = () => {
                           event.target.value,
                       })
                     }
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
               </div>
@@ -1256,7 +1256,7 @@ export const DocumentsPage: React.FC = () => {
                                 }))
                               }
                               placeholder="Document Title"
-                              className="font-medium text-slate-800 bg-white border border-slate-200 rounded px-2 py-0.5 text-xs w-full focus:outline-none focus:ring-1 focus:ring-slate-900"
+                              className="font-medium text-slate-800 bg-white border border-slate-200 rounded px-2 py-0.5 text-xs w-full focus:outline-none focus:ring-1 focus:ring-primary/25"
                             />
                           </div>
                           <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-400 pl-6">
@@ -1299,7 +1299,7 @@ export const DocumentsPage: React.FC = () => {
                     selectedFiles.length === 0 ||
                     isOverTotalLimit
                   }
-                  className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-4 py-2.5 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1597,7 +1597,7 @@ export const DocumentsPage: React.FC = () => {
                           previewDoc._id
                         )
                       }
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5"
+                      className="px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white rounded-xl text-xs font-semibold flex items-center gap-1.5"
                     >
                       <Check className="w-3.5 h-3.5" />
                       Verify

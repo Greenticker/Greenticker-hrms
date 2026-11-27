@@ -32,7 +32,7 @@ export const EmployeeWorkspace: React.FC<Props> = ({ sheet, rules, library, isOw
   return (
     <div className="space-y-4">
       {onBack && (
-        <button type="button" onClick={onBack} className="text-[11px] font-semibold text-[#039583] hover:underline cursor-pointer">
+        <button type="button" onClick={onBack} className="text-[11px] font-semibold text-accent hover:underline cursor-pointer">
           ← Back to list
         </button>
       )}
@@ -49,7 +49,7 @@ export const EmployeeWorkspace: React.FC<Props> = ({ sheet, rules, library, isOw
             type="button"
             onClick={() => setTab(id)}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              tab === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              tab === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Icon className="w-3.5 h-3.5" /> {label}

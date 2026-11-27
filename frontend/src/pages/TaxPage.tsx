@@ -431,7 +431,7 @@ export const TaxPage: React.FC = () => {
             onClick={() => setActiveTab(t.id as any)}
             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
               activeTab === t.id
-                ? 'bg-slate-900 text-white border-slate-900'
+                ? 'bg-primary text-white border-primary'
                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
             }`}
           >
@@ -598,7 +598,7 @@ export const TaxPage: React.FC = () => {
                   type="number"
                   value={sec80C.ppf}
                   onChange={(e) => setSec80C({ ...sec80C, ppf: Number(e.target.value) || 0 })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -608,7 +608,7 @@ export const TaxPage: React.FC = () => {
                   type="number"
                   value={sec80C.elss}
                   onChange={(e) => setSec80C({ ...sec80C, elss: Number(e.target.value) || 0 })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -618,7 +618,7 @@ export const TaxPage: React.FC = () => {
                   type="number"
                   value={sec80C.lifeInsurance}
                   onChange={(e) => setSec80C({ ...sec80C, lifeInsurance: Number(e.target.value) || 0 })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
 
@@ -628,7 +628,7 @@ export const TaxPage: React.FC = () => {
                   type="number"
                   value={sec80C.taxSaverFD}
                   onChange={(e) => setSec80C({ ...sec80C, taxSaverFD: Number(e.target.value) || 0 })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                 />
               </div>
             </div>
@@ -647,7 +647,7 @@ export const TaxPage: React.FC = () => {
                     type="number"
                     value={sec80D.selfSpouseChildren}
                     onChange={(e) => setSec80D({ ...sec80D, selfSpouseChildren: Number(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
                 <div>
@@ -656,7 +656,7 @@ export const TaxPage: React.FC = () => {
                     type="number"
                     value={sec80D.parents}
                     onChange={(e) => setSec80D({ ...sec80D, parents: Number(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
               </div>
@@ -673,7 +673,7 @@ export const TaxPage: React.FC = () => {
                     type="number"
                     value={hra.annualRentPaid}
                     onChange={(e) => setHra({ ...hra, annualRentPaid: Number(e.target.value) || 0 })}
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-slate-900"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -683,7 +683,7 @@ export const TaxPage: React.FC = () => {
                       type="text"
                       value={hra.landlordPan}
                       onChange={(e) => setHra({ ...hra, landlordPan: e.target.value })}
-                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-slate-900"
+                      className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/25"
                     />
                   </div>
                   <div>
@@ -709,7 +709,7 @@ export const TaxPage: React.FC = () => {
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs shadow-sm transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-primary-hover text-white font-semibold text-xs shadow-sm transition-all disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
               {isSaving ? 'Submitting Declarations...' : 'Save & Submit Tax Declarations'}
@@ -876,7 +876,7 @@ export const TaxPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePrintForm16}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs shadow-xs hover:bg-slate-800"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs hover:bg-primary-hover"
               >
                 <Printer className="w-4 h-4" />
                 Print Form 16
@@ -1010,7 +1010,7 @@ export const TaxPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePrintForm27A}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white font-semibold text-xs shadow-xs hover:bg-slate-800"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-semibold text-xs shadow-xs hover:bg-primary-hover"
               >
                 <Printer className="w-4 h-4" />
                 Print Form 27A

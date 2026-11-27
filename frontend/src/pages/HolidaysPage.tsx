@@ -221,8 +221,8 @@ export const HolidaysPage: React.FC = () => {
           }
         }}
         className={`group w-full text-left flex items-start gap-4 p-4 rounded-xl border transition cursor-pointer hover:shadow-sm scroll-mt-12 ${
-          h._id === nextHoliday?._id ? 'border-[#039583] bg-[#039583]/5' : 'border-slate-200 bg-white'
-        } ${past ? 'opacity-60' : ''} ${selectedKey === h.date ? 'ring-2 ring-[#023b77]' : ''}`}
+          h._id === nextHoliday?._id ? 'border-accent bg-accent/5' : 'border-slate-200 bg-white'
+        } ${past ? 'opacity-60' : ''} ${selectedKey === h.date ? 'ring-2 ring-primary' : ''}`}
       >
         <div className="w-14 shrink-0 text-center rounded-lg bg-slate-50 border border-slate-200 py-1.5">
           <div className="text-[10px] font-bold uppercase text-slate-500">{MONTHS[parseDate(h.date).getMonth()].slice(0, 3)}</div>
@@ -234,7 +234,7 @@ export const HolidaysPage: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-900">{h.name}</h3>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${style.badge}`}>{style.label}</span>
             {h._id === nextHoliday?._id && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-[#039583] text-white">Next</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-primary text-white">Next</span>
             )}
             {past && <span className="text-[10px] text-slate-400">Past</span>}
           </div>
@@ -251,7 +251,7 @@ export const HolidaysPage: React.FC = () => {
                 e.stopPropagation();
                 openEdit(h);
               }}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-[#023b77] hover:bg-slate-100 cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 cursor-pointer"
               aria-label={`Edit ${h.name}`}
               title="Edit"
             >
@@ -278,7 +278,7 @@ export const HolidaysPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Public Holidays</h1>
         </div>
@@ -286,7 +286,7 @@ export const HolidaysPage: React.FC = () => {
           <button
             type="button"
             onClick={() => openAdd()}
-            className="self-start md:self-auto flex items-center gap-2 px-4 py-2 bg-[#039583] hover:bg-[#027a6b] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
+            className="self-start md:self-auto flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-xs"
           >
             <Plus className="w-4 h-4" />
             <span>Add Holiday</span>
@@ -312,8 +312,8 @@ export const HolidaysPage: React.FC = () => {
       </div>
 
       {nextHoliday && (
-        <div className="p-4 rounded-2xl bg-[#039583]/10 border border-[#039583]/30 flex items-center gap-3">
-          <PartyPopper className="w-5 h-5 text-[#039583] shrink-0" />
+        <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30 flex items-center gap-3">
+          <PartyPopper className="w-5 h-5 text-accent shrink-0" />
           <p className="text-sm text-slate-800">
             Next holiday: <span className="font-bold">{nextHoliday.name}</span> on {nextHoliday.dayOfWeek}, {prettyDate(nextHoliday.date)}
             {(() => {
@@ -336,7 +336,7 @@ export const HolidaysPage: React.FC = () => {
             type="button"
             onClick={() => setTypeFilter(key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition cursor-pointer ${
-              typeFilter === key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              typeFilter === key ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
             }`}
           >
             {label}
@@ -361,7 +361,7 @@ export const HolidaysPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => { const n = new Date(); setCursor(new Date(n.getFullYear(), n.getMonth(), 1)); setSelectedKey(null); }}
-                  className="text-[11px] text-[#039583] font-semibold hover:underline cursor-pointer"
+                  className="text-[11px] text-accent font-semibold hover:underline cursor-pointer"
                 >
                   Today
                 </button>
@@ -394,11 +394,11 @@ export const HolidaysPage: React.FC = () => {
                     title={!dayHolidays.length && canManage ? 'Add a holiday on this day' : undefined}
                     className={`relative min-h-[64px] sm:min-h-[80px] rounded-lg border p-1.5 text-left transition ${
                       style ? `${style.cell} cursor-pointer hover:shadow-sm` : weekend ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-100'
-                    } ${inMonth ? '' : 'opacity-40'} ${selectedKey === key ? 'ring-2 ring-[#023b77]' : ''}`}
+                    } ${inMonth ? '' : 'opacity-40'} ${selectedKey === key ? 'ring-2 ring-primary' : ''}`}
                   >
                     <span
                       className={`inline-flex w-6 h-6 items-center justify-center rounded-full text-xs font-semibold ${
-                        key === todayKey ? 'bg-[#023b77] text-white' : weekend ? 'text-rose-400' : 'text-slate-700'
+                        key === todayKey ? 'bg-primary text-white' : weekend ? 'text-rose-400' : 'text-slate-700'
                       }`}
                     >
                       {d.getDate()}
@@ -461,7 +461,7 @@ export const HolidaysPage: React.FC = () => {
                   autoFocus
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/25"
                   placeholder="e.g. Diwali"
                 />
               </div>
@@ -546,7 +546,7 @@ export const HolidaysPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] hover:bg-[#012a52] rounded-lg cursor-pointer disabled:opacity-60"
+                  className="px-4 py-2 text-xs font-bold text-white bg-primary hover:bg-navy rounded-lg cursor-pointer disabled:opacity-60"
                 >
                   {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Holiday'}
                 </button>

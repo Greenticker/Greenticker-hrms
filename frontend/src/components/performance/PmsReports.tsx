@@ -49,32 +49,32 @@ const StageBar: React.FC<{ label: string; counts: Record<string, number>; order:
 );
 
 const GOAL_ORDER: [string, string, string][] = [
-  ['LOCKED', STATUS_STYLE.LOCKED.label, '#039583'],
-  ['APPROVED', STATUS_STYLE.APPROVED.label, '#6366f1'],
-  ['SUBMITTED', STATUS_STYLE.SUBMITTED.label, '#3b82f6'],
-  ['DRAFT', STATUS_STYLE.DRAFT.label, '#f59e0b'],
+  ['LOCKED', STATUS_STYLE.LOCKED.label, '#4C6FBF'],
+  ['APPROVED', STATUS_STYLE.APPROVED.label, '#4C6FBF'],
+  ['SUBMITTED', STATUS_STYLE.SUBMITTED.label, '#0284C7'],
+  ['DRAFT', STATUS_STYLE.DRAFT.label, '#D97706'],
   ['NOT_STARTED', STATUS_STYLE.NOT_STARTED.label, '#cbd5e1'],
 ];
 const CHECKIN_ORDER: [string, string, string][] = [
-  ['DONE', 'Done', '#039583'],
-  ['WITH_MANAGER', 'With manager', '#3b82f6'],
+  ['DONE', 'Done', '#4C6FBF'],
+  ['WITH_MANAGER', 'With manager', '#0284C7'],
   ['OPEN', 'Open', '#cbd5e1'],
 ];
 const NOM_ORDER: [string, string, string][] = [
-  ['APPROVED', 'Approved', '#039583'],
-  ['SUBMITTED', 'With manager', '#3b82f6'],
-  ['DRAFT', 'Draft', '#f59e0b'],
+  ['APPROVED', 'Approved', '#4C6FBF'],
+  ['SUBMITTED', 'With manager', '#0284C7'],
+  ['DRAFT', 'Draft', '#D97706'],
   ['NOT_STARTED', 'Not started', '#cbd5e1'],
 ];
 const APPRAISAL_ORDER: [string, string, string][] = [
-  ['CLOSED', APPRAISAL_STATUS.CLOSED.label, '#039583'],
-  ['APPEAL', APPRAISAL_STATUS.APPEAL.label, '#e11d48'],
-  ['PUBLISHED', APPRAISAL_STATUS.PUBLISHED.label, '#14b8a6'],
+  ['CLOSED', APPRAISAL_STATUS.CLOSED.label, '#4C6FBF'],
+  ['APPEAL', APPRAISAL_STATUS.APPEAL.label, '#DC2626'],
+  ['PUBLISHED', APPRAISAL_STATUS.PUBLISHED.label, '#23408E'],
   ['FINAL', APPRAISAL_STATUS.FINAL.label, '#64748b'],
-  ['CALIBRATION', APPRAISAL_STATUS.CALIBRATION.label, '#a855f7'],
-  ['REVIEWER', APPRAISAL_STATUS.REVIEWER.label, '#6366f1'],
-  ['MANAGER', APPRAISAL_STATUS.MANAGER.label, '#3b82f6'],
-  ['SELF', APPRAISAL_STATUS.SELF.label, '#f59e0b'],
+  ['CALIBRATION', APPRAISAL_STATUS.CALIBRATION.label, '#7C3AED'],
+  ['REVIEWER', APPRAISAL_STATUS.REVIEWER.label, '#4C6FBF'],
+  ['MANAGER', APPRAISAL_STATUS.MANAGER.label, '#0284C7'],
+  ['SELF', APPRAISAL_STATUS.SELF.label, '#D97706'],
   ['NOT_STARTED', 'Not started', '#cbd5e1'],
 ];
 const CHECKIN_LABEL: Record<string, string> = { Q1: 'Q1 check-in', Q2: 'Q2 check-in', MID_YEAR: 'Mid-year review', Q3: 'Q3 check-in' };
@@ -107,7 +107,7 @@ export const PmsReports: React.FC<{ onOpenEmployee: (employeeId: string) => void
       </p>
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl w-fit max-w-full overflow-x-auto">
         {views.map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setView(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${view === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600'}`}>
+          <button key={id} type="button" onClick={() => setView(id)} className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${view === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600'}`}>
             {label}
           </button>
         ))}
@@ -125,7 +125,7 @@ export const PmsReports: React.FC<{ onOpenEmployee: (employeeId: string) => void
                   <span className="text-slate-500 font-mono">{data.status.feedback.given} / {data.status.feedback.assigned}</span>
                 </div>
                 <div className="h-3 rounded-full overflow-hidden bg-slate-100">
-                  <div className="h-full bg-[#039583]" style={{ width: `${data.status.feedback.assigned ? (data.status.feedback.given / data.status.feedback.assigned) * 100 : 0}%` }} />
+                  <div className="h-full bg-primary" style={{ width: `${data.status.feedback.assigned ? (data.status.feedback.given / data.status.feedback.assigned) * 100 : 0}%` }} />
                 </div>
               </div>
               <StageBar label="Year-end appraisal" counts={data.status.appraisal} order={APPRAISAL_ORDER} total={total} />
@@ -185,7 +185,7 @@ export const PmsReports: React.FC<{ onOpenEmployee: (employeeId: string) => void
               <div key={k} className="grid grid-cols-[170px_1fr_80px] items-center gap-3 text-xs">
                 <span className="font-semibold text-slate-700">{k} · {RATING_LABEL[Number(k)]}</span>
                 <div className="h-4 rounded-full bg-slate-100 overflow-hidden">
-                  <div className="h-full bg-[#023b77]" style={{ width: `${(data.ratingSpread[k].pct / maxPct) * 100}%` }} />
+                  <div className="h-full bg-primary" style={{ width: `${(data.ratingSpread[k].pct / maxPct) * 100}%` }} />
                 </div>
                 <span className="text-right font-mono text-slate-600">{data.ratingSpread[k].count} · {data.ratingSpread[k].pct}%</span>
               </div>

@@ -74,7 +74,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
                   value={form.companyName}
                   onChange={e => setField('companyName', e.target.value)}
                   placeholder="Acme Global Technologies"
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
@@ -92,7 +92,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
                     value={form.firstName}
                     onChange={e => setField('firstName', e.target.value)}
                     placeholder="Jane"
-                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -104,7 +104,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
                   value={form.lastName}
                   onChange={e => setField('lastName', e.target.value)}
                   placeholder="Doe"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
@@ -121,7 +121,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
                   value={form.email}
                   onChange={e => setField('email', e.target.value)}
                   placeholder="admin@acme.com"
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
@@ -139,7 +139,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
                   value={form.password}
                   onChange={e => setField('password', e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
@@ -147,7 +147,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-2.5 px-4 bg-[#039583] hover:bg-[#027d70] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full mt-2 py-2.5 px-4 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Register & Continue Setup <ArrowRight className="w-4 h-4" /></>}
             </button>
@@ -156,7 +156,7 @@ export const RegisterCompanyPage: React.FC<RegisterCompanyPageProps> = ({ onSucc
           <div className="mt-6 text-center">
             <button
               onClick={onNavigateToLogin}
-              className="text-xs font-semibold text-slate-600 hover:text-[#039583] cursor-pointer"
+              className="text-xs font-semibold text-slate-600 hover:text-accent cursor-pointer"
             >
               Already registered? Sign in here
             </button>

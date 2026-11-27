@@ -38,10 +38,10 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
       <div className="flex-1 flex min-h-[calc(100vh-4rem)]">
         <Sidebar activeTab={activeTab} onSelectTab={onSelectTab} isOpen={isSidebarOpen} />
 
-        <main className="flex-1 p-6 md:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 min-w-0 p-6 md:p-8">
+          <div className="max-w-[1440px] mx-auto">
             {isReadOnly && (
-              <div role="note" className="mb-4 p-3 rounded-xl bg-slate-100 border border-slate-300 text-xs text-slate-700 flex items-center gap-2">
+              <div role="note" className="mb-4 p-4 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700 flex items-center gap-2">
                 <Lock className="w-4 h-4 shrink-0" />
                 Auditor access is read-only. You can view records but not create, change, approve or delete anything.
               </div>

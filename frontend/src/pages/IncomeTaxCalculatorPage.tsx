@@ -184,7 +184,7 @@ const DEDUCTION_FIELDS = (sec80c: { key: string; label: string }[]): { title: st
 ];
 
 const inputCls =
-  'w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]/30 focus:border-[#039583]';
+  'w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent';
 
 export const IncomeTaxCalculatorPage: React.FC = () => {
   const [options, setOptions] = useState<IncomeTaxOptions | null>(null);
@@ -407,7 +407,7 @@ export const IncomeTaxCalculatorPage: React.FC = () => {
     ? [
         { label: 'Old regime tax', value: inr(s.oldTax), tone: s.beneficialRegime === 'OLD' ? 'text-emerald-700' : 'text-slate-900' },
         { label: 'New regime tax', value: inr(s.newTax), tone: s.beneficialRegime === 'NEW' ? 'text-emerald-700' : 'text-slate-900' },
-        { label: `Monthly TDS (${regime === 'NEW' ? 'New' : 'Old'})`, value: inr(s.selectedMonthlyTds), tone: 'text-[#023b77]' },
+        { label: `Monthly TDS (${regime === 'NEW' ? 'New' : 'Old'})`, value: inr(s.selectedMonthlyTds), tone: 'text-primary' },
         { label: 'Monthly take-home (approx.)', value: inr(s.monthlyTakeHome), tone: 'text-slate-900' },
       ]
     : [];
@@ -415,7 +415,7 @@ export const IncomeTaxCalculatorPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
             <Calculator className="w-5 h-5" />
@@ -444,7 +444,7 @@ export const IncomeTaxCalculatorPage: React.FC = () => {
             type="button"
             onClick={loadEmployee}
             disabled={busy}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-[#039583] hover:bg-[#027a6b] flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
+            className="px-3 py-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary-hover flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
           >
             <UserCheck className="w-4 h-4" /> {busy ? 'Loading...' : 'Load employee'}
           </button>
@@ -513,7 +513,7 @@ export const IncomeTaxCalculatorPage: React.FC = () => {
             type="button"
             onClick={() => setSection(t.id)}
             className={`px-4 py-2 rounded-xl text-xs font-semibold border transition cursor-pointer ${
-              section === t.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+              section === t.id ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
             }`}
           >
             {t.label}

@@ -12,7 +12,7 @@ export const GROUP_LABEL: Record<Group360, string> = {
 };
 
 const GROUP_CLS: Record<Group360, string> = {
-  MANAGER: 'bg-[#023b77]/10 text-[#023b77]',
+  MANAGER: 'bg-primary/10 text-primary',
   PEER: 'bg-emerald-50 text-emerald-800',
   TEAM: 'bg-amber-50 text-amber-800',
   OTHER_DEPT: 'bg-slate-100 text-slate-700',
@@ -61,12 +61,12 @@ const RaterPicker: React.FC<{
         <div className="px-6 py-3 border-b border-slate-100">
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, department..." className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-900" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, department..." className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/25" />
           </div>
         </div>
         <div className="overflow-y-auto p-3 space-y-1">
           {shown.map((c) => (
-            <label key={c.employeeId} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer ${picked.includes(c.employeeId) ? 'border-[#039583] bg-[#039583]/5' : 'border-transparent hover:bg-slate-50'}`}>
+            <label key={c.employeeId} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer ${picked.includes(c.employeeId) ? 'border-accent bg-accent/5' : 'border-transparent hover:bg-slate-50'}`}>
               <input type="checkbox" checked={picked.includes(c.employeeId)} onChange={() => toggle(c.employeeId)} className="rounded border-slate-300" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-900">{c.name}</p>
@@ -81,7 +81,7 @@ const RaterPicker: React.FC<{
           <span className="text-xs text-slate-500">{picked.length} selected</span>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
-            <button type="button" onClick={() => onDone(picked)} className="px-4 py-2 text-xs font-bold text-white bg-[#023b77] rounded-lg cursor-pointer">Use these people</button>
+            <button type="button" onClick={() => onDone(picked)} className="px-4 py-2 text-xs font-bold text-white bg-primary rounded-lg cursor-pointer">Use these people</button>
           </div>
         </div>
       </div>
@@ -94,7 +94,7 @@ const RaterPicker: React.FC<{
 const ScoreBar: React.FC<{ value: number | null }> = ({ value }) => (
   <div className="flex items-center gap-2">
     <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-      {value != null && <div className="h-full bg-[#039583]" style={{ width: `${(value / 5) * 100}%` }} />}
+      {value != null && <div className="h-full bg-primary" style={{ width: `${(value / 5) * 100}%` }} />}
     </div>
     <span className="w-10 text-right font-mono text-xs font-bold text-slate-900">{value == null ? '—' : value.toFixed(2)}</span>
   </div>
@@ -103,7 +103,7 @@ const ScoreBar: React.FC<{ value: number | null }> = ({ value }) => (
 export const Report360View: React.FC<{ report: Report360 }> = ({ report }) => (
   <div className="space-y-4">
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <div className="bg-[#023b77] text-white rounded-2xl p-5">
+      <div className="bg-primary text-white rounded-2xl p-5">
         <p className="text-[11px] font-bold uppercase tracking-wider text-slate-300">360° score</p>
         <p className="text-4xl font-black mt-1">{report.score360 == null ? '—' : report.score360.toFixed(2)}</p>
         <p className="text-[11px] text-slate-300 mt-1">out of 5, weighted by group</p>
@@ -321,7 +321,7 @@ export const Feedback360Panel: React.FC<{ employeeId: string; isOwner: boolean }
                 type="button"
                 disabled={busy || raters.length === 0}
                 onClick={async () => (await saveFirst()) && run(() => pmsService.submitNominations(employeeId))}
-                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#039583] text-white hover:bg-[#027a6b] cursor-pointer disabled:opacity-40"
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-primary-hover cursor-pointer disabled:opacity-40"
               >
                 <Send className="w-3.5 h-3.5" /> Send to manager
               </button>
@@ -332,7 +332,7 @@ export const Feedback360Panel: React.FC<{ employeeId: string; isOwner: boolean }
               </button>
             )}
             {perms.canApprove && (
-              <button type="button" disabled={busy} onClick={async () => (await saveFirst()) && run(() => pmsService.approveNominations(employeeId))} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-[#023b77] text-white hover:bg-[#012a52] cursor-pointer">
+              <button type="button" disabled={busy} onClick={async () => (await saveFirst()) && run(() => pmsService.approveNominations(employeeId))} className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-primary text-white hover:bg-navy cursor-pointer">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Approve & send requests
               </button>
             )}

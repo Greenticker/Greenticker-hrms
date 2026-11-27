@@ -64,7 +64,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
                   required
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
                   placeholder="Sarah"
                 />
               </div>
@@ -75,7 +75,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
                   required
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
                   placeholder="Connor"
                 />
               </div>
@@ -88,7 +88,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
                 placeholder="priya.sharma@vetan.ai"
               />
             </div>
@@ -100,7 +100,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
                 placeholder="At least 6 characters"
               />
             </div>
@@ -110,7 +110,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as Role)}
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/25"
               >
                 <option value="EMPLOYEE">Employee (Self-Service)</option>
                 <option value="ADMIN">Administrator (Full Access)</option>
@@ -121,7 +121,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSuccess, onNavigateToL
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-lg shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {loading ? 'Creating Account...' : 'Register Account'}
               </button>

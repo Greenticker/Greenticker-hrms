@@ -11,7 +11,7 @@ const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
 const inputCls =
-  'w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]/30 focus:border-[#039583]';
+  'w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent';
 
 export const SalaryArrearPage: React.FC = () => {
   const [options, setOptions] = useState<ArrearOptions | null>(null);
@@ -131,7 +131,7 @@ export const SalaryArrearPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
             <CalendarClock className="w-5 h-5" />
@@ -160,7 +160,7 @@ export const SalaryArrearPage: React.FC = () => {
             type="button"
             onClick={loadEmployee}
             disabled={busy || !employeeId}
-            className="px-3 py-2 rounded-xl text-xs font-semibold bg-[#039583] hover:bg-[#027a6b] flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
+            className="px-3 py-2 rounded-xl text-xs font-semibold bg-primary hover:bg-primary-hover flex items-center gap-1.5 disabled:opacity-60 cursor-pointer"
           >
             <UserCheck className="w-4 h-4" /> {busy ? 'Loading...' : 'Load employee'}
           </button>

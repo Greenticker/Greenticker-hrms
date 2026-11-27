@@ -259,9 +259,9 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                   onClick={() => setStep(s.num)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isCurrent
-                      ? 'bg-[#039583] text-white shadow-md'
+                      ? 'bg-primary text-white shadow-md'
                       : isDone
-                      ? 'bg-slate-800 text-[#039583] border border-[#039583]/40'
+                      ? 'bg-slate-800 text-accent border border-accent/40'
                       : 'bg-slate-800 text-slate-400'
                   }`}
                 >
@@ -305,7 +305,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     required
                     value={profile.name}
                     onChange={e => setProfile({ ...profile, name: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -315,7 +315,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     required
                     value={profile.code}
                     onChange={e => setProfile({ ...profile, code: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -327,7 +327,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     type="text"
                     value={profile.domain}
                     onChange={e => setProfile({ ...profile, domain: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -337,7 +337,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     required
                     value={profile.contactEmail}
                     onChange={e => setProfile({ ...profile, contactEmail: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
                 <div>
@@ -346,7 +346,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     type="text"
                     value={profile.phone}
                     onChange={e => setProfile({ ...profile, phone: e.target.value })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -358,7 +358,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                   value={profile.taxIdentificationNumber}
                   onChange={e => setProfile({ ...profile, taxIdentificationNumber: e.target.value })}
                   placeholder="e.g. SFZ98412B"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
@@ -370,7 +370,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     placeholder="Street Address"
                     value={profile.address.street}
                     onChange={e => setProfile({ ...profile, address: { ...profile.address, street: e.target.value } })}
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <input
@@ -378,28 +378,28 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                       placeholder="City"
                       value={profile.address.city}
                       onChange={e => setProfile({ ...profile, address: { ...profile.address, city: e.target.value } })}
-                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <input
                       type="text"
                       placeholder="State"
                       value={profile.address.state}
                       onChange={e => setProfile({ ...profile, address: { ...profile.address, state: e.target.value } })}
-                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <input
                       type="text"
                       placeholder="Country"
                       value={profile.address.country}
                       onChange={e => setProfile({ ...profile, address: { ...profile.address, country: e.target.value } })}
-                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     <input
                       type="text"
                       placeholder="Zip Code"
                       value={profile.address.zipCode}
                       onChange={e => setProfile({ ...profile, address: { ...profile.address, zipCode: e.target.value } })}
-                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                      className="px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                   </div>
                 </div>
@@ -409,7 +409,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2.5 bg-[#039583] hover:bg-[#027d70] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save & Next <ArrowRight className="w-4 h-4" /></>}
                 </button>
@@ -431,7 +431,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     <img src={logoUrl} alt="Company Logo" className="h-16 object-contain" />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-[#023b77]/10 text-[#023b77] flex items-center justify-center mb-3">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-3">
                     <Upload className="w-8 h-8" />
                   </div>
                 )}
@@ -441,7 +441,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                   type="file"
                   accept="image/*"
                   onChange={e => e.target.files?.[0] && setLogoFile(e.target.files[0])}
-                  className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#039583] file:text-white hover:file:bg-[#027d70] cursor-pointer"
+                  className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-hover cursor-pointer"
                 />
                 {logoFile && <p className="text-xs font-medium text-emerald-600 mt-2">Selected: {logoFile.name}</p>}
               </div>
@@ -457,7 +457,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-5 py-2.5 bg-[#039583] hover:bg-[#027d70] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Save & Next <ArrowRight className="w-4 h-4" /></>}
                 </button>
@@ -484,12 +484,12 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     required
                     value={policyForm.title}
                     onChange={e => setPolicyForm({ ...policyForm, title: e.target.value })}
-                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                   <select
                     value={policyForm.category}
                     onChange={e => setPolicyForm({ ...policyForm, category: e.target.value })}
-                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent"
                   >
                     <option value="GENERAL">General</option>
                     <option value="CONDUCT">Code of Conduct</option>
@@ -504,21 +504,21 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     placeholder="Summary description"
                     value={policyForm.summary}
                     onChange={e => setPolicyForm({ ...policyForm, summary: e.target.value })}
-                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                    className="px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                   <input
                     type="file"
                     accept=".pdf"
                     required
                     onChange={e => e.target.files?.[0] && setPolicyFile(e.target.files[0])}
-                    className="text-xs text-slate-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#039583] file:text-white cursor-pointer"
+                    className="text-xs text-slate-500 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white cursor-pointer"
                   />
                 </div>
                 <div className="flex justify-end">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2 bg-slate-900 hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" /> Upload Policy
                   </button>
@@ -551,7 +551,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                 <button
                   type="button"
                   onClick={() => setStep(4)}
-                  className="px-5 py-2.5 bg-[#039583] hover:bg-[#027d70] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   Save & Next <ArrowRight className="w-4 h-4" />
                 </button>
@@ -573,7 +573,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                     setTemplates([...templates, newTmpl]);
                     setActiveTemplate(newTmpl);
                   }}
-                  className="px-3 py-1.5 bg-[#039583] text-white text-xs font-bold rounded-xl shadow-xs hover:bg-[#027d70] flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-xl shadow-xs hover:bg-primary-hover flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add Template
                 </button>
@@ -587,7 +587,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                       key={t._id}
                       onClick={() => setActiveTemplate(t)}
                       className={`w-full text-left p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                        activeTemplate?._id === t._id ? 'bg-[#023b77] text-white border-[#023b77]' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        activeTemplate?._id === t._id ? 'bg-primary text-white border-primary' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       <p className="font-bold">{t.title}</p>
@@ -605,7 +605,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                           type="text"
                           value={activeTemplate.title}
                           onChange={e => setActiveTemplate({ ...activeTemplate, title: e.target.value })}
-                          className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#039583]"
+                          className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-accent"
                         />
                       </div>
 
@@ -616,7 +616,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                             key={token}
                             type="button"
                             onClick={() => insertToken(token)}
-                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-mono font-semibold text-[#023b77] hover:bg-slate-100 cursor-pointer shadow-xs"
+                            className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-mono font-semibold text-primary hover:bg-slate-100 cursor-pointer shadow-xs"
                           >
                             {token}
                           </button>
@@ -625,7 +625,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
 
                       <div>
                         <label className="block text-xs font-semibold text-slate-700 mb-1">Upload Word / PDF Template Document (.doc, .docx, .pdf)</label>
-                        <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-white hover:border-[#039583] transition">
+                        <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center bg-white hover:border-accent transition">
                           <input
                             type="file"
                             accept=".doc,.docx,.pdf"
@@ -635,7 +635,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                                 setActiveTemplate({ ...activeTemplate, fileName: file.name, content: `[Uploaded Document Template: ${file.name}]` });
                               }
                             }}
-                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-[#039583] file:text-white hover:file:bg-[#027d70] cursor-pointer"
+                            className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-white hover:file:bg-primary-hover cursor-pointer"
                           />
                           <p className="text-[11px] text-slate-400 mt-2">
                             {activeTemplate.fileName ? `Selected: ${activeTemplate.fileName}` : 'Choose Word (.doc, .docx) or PDF (.pdf) letter/policy template file'}
@@ -655,7 +655,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
                           type="button"
                           onClick={handleSaveTemplate}
                           disabled={loading}
-                          className="px-4 py-1.5 bg-[#039583] hover:bg-[#027d70] text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                          className="px-4 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
                         >
                           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Template'}
                         </button>
@@ -700,7 +700,7 @@ export const CompanySetupPage: React.FC<CompanySetupPageProps> = ({ onComplete }
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1 bg-primary text-white text-xs font-semibold rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" /> Print / PDF
                 </button>

@@ -127,10 +127,10 @@ export const AnnouncementsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Megaphone className="w-6 h-6 text-[#039583]" />
+            <Megaphone className="w-6 h-6 text-accent" />
             <span>Company Broadcasts & Announcements</span>
           </h1>
           <p className="text-xs text-slate-200 mt-1">
@@ -141,7 +141,7 @@ export const AnnouncementsPage: React.FC = () => {
         {(user?.role === 'ADMIN' || user?.role === 'HR') && (
           <button
             onClick={() => setIsComposeOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#039583] hover:bg-[#023b77] text-white font-semibold text-xs shadow-sm transition-all border border-[#039583] cursor-pointer"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-xs shadow-sm transition-all border border-accent cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Publish Announcement / Poll</span>
@@ -333,7 +333,7 @@ export const AnnouncementsPage: React.FC = () => {
                   placeholder="e.g. Q4 Company All-Hands Town Hall Announcement"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary/25"
                 />
               </div>
 
@@ -375,7 +375,7 @@ export const AnnouncementsPage: React.FC = () => {
                   placeholder="Detail the announcement information, links, agenda, and guidelines..."
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-primary/25"
                 />
               </div>
 
@@ -477,7 +477,7 @@ export const AnnouncementsPage: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover rounded-xl shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? 'Publishing...' : 'Broadcast'}
                 </button>

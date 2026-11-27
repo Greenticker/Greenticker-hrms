@@ -126,7 +126,7 @@ const newId = () => `dep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}
 
 const inputCls = (hasError?: boolean, extra = '') =>
   `w-full rounded-lg border px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 ${
-    hasError ? 'border-rose-400 focus:ring-rose-500' : 'border-slate-300 focus:ring-slate-900'
+    hasError ? 'border-rose-400 focus:ring-rose-500' : 'border-slate-300 focus:ring-primary/25'
   } ${extra}`;
 
 const Field: React.FC<{
@@ -172,7 +172,7 @@ const YesNoRadio: React.FC<{
         key={opt}
         className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
           value === opt
-            ? 'border-slate-900 bg-slate-900 text-white'
+            ? 'border-primary bg-primary text-white'
             : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
         }`}
       >
@@ -811,7 +811,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
                         hasCorrection
                           ? 'bg-rose-50 text-rose-800 border border-rose-300 ring-1 ring-rose-400'
                           : isCurrent
-                          ? 'bg-slate-900 text-white shadow-xs'
+                          ? 'bg-primary text-white shadow-xs'
                           : isVerified
                           ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
                           : isDone
@@ -1549,7 +1549,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ onComplete }) =>
                 type="button"
                 onClick={handleNextStep}
                 disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-primary-hover disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
               >
                 {isSubmitting ? (
                   'Saving…'

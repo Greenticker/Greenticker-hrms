@@ -106,7 +106,7 @@ const SheetList: React.FC<{
               type="button"
               onClick={() => setFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer ${
-                filter === s ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                filter === s ? 'bg-primary text-white border-primary' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
               {s === 'ALL' ? 'All' : STATUS_STYLE[s].label} <span className="opacity-60 font-mono">{counts[s] || 0}</span>
@@ -120,7 +120,7 @@ const SheetList: React.FC<{
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search name, code, department..."
             aria-label="Search employees"
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-slate-900"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary/25"
           />
         </div>
       </div>
@@ -165,7 +165,7 @@ const SheetList: React.FC<{
                   <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">{r.kpiScore != null ? r.kpiScore.toFixed(2) : '—'}</td>
                   <td className="py-2.5 px-4 text-right">
                     {openable && (
-                      <span className="text-[11px] font-bold text-[#039583]">{r.sheetId ? 'Open →' : 'Start →'}</span>
+                      <span className="text-[11px] font-bold text-accent">{r.sheetId ? 'Open →' : 'Start →'}</span>
                     )}
                   </td>
                 </tr>
@@ -290,7 +290,7 @@ export const PerformancePage: React.FC = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="bg-[#023b77] text-white p-6 rounded-2xl border border-[#039583]/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-primary text-white p-6 rounded-2xl border border-accent/30 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Performance Management</h1>
           {cycle ? (
@@ -324,7 +324,7 @@ export const PerformancePage: React.FC = () => {
               type="button"
               onClick={() => switchTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap cursor-pointer ${
-                tab === id ? 'bg-[#023b77] text-white' : 'text-slate-600 hover:bg-slate-100'
+                tab === id ? 'bg-primary text-white' : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Icon className="w-3.5 h-3.5" /> {label}
@@ -348,7 +348,7 @@ export const PerformancePage: React.FC = () => {
             {ctx.isHR ? 'Create and activate an appraisal cycle under Setup to open goal setting.' : 'HR will open the appraisal cycle soon.'}
           </p>
           {ctx.isHR && (
-            <button type="button" onClick={() => switchTab('setup')} className="mt-2 px-4 py-2 text-xs font-bold text-white bg-[#039583] rounded-lg cursor-pointer">
+            <button type="button" onClick={() => switchTab('setup')} className="mt-2 px-4 py-2 text-xs font-bold text-white bg-primary rounded-lg cursor-pointer">
               Go to Setup
             </button>
           )}
@@ -366,13 +366,13 @@ export const PerformancePage: React.FC = () => {
           </div>
         ) : (
           <div className="bg-white p-12 rounded-2xl border border-slate-200 text-center space-y-3">
-            <Target className="w-8 h-8 text-[#039583] mx-auto" />
+            <Target className="w-8 h-8 text-accent mx-auto" />
             <p className="text-sm font-semibold text-slate-800">Set your goals for {cycle.name}</p>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
               Add {ctx.rules.minLines}–{ctx.rules.maxLines} KPIs, each weighted {ctx.rules.minWeight}–{ctx.rules.maxWeight}%, totalling 100%, including the
               "{ctx.rules.complianceKra}" KRA at {ctx.rules.complianceMinWeight}% or more. Your manager and reviewer then approve them.
             </p>
-            <button type="button" onClick={startMine} className="px-5 py-2.5 text-xs font-bold text-white bg-[#039583] hover:bg-[#027a6b] rounded-xl cursor-pointer">
+            <button type="button" onClick={startMine} className="px-5 py-2.5 text-xs font-bold text-white bg-primary hover:bg-primary-hover rounded-xl cursor-pointer">
               Start my goal sheet
             </button>
           </div>
@@ -412,7 +412,7 @@ export const PerformancePage: React.FC = () => {
                 key={id}
                 type="button"
                 onClick={() => setAllView(id)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${allView === id ? 'bg-white text-[#023b77] shadow-xs' : 'text-slate-600'}`}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${allView === id ? 'bg-white text-primary shadow-xs' : 'text-slate-600'}`}
               >
                 {label}
               </button>
