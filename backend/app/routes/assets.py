@@ -27,6 +27,9 @@ router = APIRouter()
 
 ASSET_ADMIN = ("ADMIN", "ADMIN_1", "ADMIN_2", "SUPER_ADMIN")
 READ_ALL = ASSET_ADMIN + ("HR", "FINANCE", "ACCOUNTS", "AUDITORS")
+# Who may record a new asset into stock. HR can add assets, but issuing, returns,
+# transfers, recoveries and write-offs stay with ASSET_ADMIN (maker-checker).
+ASSET_CREATORS = ASSET_ADMIN + ("HR",)
 TYPES = ("LAPTOP", "DESKTOP", "MONITOR", "PHONE", "SIM", "TABLET", "HEADSET", "CHARGER", "CHAIR", "DESK", "CABINET",
          "SOFTWARE_LICENSE", "SUBSCRIPTION", "CAR", "BIKE", "OTHER")
 DEFAULT_LIFE = {"LAPTOP": 3, "DESKTOP": 3, "MONITOR": 5, "PHONE": 2, "SIM": 1, "TABLET": 3, "HEADSET": 2, "CHARGER": 2,
@@ -122,7 +125,7 @@ async def register(user: dict = Depends(require_role(*READ_ALL))):
 
 
 @router.post("/assets")
-async def create_asset(request: Request, user: dict = Depends(require_role(*ASSET_ADMIN))):
+async def create_asset(request: Request, user: dict = Depends(require_role(*ASSET_CREATORS))):
     b = await read_body(request)
     errors = []
     a_type = js_str(b.get("type") or "").upper()

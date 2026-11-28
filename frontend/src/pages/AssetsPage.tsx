@@ -11,12 +11,15 @@ import {
 type Tab = 'mine' | 'requests' | 'all' | 'register';
 const ADMINS = ['ADMIN', 'ADMIN_1', 'ADMIN_2', 'SUPER_ADMIN'];
 const READ_ALL = [...ADMINS, 'HR', 'FINANCE', 'ACCOUNTS', 'AUDITORS'];
+// May record new assets (mirrors ASSET_CREATORS in the API). Issuing etc. stays admin-only.
+const CREATORS = [...ADMINS, 'HR'];
 
 export const AssetsPage: React.FC = () => {
   const { user } = useAuth();
   const role = user?.role || '';
   const hasEmployee = !!(user?.employee || user?.employeeId);
   const isAdmin = ADMINS.includes(role);
+  const canCreate = CREATORS.includes(role);
   const tabs = useMemo(() => {
     const t: { id: Tab; label: string }[] = [];
     if (hasEmployee) t.push({ id: 'mine', label: 'My assets' });
@@ -48,7 +51,7 @@ export const AssetsPage: React.FC = () => {
   return (
     <div className="space-y-5">
       <PageHeader title="Assets" subtitle="Request, issue, acknowledge, return and track company assets. Records are never deleted; write-offs need Finance approval.">
-        {tab === 'all' && isAdmin && <button className={btn(PRIMARY)} onClick={() => setCreate({ type: 'LAPTOP', name: '', assetTag: '', serialNumber: '', vendor: '', cost: '', purchaseDate: '', invoiceNumber: '', depreciationMethod: 'SLM' })}>Record asset</button>}
+        {tab === 'all' && canCreate && <button className={btn(PRIMARY)} onClick={() => setCreate({ type: 'LAPTOP', name: '', assetTag: '', serialNumber: '', vendor: '', cost: '', purchaseDate: '', invoiceNumber: '', depreciationMethod: 'SLM' })}>Record asset</button>}
       </PageHeader>
       <Tabs tabs={tabs} value={tab} onChange={(t) => { setTab(t); setMsg(null); }} />
       <Msg msg={msg} />
