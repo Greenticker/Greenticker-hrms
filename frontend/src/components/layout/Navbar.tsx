@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Role } from '../../types/auth';
-import { Bell, LogOut, ChevronDown, UserCheck } from 'lucide-react';
+import { Bell, LogOut, ChevronDown, UserCheck, UserCircle } from 'lucide-react';
 import { VetanLogo } from '../common/anusyuti_logo';
 
 interface NavbarProps {
@@ -10,6 +10,7 @@ interface NavbarProps {
   currentSectionTitle?: string;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentSectionTitle = 'vetan.ai.',
   isSidebarOpen,
   onToggleSidebar,
+  onOpenProfile,
 }) => {
   const { user, logout, switchRole } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -213,6 +215,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
 
               <div className="px-2 pt-2">
+                {onOpenProfile && (
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      onOpenProfile();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-primary-subtle hover:text-primary rounded-lg transition-colors cursor-pointer"
+                  >
+                    <UserCircle className="w-4 h-4" />
+                    My Profile
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setIsProfileOpen(false);

@@ -33,6 +33,7 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
         currentSectionTitle={sectionTitle}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onOpenProfile={() => onSelectTab('profile')}
       />
 
       <div className="flex-1 flex min-h-[calc(100vh-4rem)]">

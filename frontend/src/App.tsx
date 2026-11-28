@@ -299,7 +299,9 @@ function MainApp() {
     <BaseLayout
       activeTab={
         activeTab === 'employee_detail'
-          ? 'employees'
+          ? selectedEmployeeId && selectedEmployeeId === user.employee?._id
+            ? 'profile'
+            : 'employees'
           : activeTab === 'roles_permissions' && SETTINGS_ADMIN_ROLES.includes(user.role)
           ? 'settings'
           : activeTab

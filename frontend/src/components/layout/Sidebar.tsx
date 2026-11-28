@@ -3,6 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import { Role } from '../../types/auth';
 import {
   LayoutDashboard,
+  UserCircle,
+  Briefcase,
+  Target,
   Users,
   UserPlus,
   FolderOpen,
@@ -124,11 +127,38 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
         ],
       },
       {
+        id: 'talent',
+        title: 'Hiring & Performance',
+        icon: Briefcase,
+        items: [
+          {
+            // Recruiters manage the pipeline; managers/employees see openings and referrals
+            id: 'recruitment',
+            label: 'Recruitment & Hiring',
+            icon: Briefcase,
+            roles: ['SUPER_ADMIN', 'ADMIN_1', 'ADMIN_2', 'FINANCE', 'HR', 'AUDITORS', 'ADMIN', 'MANAGER', 'EMPLOYEE'],
+          },
+          {
+            // Everyone with an employee record has "My Performance"; team/admin tabs appear by role
+            id: 'performance',
+            label: isEmployee ? 'My Performance' : 'Performance',
+            icon: Target,
+            roles: ALL_ENTERPRISE_ROLES,
+          },
+        ],
+      },
+      {
         id: 'mywork',
         title: 'Time, Claims & Benefits',
         icon: CalendarDays,
         items: [
           { id: 'attendance', label: isEmployee ? 'My Attendance' : 'Attendance', icon: Clock, roles: ALL_ENTERPRISE_ROLES },
+          {
+            id: 'shifts',
+            label: 'Shifts & Timesheets',
+            icon: CalendarClock,
+            roles: ['SUPER_ADMIN', 'ADMIN_1', 'ADMIN_2', 'FINANCE', 'HR', 'ACCOUNTS', 'AUDITORS', 'ADMIN', 'MANAGER'],
+          },
           { id: 'leave', label: isEmployee ? 'My Leave' : 'Leave', icon: CalendarDays, roles: ALL_ENTERPRISE_ROLES },
           { id: 'expenses', label: isEmployee ? 'My Claims' : 'Expense Claims', icon: Receipt, roles: ALL_ENTERPRISE_ROLES },
           { id: 'assets', label: isEmployee ? 'My Assets' : 'Assets', icon: Package, roles: ALL_ENTERPRISE_ROLES },
@@ -236,6 +266,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
     roles: ALL_ENTERPRISE_ROLES,
   };
 
+  // Pinned under Dashboard for every role
+  const profileItem: NavItem = {
+    id: 'profile',
+    label: 'My Profile',
+    icon: UserCircle,
+    roles: ALL_ENTERPRISE_ROLES,
+  };
+
   const renderItem = (item: NavItem, nested = false) => {
     const Icon = item.icon;
     const isActive = activeTab === item.id;
@@ -275,6 +313,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
     .map((g) => ({ ...g, items: g.items.filter(isVisible) }))
     .filter((g) => g.items.length > 0);
   const showDashboard = isVisible(dashboardItem);
+  const showProfile = isVisible(profileItem);
   const nothingFound = Boolean(searchTerm) && !showDashboard && visibleGroups.length === 0;
 
   return (
@@ -312,7 +351,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, isOpen
         </div>
 
         <nav aria-label="Main" className="px-3">
-          {showDashboard && <div className="mb-4">{renderItem(dashboardItem)}</div>}
+          {(showDashboard || showProfile) && (
+            <div className="mb-4 space-y-1">
+              {showDashboard && renderItem(dashboardItem)}
+              {showProfile && renderItem(profileItem)}
+            </div>
+          )}
 
           {visibleGroups.length > 0 && (
             <div>
