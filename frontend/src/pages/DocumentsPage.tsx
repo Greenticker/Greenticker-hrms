@@ -714,7 +714,7 @@ export const DocumentsPage: React.FC = () => {
       {/* Filters */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4">
         <div className="flex flex-col lg:flex-row gap-3">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
 
             <input
@@ -728,7 +728,7 @@ export const DocumentsPage: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
             <Filter className="w-4 h-4 text-slate-400" />
 
             <select
@@ -736,7 +736,7 @@ export const DocumentsPage: React.FC = () => {
               onChange={(event) =>
                 setSelectedCategory(event.target.value)
               }
-              className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none"
+              className="min-w-0 max-w-full flex-1 sm:flex-none px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
             >
               <option value="ALL">
                 All Categories
@@ -757,7 +757,7 @@ export const DocumentsPage: React.FC = () => {
               onChange={(event) =>
                 setSelectedStatus(event.target.value)
               }
-              className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none"
+              className="min-w-0 max-w-full flex-1 sm:flex-none px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary"
             >
               <option value="ALL">
                 All Statuses
@@ -817,8 +817,8 @@ export const DocumentsPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div>
+            <table className="w-full table-fixed text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70">
                   <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
@@ -826,24 +826,24 @@ export const DocumentsPage: React.FC = () => {
                   </th>
 
                   {isAdminOrHr && (
-                    <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                    <th className="w-[20%] px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
                       Employee
                     </th>
                   )}
 
-                  <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  <th className="hidden lg:table-cell w-[14%] px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
                     Category
                   </th>
 
-                  <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  <th className="w-[18%] lg:w-[14%] px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
                     Status
                   </th>
 
-                  <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  <th className="hidden md:table-cell w-[15%] px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400">
                     Uploaded
                   </th>
 
-                  <th className="px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 text-right">
+                  <th className="w-32 xl:w-48 px-5 py-3 text-[10px] uppercase tracking-wider font-bold text-slate-400 text-right">
                     Actions
                   </th>
                 </tr>
@@ -862,12 +862,17 @@ export const DocumentsPage: React.FC = () => {
                         </div>
 
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-900 truncate max-w-[240px]">
+                          <p className="text-xs font-semibold text-slate-900 truncate" title={doc.title}>
                             {doc.title}
                           </p>
 
-                          <p className="text-[10px] text-slate-400 truncate max-w-[240px] mt-0.5">
+                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
                             {doc.fileName} · {doc.fileSize}
+                          </p>
+
+                          <p className="lg:hidden text-[10px] text-slate-500 truncate mt-0.5">
+                            {getCategoryLabel(doc.category)}
+                            <span className="md:hidden"> · {formatDate(doc.uploadedAt)}</span>
                           </p>
                         </div>
                       </div>
@@ -876,7 +881,7 @@ export const DocumentsPage: React.FC = () => {
                     {isAdminOrHr && (
                       <td className="px-5 py-4">
                         <div>
-                          <p className="text-xs font-medium text-slate-800">
+                          <p className="text-xs font-medium text-slate-800 break-words">
                             {doc.employeeName ||
                               'Unknown employee'}
                           </p>
@@ -888,15 +893,15 @@ export const DocumentsPage: React.FC = () => {
                       </td>
                     )}
 
-                    <td className="px-5 py-4">
-                      <span className="text-xs text-slate-600">
+                    <td className="hidden lg:table-cell px-5 py-4">
+                      <span className="text-xs text-slate-600 break-words">
                         {getCategoryLabel(doc.category)}
                       </span>
                     </td>
 
                     <td className="px-5 py-4">
                       <span
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-semibold ${getStatusClasses(
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-semibold break-all ${getStatusClasses(
                           doc.status
                         )}`}
                       >
@@ -919,7 +924,7 @@ export const DocumentsPage: React.FC = () => {
                       </span>
                     </td>
 
-                    <td className="px-5 py-4">
+                    <td className="hidden md:table-cell px-5 py-4">
                       <div className="flex items-center gap-1.5 text-xs text-slate-600">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
 
@@ -937,7 +942,7 @@ export const DocumentsPage: React.FC = () => {
                     </td>
 
                     <td className="px-5 py-4">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <button
                           onClick={() =>
                             handleView(doc)

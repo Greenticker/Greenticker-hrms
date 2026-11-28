@@ -351,7 +351,7 @@ export const HolidaysPage: React.FC = () => {
       {/* Calendar always shows; loading / empty states live in the list panel */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-4 items-start">
           {/* ---------------- CALENDAR (left) ---------------- */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 lg:sticky lg:top-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <button type="button" onClick={() => shiftMonth(-1)} className="p-2 rounded-lg hover:bg-slate-100 cursor-pointer" aria-label="Previous month">
                 <ChevronLeft className="w-4 h-4" />
@@ -416,7 +416,10 @@ export const HolidaysPage: React.FC = () => {
           </div>
 
           {/* ---------------- LIST (right) ---------------- */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 space-y-5 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+          {/* On desktop the list is absolutely positioned so the calendar alone sets the row height;
+              the list then matches it exactly and scrolls inside. */}
+          <div className="relative lg:self-stretch">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-6 space-y-5 max-h-[32rem] overflow-y-auto lg:max-h-none lg:absolute lg:inset-0">
             {loading ? (
               <p className="py-12 text-center text-xs text-slate-400">Loading holiday schedule...</p>
             ) : filtered.length === 0 ? (
@@ -424,7 +427,7 @@ export const HolidaysPage: React.FC = () => {
             ) : (
               groups.map((g) => (
                 <section key={g.key} className="space-y-2">
-                  <h2 className="sticky top-0 z-10 -mx-4 px-4 py-1.5 bg-white text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                  <h2 className="sticky -top-4 sm:-top-6 z-10 -mx-4 px-4 sm:-mx-6 sm:px-6 py-1.5 bg-white text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                     <Calendar className="w-3.5 h-3.5" /> {g.label}
                     <span className="text-slate-400 font-normal normal-case">({g.items.length})</span>
                   </h2>
@@ -432,6 +435,7 @@ export const HolidaysPage: React.FC = () => {
                 </section>
               ))
             )}
+          </div>
           </div>
         </div>
 

@@ -101,6 +101,22 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
       desc: 'Read-Only compliance & statutory auditing across all 18 modules',
       color: 'border-rose-300 bg-rose-50/70 hover:border-rose-500',
     },
+    {
+      role: 'MANAGER' as Role,
+      title: 'Manager',
+      email: 'manager@vetan.ai',
+      pass: 'Manager@12345',
+      desc: 'Team approvals: leave, attendance regularization, expenses, goals & appraisals for direct reports',
+      color: 'border-sky-300 bg-sky-50/70 hover:border-sky-500',
+    },
+    {
+      role: 'EMPLOYEE' as Role,
+      title: 'Employee',
+      email: 'employee@vetan.ai',
+      pass: 'Employee@12345',
+      desc: 'Self-service: profile, attendance, leave, payslips, documents, holidays & resignation',
+      color: 'border-slate-300 bg-slate-50 hover:border-slate-500',
+    },
   ];
 
   return (
@@ -176,7 +192,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onNavigateToSig
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-slate-900 hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/25 disabled:opacity-50 transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/25 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {loading ? 'Authenticating with JWT...' : 'Sign In to Workspace'}
               </button>
